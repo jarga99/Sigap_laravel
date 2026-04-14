@@ -119,6 +119,7 @@ const saveProfile = async () => {
         const formData = new FormData()
         formData.append('fullName', form.value.fullName)
         formData.append('email', form.value.email)
+        formData.append('type', 'profiles')
         formData.append('oldPassword', form.value.oldPassword)
         if (form.value.password) {
             formData.append('password', form.value.password)

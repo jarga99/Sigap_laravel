@@ -11,15 +11,33 @@ export async function getSession(customToken?: string | null) {
     const token = (customToken) || (headersList.get('authorization')?.split(' ')[1])
 
     if (!token) return null
-    const decoded = jwt.verify(token, SECRET) as jwt.JwtPayload
+    
+    // Verifikasi Token
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, SECRET) as jwt.JwtPayload;
+    } catch (jwtErr: any) {
+      console.warn(`[AUTH] Token Invalid/Expired: ${jwtErr.message}`);
+      return null;
+    }
 
     if (decoded.userId && decoded.sessionId) {
       const user = await prisma.user.findUnique({
-        where: { id: decoded.userId }
+        where: { id: Number(decoded.userId) }, // Pastikan ID adalah Number
+        include: {
+          department: {
+            select: { id: true, name: true, name_en: true }
+          }
+        }
       })
       
+      if (!user) {
+        console.warn(`[AUTH] User ID ${decoded.userId} tidak ditemukan di database.`);
+        return null;
+      }
+
       // Jika seeder baru dijalankan dan user.sessionId kosong, update saja (self-healing)
-      if (user && !user.sessionId) {
+      if (!user.sessionId) {
         await prisma.user.update({
           where: { id: user.id },
           data: { sessionId: decoded.sessionId }
@@ -27,13 +45,23 @@ export async function getSession(customToken?: string | null) {
       }
 
       // Jika session ID tidak valid (login di browser/device lain), tolak.
-      if (!user || (user.sessionId && user.sessionId !== decoded.sessionId)) {
+      if (user.sessionId && user.sessionId !== decoded.sessionId) {
+        console.warn(`[AUTH] Sesi Ganda Terdeteksi! ID di Token (${decoded.sessionId}) != ID di DB (${user.sessionId}) untuk User: ${user.username}`);
         return null
+      }
+
+      // Kembalikan objek gabungan yang kuat
+      return {
+        ...decoded,
+        userId: user.id, // Pastikan userId selalu ada di top level
+        user: user      // Sertakan objek user lengkap
       }
     }
 
-    return decoded // Berisi { userId, role, username, departmentId, sessionId }
-  } catch {
+    console.warn("[AUTH] Payload Token tidak lengkap (UserId/SessionId missing).");
+    return null;
+  } catch (error: any) {
+    console.error("[AUTH_CRITICAL] Kesalahan sistem di getSession:", error.message);
     return null
   }
 }

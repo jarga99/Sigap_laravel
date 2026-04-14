@@ -287,6 +287,7 @@ const handleSendFeedback = async () => {
     if (feedbackImage.value) {
       const formData = new FormData()
       formData.append('file', feedbackImage.value)
+      formData.append('type', 'feedback')
       
       try {
         const uploadRes = await api.post('/upload', formData, {

@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.formData()
     const file: File | null = data.get('file') as unknown as File
+    const type = (data.get('type') as string) || 'general'
 
     if (!file) {
       return NextResponse.json({ error: 'Tidak ada file yang diupload' }, { status: 400 })
@@ -23,23 +24,32 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Deteksi tipe konten untuk menentukan kompresi gambar
+    // Deteksi tipe konten
     const isImage = file.type.startsWith('image/')
     
-    // Buat nama file unik
-    const baseFilename = `${Date.now()}-${file.name.replaceAll(' ', '_')}`
-    const filename = isImage ? `${path.parse(baseFilename).name}.webp` : baseFilename
-    
-    // Tentukan lokasi simpan (folder public/uploads)
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-    
-    // Pastikan folder ada
+    // Tentukan folder penyimpanan: public/uploads/{type}
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', type)
     await mkdir(uploadDir, { recursive: true })
+
+    // Buat Traceability Nama File: TYPE_DATE_INITIALS_RANDOM
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
+    const userInitials = session.user.fullName
+      .split(' ')
+      .filter((n: string) => n.length > 0)
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase() || 'NA'
+    
+    // Import crypto for random hex
+    const crypto = require('crypto')
+    const randomHex = crypto.randomBytes(3).toString('hex')
+    
+    const fileExt = isImage ? '.webp' : (path.extname(file.name) || '.jpg')
+    const filename = `${type}_${dateStr}_${userInitials}_${randomHex}${fileExt}`
     const filepath = path.join(uploadDir, filename)
     
     // 3. Konversi dan Simpan File ke Harddisk
     if (isImage) {
-      // Auto compress: convert to WebP, resize if width > 1200px
       const processedBuffer = await sharp(buffer)
         .resize({ width: 1200, withoutEnlargement: true })
         .webp({ quality: 80 })
@@ -51,7 +61,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Balikkan URL gambar
-    const fileUrl = `/uploads/${filename}`
+    const fileUrl = `/uploads/${type}/${filename}`
 
     return NextResponse.json({ url: fileUrl })
 

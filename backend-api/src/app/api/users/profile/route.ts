@@ -77,8 +77,14 @@ export async function PUT(request: Request) {
       // Buat folder jika belum ada
       await mkdir(uploadDir, { recursive: true })
 
-      // Nama file unik
-      const filename = `${userId}-${Date.now()}${path.extname(file.name)}`
+      const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
+      const initials = user.fullName
+        ? user.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+        : 'USR'
+      const random = Math.random().toString(36).substring(2, 8)
+      const ext = path.extname(file.name) || '.webp'
+      const filename = `PROFILE_${date}_${initials}_${random}${ext}`
+      
       const filePath = path.join(uploadDir, filename)
       
       // Simpan file ke sistem

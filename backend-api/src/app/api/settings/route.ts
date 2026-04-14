@@ -132,15 +132,22 @@ export async function PUT(request: Request) {
     const saveFile = async (file: File, prefix: string) => {
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
-      const filename = `${prefix}-${Date.now()}-${file.name.replace(/\s+/g, '-')}`
       
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+      const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
+      const initials = session?.fullName
+        ? session.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+        : 'SYS'
+      const random = Math.random().toString(36).substring(2, 8)
+      const ext = path.extname(file.name) || '.webp'
+      const filename = `${prefix.toUpperCase()}_${date}_${initials}_${random}${ext}`
+      
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'settings')
       await mkdir(uploadDir, { recursive: true }) 
       
       const filepath = path.join(uploadDir, filename)
       await writeFile(filepath, buffer)
       
-      return `/uploads/${filename}`
+      return `/uploads/settings/${filename}`
     }
 
     // --- PROSES FILE LOGO & BG ---

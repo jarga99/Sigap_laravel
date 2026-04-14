@@ -11,7 +11,7 @@ async function translateToEnglish(text: string | null) {
       console.warn('⚠️ GEMINI_API_KEY is missing. Skipping translation.');
       return null;
     }
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: `Translate this Indonesian text to English. Only return the translated text, no quotes or additional info: "${text}"` }] }] })
@@ -50,22 +50,28 @@ async function main() {
     data: {
       username: 'sigap_admin',
       password,
-      fullName: 'Administrator Utama',
+      fullName: 'Administrator UPT BLK',
       role: Role.ADMIN,
-      email: 'admin@sigap.go.id'
+      email: 'admin@blkpasuruan.go.id'
     }
   })
 
-  // 3. Setup Categories (AI Translation Testing: name_en = null)
+  // 3. Setup Categories (14 Kategori Spesifik)
   const categoriesData = [
-    { name: 'Teknologi Informasi', icon: 'Monitor' },
-    { name: 'Sumber Daya Manusia', icon: 'Users' },
-    { name: 'Keuangan & Aset', icon: 'CreditCard' },
-    { name: 'Layanan Publik', icon: 'Globe' },
-    { name: 'Hukum & Regulasi', icon: 'Shield' },
-    { name: 'Kesehatan & Keselamatan', icon: 'Activity' },
-    { name: 'Pendidikan & Pelatihan', icon: 'BookOpen' },
-    { name: 'Pariwisata & Budaya', icon: 'Camera' }
+    { name: 'Tata Usaha', icon: 'FileText' },
+    { name: 'Pelatihan dan Sertifikasi', icon: 'Award' },
+    { name: 'Pengembangan dan Pemasaran', icon: 'TrendingUp' },
+    { name: 'Kejuruan TIK', icon: 'Monitor' },
+    { name: 'Kejuruan Bisman', icon: 'Briefcase' },
+    { name: 'Kejuruan Listrik', icon: 'Zap' },
+    { name: 'Kejuruan Otomotif', icon: 'Truck' },
+    { name: 'Kejuruan Elektro', icon: 'Cpu' },
+    { name: 'Kejuruan Fashion Teknologi', icon: 'Scissors' },
+    { name: 'Kejuruan Refrigerasi', icon: 'Wind' },
+    { name: 'Kejuruan Tekmek', icon: 'Settings' },
+    { name: 'Kejuruan PHP', icon: 'Waves' }, // PHP (Pemesinan)
+    { name: 'Kejuruan Batik', icon: 'Palette' },
+    { name: 'Kejuruan Tata Rias', icon: 'Heart' }
   ]
 
   const categories: any[] = []
@@ -84,17 +90,17 @@ async function main() {
     const created = await prisma.user.create({
       data: {
         username: `admin_event${i}`,
-        fullName: `EO Specialist ${i}`,
+        fullName: `Sub Bagian Tata Usaha ${i}`,
         role: Role.ADMIN_EVENT,
         password,
-        email: `event${i}@sigap.go.id`
+        email: `admin${i}@blkpasuruan.go.id`
       }
     })
     eventAdminUsers.push(created)
   }
 
   const employees: any[] = []
-  const employeeNames = ['Andi', 'Siti', 'Bambang', 'Rina', 'Eko', 'Dewi', 'Fajar', 'Gita', 'Hadi', 'Indah']
+  const employeeNames = ['Wira', 'Dika', 'Putra', 'Sari', 'Ahmad', 'Siti', 'Budi', 'Ani', 'Joko', 'Lestari']
   for (let i = 0; i < employeeNames.length; i++) {
     const created = await prisma.user.create({
       data: {
@@ -102,19 +108,20 @@ async function main() {
         fullName: employeeNames[i],
         role: Role.EMPLOYEE,
         password,
-        email: `pegawai${i+1}@sigap.go.id`,
+        email: `staff${i+1}@blkpasuruan.go.id`,
         departmentId: categories[i % categories.length].id
       }
     })
     employees.push(created)
   }
 
-  // 5. Setup Links (AI Translation Testing: title_en/desc_en = null)
+  // 5. Setup Links (Real URLs)
   const linkTemplates = [
-    { title: 'Sistem Kehadiran Online', slug: 'presensi', url: 'https://presensi.sigap.go.id', desc: 'Sistem absensi pegawai.' },
-    { title: 'Portal Email Dinas', slug: 'email-dinas', url: 'https://mail.sigap.go.id', desc: 'Layanan email internal.' },
-    { title: 'Dashboard Keuangan', slug: 'keuangan', url: 'https://finance.sigap.go.id', desc: 'Monitoring anggaran.' },
-    { title: 'Layanan LPSE', slug: 'lpse', url: 'https://lpse.sigap.go.id', desc: 'Pengadaan barang/jasa.' }
+    { title: 'Pendaftaran Pelatihan (Kios Ready)', slug: 'daftar-pelatihan', url: 'https://kemnaker.go.id', desc: 'Portal pendaftaran pelatihan kemnaker.' },
+    { title: 'Portal Official UPT BLK', slug: 'blk-official', url: 'https://disnakertrans.jatimprov.go.id', desc: 'Website resmi BLK.' },
+    { title: 'Zoom Online Class', slug: 'zoom-class', url: 'https://zoom.us', desc: 'Portal pembelajaran jarak jauh.' },
+    { title: 'Grup WhatsApp Kejuruan', slug: 'wa-group', url: 'https://whatsapp.com', desc: 'Komunikasi antar peserta pelatihan.' },
+    { title: 'Google Classroom', slug: 'g-classroom', url: 'https://classroom.google.com', desc: 'Manajemen tugas dan materi.' }
   ]
 
   const createdLinks: any[] = []
@@ -122,8 +129,8 @@ async function main() {
   twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
   const now = new Date();
 
-  console.log('Generating and Translating 40 Links...');
-  for (let i = 0; i < 40; i++) {
+  console.log('Generating 50+ Links with Real URLs...');
+  for (let i = 0; i < 50; i++) {
     const tpl = linkTemplates[i % linkTemplates.length]
     const titleRaw = `${tpl.title} ${i + 1}`;
     const descRaw = tpl.desc || '';
@@ -140,7 +147,7 @@ async function main() {
         desc_en,
         slug: `${tpl.slug}-${i + 1}`,
         url: tpl.url,
-        icon: 'Link',
+        icon: 'ExternalLink',
         userId: i % 5 === 0 ? superAdmin.id : employees[i % employees.length].id,
         category_id: categories[i % categories.length].id,
         visibility: i % 3 === 0 ? Visibility.INTERNAL : Visibility.DEPARTMENT,
@@ -156,29 +163,29 @@ async function main() {
   for (let i = 1; i <= 5; i++) {
     await prisma.event.create({
       data: {
-        title: `Event Tahunan Sigap ${i}`,
-        slug: `event-sigap-${i}`,
-        description: `Deskripsi event ke-${i} untuk pengujian landing page.`,
+        title: `Pelatihan Berbasis Kompetensi Angkatan ${i}`,
+        slug: `pbk-blk-${i}`,
+        description: `Dibuka pelatihan untuk kejuruan unggulan di UPT BLK Pasuruan angkatan ${i}.`,
         status: i % 2 === 0 ? EventStatus.AKTIF : EventStatus.TIDAK_AKTIF,
         userId: eventAdminUsers[i % 2].id,
         bgType: 'color',
         bgValue: '#0f172a',
-        footerText: 'Powered by SIGAP Platform',
+        footerText: 'Disnakertrans Jawa Timur - UPT BLK Pasuruan',
         items: {
           create: [
             { label: 'Daftar Sekarang', url: 'https://google.com', type: 'BUTTON', order: 1 },
-            { label: 'Download Brosur', url: 'https://google.com', type: 'BUTTON', order: 2 },
-            { label: 'Instagram', url: 'https://instagram.com', type: 'SOCIAL', order: 3 }
+            { label: 'Panduan Pendaftaran', url: 'https://zoom.us', type: 'BUTTON', order: 2 },
+            { label: 'Instagram BLK', url: 'https://instagram.com', type: 'SOCIAL', order: 3 }
           ]
         }
       }
     })
   }
 
-  // 7. Settings (AI Translation Applied)
-  const instansi_name = 'Rumah Sakit Umum Daerah';
-  const instansi_desc = 'Melayani dengan hati untuk kesehatan masyarakat.';
-  const footer_text = 'Sistem Gerbang Akses Pintar';
+  // 7. Settings (UPT BLK Pasuruan Profil)
+  const instansi_name = 'UPT BLK Pasuruan';
+  const instansi_desc = 'Dinas Tenaga Kerja dan Transmigrasi Provinsi Jawa Timur - Unit Pelaksana Teknis Balai Latihan Kerja Pasuruan.';
+  const footer_text = 'Sistem Gerbang Akses Pintar - BLK Pasuruan';
 
   console.log('Translating Settings...');
   await prisma.settings.create({
@@ -187,13 +194,13 @@ async function main() {
       instansi_name_en: await translateToEnglish(instansi_name),
       instansi_desc,
       instansi_desc_en: await translateToEnglish(instansi_desc),
-      app_name: 'SIGAP',
+      app_name: 'SIGAP BLK',
       footer_text,
       footer_text_en: await translateToEnglish(footer_text),
-      footer_copyright: '© 2026 SIGAP Team',
-      contact_email: 'info@sigap.go.id',
-      contact_phone: '021-12345678',
-      contact_address: 'Jakarta, Indonesia'
+      footer_copyright: '© 2026 UPT BLK Pasuruan',
+      contact_email: 'blk.pasuruan@jatimprov.go.id',
+      contact_phone: '0343-421234',
+      contact_address: 'Pasuruan, Jawa Timur'
     }
   })
 

@@ -41,7 +41,13 @@ export async function PUT(
       const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'footer')
       await mkdir(uploadDir, { recursive: true })
       
-      const fileName = `${crypto.randomBytes(4).toString('hex')}-${Date.now()}${path.extname(file.name)}`
+      const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
+      const initials = session?.fullName
+        ? session.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+        : 'SYS'
+      const random = crypto.randomBytes(3).toString('hex')
+      const ext = path.extname(file.name) || '.webp'
+      const fileName = `FOOTER_${date}_${initials}_${random}${ext}`
       const filePath = path.join(uploadDir, fileName)
       await writeFile(filePath, buffer)
       updateData.logoUrl = `/uploads/footer/${fileName}`

@@ -79,6 +79,7 @@ const submitReply = async (feedbackId) => {
     if (replyImages.value[feedbackId]) {
       const formData = new FormData()
       formData.append('file', replyImages.value[feedbackId])
+      formData.append('type', 'feedback')
       const uploadRes = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })

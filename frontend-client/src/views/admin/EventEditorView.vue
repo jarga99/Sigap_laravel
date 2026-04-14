@@ -103,6 +103,7 @@ const handleFileUpload = async (eventTarget: Event, type: 'profile' | 'backgroun
 
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('type', 'events')
 
   try {
     const { data } = await api.post('/admin/upload', formData)

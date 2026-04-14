@@ -7,7 +7,7 @@ import crypto from 'crypto'
 import { isAuthorized, reportUnauthorized } from '@/lib/security'
 import { headers } from 'next/headers'
 
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 const JWT_SECRET = process.env.JWT_SECRET || 'Rahasia_Negara_Sigap_2025_!@#'
 
 const loginSchema = z.object({
