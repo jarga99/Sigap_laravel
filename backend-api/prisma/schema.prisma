@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  password     String
+  email        String?   @unique // Tambahan untuk Google OAuth
+  fullName     String    @default("-")
+  role         Role      @default(EMPLOYEE)
+  image_url    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  departmentId Int?
+  sessionId    String?
+  links        Link[]    @relation("UserLinks")
+  department   Category? @relation("UserDepartment", fields: [departmentId], references: [id])
+  auditLogs    AuditLog[]
+  events       Event[]
+  feedbacks    Feedback[]
+  notifications Notification[]
+  repliedFeedbacks Feedback[] @relation("FeedbackReplies")
+
+  @@index([departmentId], map: "User_departmentId_fkey")
+}
+
+model Settings {
+  id               Int      @id @default(autoincrement())
+  instansi_name    String
+  instansi_name_en String?
+  instansi_desc    String?  @db.Text
+  instansi_desc_en String?  @db.Text
+  logo_url         String?
+  bg_url           String?
+  custom_domain    String?
+  updatedAt        DateTime @default(now()) @updatedAt
+  app_name         String?  @default("SIGAP")
+  contact_address  String?  @db.Text
+  contact_email    String?
+  contact_phone    String?
+  footer_copyright String?  @default("© 2026 Admin Portal")
+  footer_text      String?  @db.Text
+  footer_text_en   String?  @db.Text
+  footer_mode      String?  @default("COMPLEX") // "COMPLEX" or "SIMPLE"
+}
+
+model Link {
+  id          Int        @id @default(autoincrement())
+  title       String
+  title_en    String?
+  desc        String?
+  desc_en     String?
+  url         String     @db.Text
+  slug        String     @unique
+  icon        String?
+  clicks      Int        @default(0)
+  is_active   Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  category_id Int?
+  userId      Int?
+  visibility  Visibility @default(INTERNAL)
+  clickLogs   ClickLog[]
+  category    Category?  @relation(fields: [category_id], references: [id])
+  createdBy   User?      @relation("UserLinks", fields: [userId], references: [id])
+
+  @@index([category_id], map: "Link_category_id_fkey")
+  @@index([userId], map: "Link_userId_fkey")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  name_en   String?
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  links     Link[]
+  users     User[]   @relation("UserDepartment")
+}
+
+model ClickLog {
+  id        Int      @id @default(autoincrement())
+  clickedAt DateTime @default(now())
+  userRole  String
+  username  String?
+  ipAddress String?
+  linkId    Int
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([clickedAt])
+  @@index([linkId])
+}
+
+enum Role {
+  ADMIN
+  ADMIN_EVENT
+  EMPLOYEE
+}
+
+enum Visibility {
+  INTERNAL
+  DEPARTMENT
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  action       String   
+  resource     String   
+  resourceId   String?  
+  details      String?  @db.Text 
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  departmentId Int?     
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([departmentId])
+  @@index([createdAt])
+}
+
+enum EventStatus {
+  AKTIF
+  TIDAK_AKTIF
+  ARSIP
+}
+
+model Event {
+  id            Int         @id @default(autoincrement())
+  slug          String      @unique
+  title         String
+  description   String?     @db.Text
+  status        EventStatus @default(TIDAK_AKTIF)
+  
+  // Branding Controls
+  bgType        String      @default("color") // "color" or "image"
+  bgValue       String      @default("#0f172a")
+  profilePhoto      String?
+  profileShape      String      @default("circle") // "circle" or "square"
+  profileBorderStyle  String      @default("none")  // "none" or "bg"
+  profileBorderWidth  Int         @default(2)
+  profileBgColor    String      @default("#ffffff")
+  showProfile       Boolean     @default(true)
+  showCover         Boolean     @default(true)
+  showTitle         Boolean     @default(true)
+  showDescription   Boolean     @default(true)
+  showFooter        Boolean     @default(true)
+  eventPhoto        String?     
+  footerText        String?
+
+  // Extended Customization (v2)
+  profileWidth      Int         @default(80)
+  profileHeight     Int         @default(80)
+  coverHeight       Int         @default(128)
+  titleColor        String?     @default("#ffffff")
+  titleFont         String?     @default("Inter")
+  descColor         String?     @default("#ffffff")
+  descFont          String?     @default("Inter")
+  footerColor       String?     @default("#ffffff")
+  footerFont        String?     @default("Inter")
+  buttonShape       String?     @default("rounded") // rounded, square, custom
+  buttonRadius      Int?        @default(12)
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  items         EventItem[]
+
+  @@index([userId])
+  @@index([slug])
+}
+
+model EventItem {
+  id        Int       @id @default(autoincrement())
+  label     String
+  url       String    @db.Text
+  type      String    @default("BUTTON") // "BUTTON", "SOCIAL", "DIVIDER"
+  icon      String?
+  color     String?   // Custom button color
+  textColor String?   @default("#ffffff")
+  iconColor String?   @default("#ffffff")
+  order     Int       @default(0)
+  clicks    Int       @default(0)
+  
+  // Extended Item Controls
+  layout    String?   @default("icon-left") // icon-left, icon-right, text-only
+  showLabel Boolean?  @default(true) // especially for social
+  isActive  Boolean?  @default(true)
+  
+  eventId   Int
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  clickLogs EventClickLog[]
+
+  @@index([eventId])
+}
+
+model EventClickLog {
+  id        Int       @id @default(autoincrement())
+  clickedAt DateTime  @default(now())
+  ipAddress String?
+  itemId    Int
+  item      EventItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([clickedAt])
+}
+
+model Feedback {
+  id           Int           @id @default(autoincrement())
+  message      String        @db.Text
+  isAnonymous  Boolean       @default(false)
+  imageUrl     String?       @db.Text
+  isRead       Boolean       @default(false)
+  replyMessage String?       @db.Text
+  replyImageUrl String?      @db.Text
+  repliedAt    DateTime?
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repliedById  Int?
+  repliedBy    User?         @relation("FeedbackReplies", fields: [repliedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  notifications Notification[] @relation("FeedbackNotifications")
+
+  @@index([userId])
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // 'NEW_FEEDBACK' (for admin), 'FEEDBACK_REPLY' (for user)
+  message    String   @db.Text
+  relatedId  Int?     // link to feedbackId
+  feedback   Feedback? @relation("FeedbackNotifications", fields: [relatedId], references: [id], onDelete: SetNull)
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([relatedId])
+}
+
+model FooterLink {
+  id        Int      @id @default(autoincrement())
+  label     String
+  url       String   @db.Text
+  type      String   @default("TEXT") // "TEXT" or "IMAGE"
+  logoUrl   String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

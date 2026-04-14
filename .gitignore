@@ -1,0 +1,59 @@
+# Sigap Platform Root Gitignore
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (CRITICAL: Protects Gemini API Keys)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Next.js Build
+.next/
+out/
+
+# Vite / Vue Build
+dist/
+dist-ssr/
+
+# Production builds
+build/
+
+# IDE / System files
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Testing
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Prisma
+/backend-api/prisma/dev.db
+/backend-api/prisma/dev.db-journal
+
+# SQL Backups
+*.sql
+
+# Uploads
+/backend-api/public/uploads/
+
+# Backups
+/backups/
+
+# Allow documentation screenshots to be pushed
+!/frontend-client/public/docs/
