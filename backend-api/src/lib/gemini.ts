@@ -16,6 +16,8 @@ export async function callGemini(prompt: string) {
  */
 export async function translateIndoToEnglish(text: string) {
   if (!text) return null;
-  const prompt = `Translate this Indonesian text to English. Only return the translated text, no quotes, no explanations: "${text}"`;
+  // Menambahkan pelarian (escaping) sederhana untuk tanda kutip agar prompt tidak rusak
+  const safeText = text.replace(/"/g, '\\"');
+  const prompt = `Translate this Indonesian text to English. Only return the translated text, no quotes, no explanations: "${safeText}"`;
   return await callGemini(prompt);
 }

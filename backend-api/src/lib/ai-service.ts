@@ -52,19 +52,32 @@ async function callGeminiInternal(prompt: string) {
   if (!apiKey) return null;
   apiKey = apiKey.replace(/^["']|["']$/g, '').trim();
 
-  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp'];
+  // Model gemini-2.5-flash terverifikasi tersedia di endpoint v1beta
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
   
   for (const model of models) {
     try {
+      console.log(`[AI_GATEWAY] Mencoba Gemini Model: ${model}`);
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        signal: AbortSignal.timeout(10000) // 10s Timeout
       });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        console.warn(`[AI_GATEWAY] Gemini ${model} Error ${response.status}: ${JSON.stringify(errData)}`);
+        continue;
+      }
+
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       if (text) return { text, model };
-    } catch { continue; }
+    } catch (err: any) { 
+      console.warn(`[AI_GATEWAY] Gemini ${model} Request failed: ${err.message}`);
+      continue; 
+    }
   }
   return null;
 }
@@ -94,12 +107,22 @@ async function callGroqInternal(prompt: string) {
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
           max_tokens: 500
-        })
+        }),
+        signal: AbortSignal.timeout(10000) // 10s Timeout
       });
+
+      if (!response.ok) {
+        console.warn(`[AI_GATEWAY] Groq ${model} API Error: ${response.status}`);
+        continue;
+      }
+
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content?.trim();
       if (text) return { text, model };
-    } catch { continue; }
+    } catch (err: any) { 
+      console.warn(`[AI_GATEWAY] Groq ${model} Request failed: ${err.message}`);
+      continue; 
+    }
   }
   return null;
 }
@@ -136,12 +159,22 @@ async function callOpenRouterInternal(prompt: string) {
           model: model,
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 500
-        })
+        }),
+        signal: AbortSignal.timeout(10000) // 10s Timeout
       });
+
+      if (!response.ok) {
+        console.warn(`[AI_GATEWAY] OpenRouter ${model} API Error: ${response.status}`);
+        continue;
+      }
+
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content?.trim();
       if (text) return { text, model };
-    } catch { continue; }
+    } catch (err: any) { 
+      console.warn(`[AI_GATEWAY] OpenRouter ${model} Request failed: ${err.message}`);
+      continue; 
+    }
   }
   return null;
 }

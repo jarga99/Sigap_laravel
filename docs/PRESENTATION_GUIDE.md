@@ -17,26 +17,29 @@ Dokumen ini disusun sebagai panduan langkah-demi-langkah penggunaan seluruh fitu
 ## 🛡️ II. Modul Super Admin (Manajemen Kontrol)
 Pusat kendali untuk visibilitas dan tata kelola instansi.
 
-![Dashboard Admin](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/admin_dashboard.png)
+![Dashboard Admin](./screenshots/admin_dashboard.png)
 
 ### 1. Manajemen User & Role
 - **Cara**: Masuk ke menu `Users`.
 - **Fitur**: Tambah, Edit, atau Hapus personil. Tentukan role (Admin/Pegawai) dan hubungkan dengan Kejuruan (Department).
+- ![Manajemen User](./screenshots/admin_users.png)
 
 ### 2. Pengaturan Instansi (Branding)
 - **Cara**: Masuk ke menu `Pengaturan`.
 - **Fitur**: Ubah nama aplikasi, deskripsi instansi (UPT BLK Pasuruan), logo, dan teks footer. Identitas ini akan tercermin secara real-time di seluruh portal.
+- ![Pengaturan Instansi](./screenshots/admin_settings.png)
 
 ### 3. Log Aktivitas (Audit Trail)
 - **Cara**: Masuk ke menu `Audit Logs`.
 - **Fitur**: Melacak setiap aksi penting yang dilakukan user (kapan, siapa, melakukan apa, dan dari IP mana).
+- ![Audit Logs](./screenshots/admin_audit_logs.png)
 
 ---
 
 ## 🎨 III. Modul Admin Event (Hybrid Editor v2)
 Memungkinkan pembuatan landing page dinamis untuk pendaftaran pelatihan atau acara khusus.
 
-![Hybrid Editor](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/hybrid_editor.png)
+![Hybrid Editor](./screenshots/hybrid_editor.png)
 
 ### 1. Hybrid Layout Editor
 - **Dynamic Styling**: Mengubah background (warna/gambar), font, dan bentuk tombol secara langsung (Real-time Preview).
@@ -53,16 +56,18 @@ Membantu personil blk mengelola link layanan agar mudah diakses publik.
 ### 1. Manajemen Tautan (Shortlink)
 - **Kategorisasi Otomatis**: Menghubungkan link dengan 14 kejuruan yang tersedia.
 - **Visibility Tier**: Mengatur apakah link hanya untuk internal blk atau untuk tamu publik.
+- ![Manajemen Link](./screenshots/pegawai_links.png)
 
 ### 2. Statistik Klik
 - Memantau performa link (jumlah klik) melalui grafik di Dashboard Pegawai.
+- ![Statistik Pegawai](./screenshots/pegawai_stats.png)
 
 ---
 
 ## 💬 V. Sistem Feedback & Laporan
 Portal pengaduan atau saran dari masyarakat.
 
-![Portal Publik](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/guest_portal_home.png)
+![Portal Publik](./screenshots/guest_portal_home.png)
 
 - **Guest Side**: Tamu dapat mengirim pesan anonim atau dengan identitas, dilengkapi lampiran foto bukti.
 - **Admin Side**: Admin menerima notifikasi real-time di dashboard dan dapat membalas feedback secara langsung.

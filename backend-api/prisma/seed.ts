@@ -11,7 +11,8 @@ async function translateToEnglish(text: string | null) {
       console.warn('⚠️ GEMINI_API_KEY is missing. Skipping translation.');
       return null;
     }
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    // Model gemini-2.5-flash adalah model paling stabil saat ini untuk batch translation.
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: `Translate this Indonesian text to English. Only return the translated text, no quotes or additional info: "${text}"` }] }] })

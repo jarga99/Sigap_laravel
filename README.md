@@ -53,17 +53,24 @@ erDiagram
 
 ---
 
-## 🎨 IV. Dokumentasi Visual (Screenshots)
+## 🎨 IV. Dokumentasi Visual (Galeri Fitur)
 
-### 1. Portal Utama (Guest View)
-![Portal Utama](./docs/screenshots/guest_portal_home.png)
-*Tampilan portal publik untuk mencari layanan instansi.*
+### 1. Portal Utama & Feedback (Tamu)
+| Beranda Publik | Kotak Saran (Feedback) |
+| :--- | :--- |
+| ![Portal Utama](./docs/screenshots/guest_portal_home.png) | ![Feedback Pelayanan](./docs/screenshots/admin_feedback.png) |
 
-### 2. Admin Dashboard (Super Admin)
-![Admin Dashboard](./docs/screenshots/admin_dashboard.png)
-*Pantauan statistik global seluruh aktivitas sistem.*
+### 2. Dashboard & Kontrol (Super Admin)
+| Statistik Global | Audit Trail (Logs) | Manajemen User |
+| :--- | :--- | :--- |
+| ![Admin Dashboard](./docs/screenshots/admin_dashboard.png) | ![Audit Logs](./docs/screenshots/admin_audit_logs.png) | ![Daftar User](./docs/screenshots/admin_users.png) |
 
-### 3. Hybrid Event Editor (v2)
+### 3. Manajemen Layanan (Pegawai)
+| Manajemen Tautan | Statistik Klik |
+| :--- | :--- |
+| ![Pegawai Links](./docs/screenshots/pegawai_links.png) | ![Statistik Pegawai](./docs/screenshots/pegawai_stats.png) |
+
+### 4. Hybrid Event Editor (v2)
 ![Hybrid Editor](./docs/screenshots/hybrid_editor.png)
 *Alat kustomisasi tampilan landing page event (Warna, Font, Shape, Drag-and-drop).*
 
