@@ -100,9 +100,22 @@ SIGAP dilengkapi dengan fitur **"Reset Global with Mandatory Backup"**.
 
 ---
 
-## 📘 VII. Panduan Penggunaan (SOP)
-Untuk panduan detail per fitur dan per role, silakan baca dokumentasi terpisah kami:
-👉 **[SIGAP USER Guide (SOP & Manual)](file:///home/jr/sigap/USER_GUIDE.md)**
+## 📚 VII. Dokumentasi & Panduan Resmi
+Seluruh panduan operasional tersedia dalam folder [**/docs**](./docs) untuk referensi cepat:
+
+1. 📄 [**DOKUMENTASI_LENGKAP.pdf**](./docs/DOKUMENTASI_SIGAP.pdf) - Panduan lengkap format PDF.
+2. 🎤 [**PANDUAN_PRESENTASI.md**](./docs/PRESENTATION_GUIDE.md) - Materi presentasi fitur lengkap.
+3. 📖 [**USER_GUIDE.md**](./docs/USER_GUIDE.md) - Panduan penggunaan untuk tiap level user.
+4. ⚙️ [**SETUP_GUIDE.md**](./docs/DEMO_SETUP_GUIDE.md) - Panduan teknis instalasi lanjutan.
+5. 🛡️ [**SOP_PELINDUNGAN.md**](./docs/PROTECTION_SOP.md) - Standar operasional prosedur keamanan.
+
+---
+
+## 🤝 VIII. Kontribusi & Lisensi
+Proyek ini dikembangkan khusus untuk **UPT BLK Pasuruan**. Segala bentuk penggunaan kembali tanpa izin pengembang (`wiradika.jr`) dianggap melanggar hukum hak cipta.
+
+---
+*Dikembangkan dengan ❤️ untuk modernisasi layanan publik di Jawa Timur.*
 
 ---
 
