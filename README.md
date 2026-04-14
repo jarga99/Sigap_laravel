@@ -1,16 +1,18 @@
 # 🛡️ SIGAP - Sistem Gerbang Akses Pintar (UPT BLK Pasuruan)
 
 [![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/jarga99/sigap/releases)
+[![Live Demo](https://img.shields.io/badge/Demo-Live-green?style=for-the-badge)](https://sigap.blkpasuruan.go.id)
 [![Next.js 15](https://img.shields.io/badge/Backend-Next.js%2015-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![Vue.js 3](https://img.shields.io/badge/Frontend-Vue%203-4fc08d?style=for-the-badge&logo=vuedotjs)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
-**SIGAP (Sistem Gerbang Akses Pintar)** adalah platform manajemen portal satu pintu (single-entry gateway) yang digunakan oleh **UPT BLK Pasuruan - Dinas Tenaga Kerja dan Transmigrasi Provinsi Jawa Timur** untuk mengelola layanan digital, pembuatan shortlink resmi, serta landing page pelatihan yang dinamis.
+**SIGAP (Sistem Gerbang Akses Pintar)** adalah platform manajemen portal satu pintu (single-entry gateway) yang digunakan oleh **UPT BLK Pasuruan - Dinas Tenaga Kerja dan Transmigrasi Provinsi Jawa Timur**.
 
 ---
 
-## 🏗️ I. Latar Belakang & Filosofi
-Di era digitalisasi, UPT BLK Pasuruan membutuhkan sistem yang efisien untuk menyatukan berbagai tautan pendaftaran pelatihan (Kios Ready), portal Kemnaker, dan media sosial dalam satu akses terpusat yang profesional dan aman.
+## 🏗️ I. Struktur Proyek & Modul
+Proyek ini terbagi menjadi dua bagian utama:
+- 💻 [**Frontend Client**](./frontend-client) - Framework Vue 3 untuk portal publik dan dashboard.
+- ⚙️ [**Backend API**](./backend-api) - Framework Next.js 15 dengan autentikasi robust dan AI Gateway.
 
 ---
 
@@ -54,15 +56,15 @@ erDiagram
 ## 🎨 IV. Dokumentasi Visual (Screenshots)
 
 ### 1. Portal Utama (Guest View)
-![Portal Utama](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/guest_portal_home.png)
+![Portal Utama](./docs/screenshots/guest_portal_home.png)
 *Tampilan portal publik untuk mencari layanan instansi.*
 
 ### 2. Admin Dashboard (Super Admin)
-![Admin Dashboard](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/admin_dashboard.png)
+![Admin Dashboard](./docs/screenshots/admin_dashboard.png)
 *Pantauan statistik global seluruh aktivitas sistem.*
 
 ### 3. Hybrid Event Editor (v2)
-![Hybrid Editor](https://raw.githubusercontent.com/jarga99/sigap/master/frontend-client/public/docs/screenshots/hybrid_editor.png)
+![Hybrid Editor](./docs/screenshots/hybrid_editor.png)
 *Alat kustomisasi tampilan landing page event (Warna, Font, Shape, Drag-and-drop).*
 
 ---
@@ -111,17 +113,12 @@ Seluruh panduan operasional tersedia dalam folder [**/docs**](./docs) untuk refe
 
 ---
 
+---
+
 ## 🤝 VIII. Kontribusi & Lisensi
-Proyek ini dikembangkan khusus untuk **UPT BLK Pasuruan**. Segala bentuk penggunaan kembali tanpa izin pengembang (`wiradika.jr`) dianggap melanggar hukum hak cipta.
+Proyek ini dikembangkan secara eksklusif untuk **UPT BLK Pasuruan**. Segala bentuk penggunaan kembali tanpa izin pengembang (`wiradika.jr`) dianggap melanggar hukum hak cipta.
+
+Copyright © 2026 **Sistem Gerbang Akses Pintar (SIGAP)**. Seluruh hak cipta dilindungi undang-undang.
 
 ---
 *Dikembangkan dengan ❤️ untuk modernisasi layanan publik di Jawa Timur.*
-
----
-
-## ⚖️ VIII. Lisensi & Hak Cipta
-Copyright © 2026 **Sistem Gerbang Akses Pintar (SIGAP)**.
-Dikembangkan secara eksklusif oleh **wiradika.jr**. Seluruh hak cipta dilindungi undang-undang. Penggunaan tanpa izin tertulis dari pemilik hak cipta dapat dikenakan sanksi sesuai hukum yang berlaku.
-
----
-> Made with 🧪 by SIGAP Dev Team
