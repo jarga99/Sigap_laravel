@@ -10,6 +10,8 @@ import {
   Briefcase, Activity, Archive, Book, Heart, Star, Video, Image as ImageIcon, FolderOpen
 } from 'lucide-vue-next'
 import IconSelectorModal from '../../components/admin/IconSelectorModal.vue'
+import { useRouter } from 'vue-router'
+import QRCode from 'qrcode'
 
 const showIconModal = ref(false)
 
@@ -17,7 +19,6 @@ const iconMap: Record<string, any> = {
   FolderOpen, Briefcase, Globe, Activity, Archive, Book, Heart, Star, Video, ImageIcon
 }
 const availableIcons = Object.keys(iconMap)
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const links = ref<any[]>([])
@@ -32,7 +33,6 @@ const showModal = ref(false)
 const isEditing = ref(false)
 const isSaving = ref(false)
 const editId = ref<number | null>(null)
-import QRCode from 'qrcode'
 
 // QR Code States
 const showQrModal = ref(false)
@@ -317,6 +317,12 @@ const getPeriodText = () => {
   return `${monthName} ${yearName}`.trim()
 }
 
+const escapeCsv = (val: any) => {
+  if (val === null || val === undefined) return ''
+  const str = String(val).replace(/"/g, '""')
+  return `"${str}"`
+}
+
 const handleExportExcel = () => {
   const settings = JSON.parse(localStorage.getItem('public_settings') || '{}')
   const instansi = settings.instansi_name || 'SIGAP'
@@ -328,22 +334,22 @@ const handleExportExcel = () => {
   
   // Table Headers
   const headers = ['No', 'Nama Layanan', 'Kategori', 'Visibilitas', 'Status', 'Tanggal Daftar', 'Nama Pembuat', 'Username', 'Engagement (Klik)']
-  csvContent += headers.join(';') + '\n'
+  csvContent += headers.map(escapeCsv).join(';') + '\n'
 
   // Table Data
   processedLinks.value.forEach((link, index) => {
     const row = [
       index + 1,
       link.title,
-      link.category?.name || '-',
+      (link.category?.name || '-'),
       link.visibility === 'INTERNAL' ? 'Internal' : 'Khusus Kategori',
       link.is_active ? 'Tayang' : 'Draft',
       formatIndonesianDate(link.createdAt),
-      link.createdBy?.fullName || 'Sistem',
-      link.createdBy?.username || '-',
+      (link.createdBy?.fullName || 'Sistem'),
+      (link.createdBy?.username || '-'),
       link.clicks || 0
     ]
-    csvContent += row.join(';') + '\n'
+    csvContent += row.map(escapeCsv).join(';') + '\n'
   })
 
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -372,6 +378,11 @@ const filterYear = ref('all')
 const sortBy = ref('newest')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
+watch(pageSize, () => {
+  currentPage.value = 1
+})
 
 const settings = computed(() => {
   try {
@@ -667,15 +678,36 @@ onMounted(fetchData)
         </div>
       </div>
 
-    <!-- Pagination -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0 8px;">
-      <span style="font-size: 0.875rem; color: #64748b;">
-        Menampilkan {{ paginatedLinks.length }} data, dari total {{ processedLinks.length }} data 
-        (Halaman {{ currentPage }} dari {{ totalPages }})
-      </span>
-      <div style="display: flex; gap: 8px;">
-        <button @click="currentPage--" :disabled="currentPage === 1" class="px-3 py-1.5 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-all">Prev</button>
-        <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-3 py-1.5 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-all">Next</button>
+    <!-- Pagination Controls -->
+    <div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tampilkan</span>
+        <select v-model="pageSize" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
+          Hal <span class="text-slate-700 dark:text-slate-200">{{ currentPage }}</span> dari {{ totalPages }}
+        </span>
+        
+        <div class="flex items-center gap-1">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+          >
+            &lsaquo;
+          </button>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage >= totalPages" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+          >
+            &rsaquo;
+          </button>
+        </div>
       </div>
     </div>
 

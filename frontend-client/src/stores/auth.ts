@@ -5,6 +5,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: JSON.parse(localStorage.getItem('user') || 'null'), // Ambil dari storage agar F5 tidak hilang
     token: localStorage.getItem('token') || '',
+    isVerified: false, // Flag untuk menandakan sesi sudah divalidasi ke backend
   }),
   actions: {
     async login(payload: any) {
@@ -46,8 +47,23 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = ''
       this.user = null
+      this.isVerified = false
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+    },
+
+    async syncProfile() {
+      if (!this.token) return false
+      try {
+        const res = await api.get('/users/profile')
+        this.user = res.data.user
+        this.isVerified = true
+        localStorage.setItem('user', JSON.stringify(this.user))
+        return true
+      } catch (error) {
+        this.logout()
+        return false
+      }
     }
   }
 

@@ -19,7 +19,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   // Siapkan data update
   const updateData: Record<string, string | number | null> = {
-    role: 'EMPLOYEE', // Paksa role EMPLOYEE saat update (Cegah promosi ke ADMIN)
+    // UPDATE: Izinkan role ADMIN_EVENT & EMPLOYEE
+    role: (body.role && ['ADMIN_EVENT', 'EMPLOYEE'].includes(body.role)) ? body.role : 'EMPLOYEE',
     // UPDATE: Gunakan departmentId, bukan subdivision string
     departmentId: body.departmentId ? Number(body.departmentId) : null
   }

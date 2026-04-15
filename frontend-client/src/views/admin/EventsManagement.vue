@@ -14,11 +14,24 @@ import {
   Loader2
 } from 'lucide-vue-next'
 
+import { watch, inject } from 'vue'
+
+const setActiveSlug = inject('setActiveSlug') as (slug: string) => void
+
 const router = useRouter()
 const events = ref<any[]>([])
 const isLoading = ref(true)
 const searchQuery = ref('')
 const activeTab = ref('active') // 'active', 'inactive', 'archive'
+ 
+ // Pagination
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
+watch([pageSize, searchQuery, activeTab], () => {
+  currentPage.value = 1
+})
 
 const fetchEvents = async () => {
   isLoading.value = true
@@ -47,6 +60,12 @@ const filteredEvents = computed(() => {
     }
     return true
   })
+})
+
+const totalPages = computed(() => Math.ceil(filteredEvents.value.length / pageSize.value) || 1)
+const paginatedEvents = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredEvents.value.slice(start, start + pageSize.value)
 })
 
 const showCreateModal = ref(false)
@@ -91,7 +110,10 @@ const getStatusBadge = (status: string) => {
   }
 }
 
-onMounted(fetchEvents)
+onMounted(() => {
+  fetchEvents()
+  setActiveSlug('')
+})
 </script>
 
 <template>
@@ -152,7 +174,7 @@ onMounted(fetchEvents)
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-700 transition-colors">
-              <tr v-for="event in filteredEvents" :key="event.id" class="transition-none!">
+              <tr v-for="event in paginatedEvents" :key="event.id" class="transition-none!">
                 <td class="px-6 py-4">
                   <div class="flex flex-col">
                     <span class="font-bold text-slate-500 dark:text-slate-400">{{ event.title }}</span>
@@ -190,6 +212,39 @@ onMounted(fetchEvents)
 
         <div v-else class="flex justify-center p-12">
           <Loader2 class="animate-spin text-slate-400" :size="32" />
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tampilkan</span>
+            <select v-model="pageSize" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20">
+              <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-6">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
+              Hal <span class="text-slate-700 dark:text-slate-200">{{ currentPage }}</span> dari {{ totalPages }}
+            </span>
+            
+            <div class="flex items-center gap-1">
+              <button 
+                @click="currentPage--" 
+                :disabled="currentPage === 1" 
+                class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+              >
+                &lsaquo;
+              </button>
+              <button 
+                @click="currentPage++" 
+                :disabled="currentPage >= totalPages" 
+                class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+              >
+                &rsaquo;
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

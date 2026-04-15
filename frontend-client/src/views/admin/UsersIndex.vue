@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../lib/axios'
 import { UserPlus, Trash2, Loader2, Edit2, Upload, Download } from 'lucide-vue-next'
 
@@ -14,10 +14,17 @@ const fileInput = ref<HTMLInputElement | null>(null)
 // Pagination
 const currentPage = ref(1)
 const pageSize = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
 const totalPages = computed(() => Math.ceil(users.value.length / pageSize.value) || 1)
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return users.value.slice(start, start + pageSize.value)
+})
+
+// Reset ke halaman 1 saat pageSize berubah
+watch(pageSize, () => {
+  currentPage.value = 1
 })
 
 // State Form
@@ -28,7 +35,8 @@ const editId = ref<number | null>(null)
 const form = ref({
   username: '',
   password: '',
-  departmentId: ''
+  departmentId: '',
+  role: 'EMPLOYEE' as 'ADMIN_EVENT' | 'EMPLOYEE'
 })
 
 
@@ -70,7 +78,8 @@ const openEditModal = (user: any) => {
   form.value = {
     username: user.username,
     password: '',
-    departmentId: user.departmentId || ''
+    departmentId: user.departmentId || '',
+    role: user.role || 'EMPLOYEE'
   }
   showModal.value = true
 }
@@ -78,7 +87,7 @@ const openEditModal = (user: any) => {
 const openAddModal = () => {
   isEditing.value = false
   editId.value = null
-  form.value = { username: '', password: '', departmentId: '' }
+  form.value = { username: '', password: '', departmentId: '', role: 'EMPLOYEE' }
   showModal.value = true
 }
 
@@ -233,12 +242,36 @@ const downloadTemplate = () => {
           </div>
       </div>
 
-      <!-- Pagination -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0 8px;">
-        <span style="font-size: 0.875rem; color: #64748b;">Halaman {{ currentPage }} dari {{ totalPages }}</span>
-        <div style="display: flex; gap: 8px;">
-          <button @click="currentPage--" :disabled="currentPage === 1" class="px-3 py-1.5 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-all">Prev</button>
-          <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-3 py-1.5 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 transition-all">Next</button>
+      <!-- Pagination Controls -->
+      <div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tampilkan</span>
+          <select v-model="pageSize" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20">
+            <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
+            Hal <span class="text-slate-700 dark:text-slate-200">{{ currentPage }}</span> dari {{ totalPages }}
+          </span>
+          
+          <div class="flex items-center gap-1">
+            <button 
+              @click="currentPage--" 
+              :disabled="currentPage === 1" 
+              class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+            >
+              &lsaquo;
+            </button>
+            <button 
+              @click="currentPage++" 
+              :disabled="currentPage >= totalPages" 
+              class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+            >
+              &rsaquo;
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -270,7 +303,15 @@ const downloadTemplate = () => {
             </small>
           </div>
 
-          <div class="modal-actions">
+          <div class="form-group pb-2">
+            <label>Role / Akses</label>
+            <select v-model="form.role" required>
+              <option value="EMPLOYEE">Pegawai (Default)</option>
+              <option value="ADMIN_EVENT">Admin Event / Hubungan Instansi</option>
+            </select>
+          </div>
+
+          <div class="modal-actions mt-2">
             <button type="button" @click="showModal = false" class="btn-cancel">Batal</button>
             <button type="submit" :disabled="isSubmitting" class="btn-primary">
               <span v-if="isSubmitting">Menyimpan...</span>

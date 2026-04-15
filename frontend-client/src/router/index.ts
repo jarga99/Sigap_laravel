@@ -160,9 +160,24 @@ router.beforeEach((to, from, next) => {
   }
 
   // 2. Requires Auth Check
-  if (to.meta.requiresAuth && !authStore.token) {
-    return next('/login')
-  } 
+  if (to.meta.requiresAuth) {
+    if (!authStore.token) {
+      return next('/login')
+    }
+    
+    // Perbaikan Bug Login: Jika token ada tapi belum diverifikasi oleh backend (cold start)
+    // Verifikasi sekali di awal sebelum mengizinkan masuk ke dashboard
+    if (!authStore.isVerified) {
+      authStore.syncProfile().then(success => {
+        if (success) {
+          next()
+        } else {
+          next('/login')
+        }
+      })
+      return // Tunggu sync selesai
+    }
+  }
   
   // 3. Guest Only Check
   if (to.meta.guest && authStore.token) {
@@ -171,10 +186,10 @@ router.beforeEach((to, from, next) => {
 
   // 4. RBAC Check for ADMIN_EVENT
   if (to.path.startsWith('/admin') && authStore.user?.role === 'ADMIN_EVENT') {
-    // ADMIN_EVENT hanya boleh mengakses 'events'
-    const allowedPathPattern = /^\/admin\/events(\/.*)?$/;
-    if (!allowedPathPattern.test(to.path) && to.path !== '/admin/dashboard') {
-      return next('/admin/events'); // Arahkan paksa ke halaman event
+    // ADMIN_EVENT diizinkan mengakses dashboard dan fitur operasional kecuali Users, Settings, & Categories
+    const forbiddenPaths = ['/admin/users', '/admin/settings', '/admin/categories'];
+    if (forbiddenPaths.some(path => to.path.startsWith(path))) {
+      return next('/admin/dashboard');
     }
   }
 

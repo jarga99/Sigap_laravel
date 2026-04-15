@@ -10,7 +10,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     
     // Ambil session untuk cek apakah yang akses adalah admin (agar bisa preview walau tidak aktif)
     const session = await getSession()
-    const isAdmin = session && (session.role === 'ADMIN' || session.role === 'SUPERADMIN')
+    // Admin dan Admin Event diizinkan melakukan preview walau status belum AKTIF
+    const isAdmin = session && (session.role === 'ADMIN' || session.role === 'ADMIN_EVENT')
 
     const where: any = { slug }
     if (!isAdmin) {

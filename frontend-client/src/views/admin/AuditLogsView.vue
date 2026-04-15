@@ -12,7 +12,8 @@ const isLoading = ref(true)
 const total = ref(0)
 const page = ref(1)
 const totalPages = ref(1)
-const limit = 15
+const limit = ref(10)
+const limitOptions = [10, 20, 30, 40, 50, 75, 100]
 
 const filterAction = ref('')
 const filterResource = ref('')
@@ -207,7 +208,7 @@ onMounted(() => {
   fetchMetadata()
 })
 
-watch([filterAction, filterResource, filterYear, filterMonth, filterDay, filterDayEnd], () => {
+watch([limit, filterAction, filterResource, filterYear, filterMonth, filterDay, filterDayEnd], () => {
   page.value = 1
   fetchData()
 })
@@ -267,7 +268,14 @@ const exportAsTxt = (data: any[]) => {
 }
 
 const exportAsExcel = (data: any[]) => {
-  let csvContent = "No;Waktu;User;Aksi;Resource;ID;IP Address;Keterangan\n"
+  const escapeCsv = (val: any) => {
+    if (val === null || val === undefined) return ''
+    const str = String(val).replace(/"/g, '""')
+    return `"${str}"`
+  }
+
+  const headers = ["No", "Waktu", "User", "Aksi", "Resource", "ID", "IP Address", "Keterangan"]
+  let csvContent = headers.map(escapeCsv).join(';') + '\n'
   
   data.forEach((log, i) => {
     const row = [
@@ -278,9 +286,9 @@ const exportAsExcel = (data: any[]) => {
       log.resource,
       log.resourceId,
       log.ipAddress,
-      log.details.replace(/;/g, ',').replace(/\n/g, ' ')
+      log.details.replace(/\n/g, ' ')
     ]
-    csvContent += row.join(';') + '\n'
+    csvContent += row.map(escapeCsv).join(';') + '\n'
   })
 
   downloadBlob('\ufeff' + csvContent, 'AuditLogs.csv', 'text/csv;charset=utf-8;')
@@ -486,45 +494,57 @@ const downloadBlob = (content: string, fileName: string, type: string) => {
       </div>
     </div>
 
-    <!-- Pagination Lanjutan -->
-    <div v-if="totalPages > 1" class="flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-6 border-t border-slate-100 dark:border-slate-700/50 bg-white/50 dark:bg-slate-900/30 rounded-b-xl print:hidden">
-      <p class="text-sm font-medium text-slate-500">
-        Menampilkan <span class="text-slate-800 dark:text-slate-200">{{ logs.length }}</span> data dihalaman ini. Total <span class="text-blue-600 dark:text-blue-400 font-bold">{{ total }}</span> Log
-      </p>
-      
-      <div class="flex items-center gap-1">
-        <button 
-          @click="changePage(page - 1)" 
-          :disabled="page === 1"
-          class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 transition-all"
-        >
-          <ChevronLeft :size="20" />
-        </button>
+    <!-- Pagination Controls -->
+    <div v-if="totalPages > 1 || limit !== 10" class="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tampilkan</span>
+        <select v-model="limit" class="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20">
+          <option v-for="opt in limitOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
+        </select>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none ml-2">
+          Total: {{ total }} Data
+        </span>
+      </div>
 
-        <div class="flex items-center gap-1 mx-2">
+      <div class="flex items-center gap-6">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
+          Hal <span class="text-slate-700 dark:text-slate-200">{{ page }}</span> dari {{ totalPages }}
+        </span>
+        
+        <div class="flex items-center gap-1">
           <button 
-            v-for="p in displayedPages" :key="p"
-            @click="changePage(p)"
-            class="min-w-[40px] h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all"
-            :class="[
-              p === page 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                : p === '...' 
-                  ? 'text-slate-400 cursor-default' 
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-transparent'
-            ]"
+            @click="changePage(page - 1)" 
+            :disabled="page === 1" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
           >
-            {{ p }}
+            &lsaquo;
+          </button>
+
+          <div class="flex items-center gap-1 mx-2">
+            <button 
+              v-for="p in displayedPages" :key="p"
+              @click="changePage(p)"
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all"
+              :class="[
+                p === page 
+                  ? 'bg-blue-600 text-white shadow-lg' 
+                  : p === '...' 
+                    ? 'text-slate-400 cursor-default' 
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+              ]"
+            >
+              {{ p }}
+            </button>
+          </div>
+
+          <button 
+            @click="changePage(page + 1)" 
+            :disabled="page === totalPages" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all font-bold"
+          >
+            &rsaquo;
           </button>
         </div>
-
-        <button 
-          @click="changePage(page + 1)" 
-          :disabled="page === totalPages"
-          class="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 transition-all"
-        >
-          <ChevronRight :size="20" />
-        </button>
       </div>
     </div>
 

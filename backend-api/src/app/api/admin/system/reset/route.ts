@@ -81,7 +81,22 @@ export async function POST(request: Request) {
       }
     });
 
-    // 3. Bersihkan fisik folder Uploads secara rekursif
+    // 3. ⚡ RESET INDEXING (Auto-Increment) ke 1
+    // Perintah ini akan memaksa MySQL untuk memulai ID dari 1 kembali (atau ID terkecil tersedia)
+    await prisma.$executeRawUnsafe(`ALTER TABLE EventClickLog AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE EventItem AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Event AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE AuditLog AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE ClickLog AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Link AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Category AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE FooterLink AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Feedback AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Notification AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE Settings AUTO_INCREMENT = 1`);
+    await prisma.$executeRawUnsafe(`ALTER TABLE User AUTO_INCREMENT = 1`);
+
+    // 4. Bersihkan fisik folder Uploads secara rekursif
     try {
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       if (fs.existsSync(uploadDir)) {

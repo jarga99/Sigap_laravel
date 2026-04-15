@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch, computed } from 'vue'
 import api from '../../lib/axios'
 import { useAuthStore } from '../../stores/auth'
 import { useSettingsStore } from '../../stores/settings'
@@ -58,6 +58,23 @@ const linkForm = reactive({
 })
 const selectedLinkFile = ref<File | null>(null)
 const isSavingLink = ref(false)
+
+// Pagination Footer Links
+const currentPageLink = ref(1)
+const pageSizeLink = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
+const totalPagesLink = computed(() => Math.ceil(footerLinks.value.length / pageSizeLink.value) || 1)
+const paginatedFooterLinks = computed(() => {
+  const start = (currentPageLink.value - 1) * pageSizeLink.value
+  return footerLinks.value.slice(start, start + pageSizeLink.value)
+})
+
+
+watch(pageSizeLink, () => {
+  currentPageLink.value = 1
+})
+
 
 // Handler Upload Logo
 const onLogoChange = (e: Event) => {
@@ -489,7 +506,7 @@ onMounted(loadSettings)
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                <tr v-for="link in footerLinks" :key="link.id" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                <tr v-for="link in paginatedFooterLinks" :key="link.id" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <td class="p-3">
                     <div class="flex items-center gap-2">
                       <div v-if="link.type === 'IMAGE' && link.logoUrl" class="w-8 h-8 rounded border bg-white overflow-hidden p-1 flex-shrink-0">
@@ -531,6 +548,39 @@ onMounted(loadSettings)
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Pagination Footer Links -->
+          <div v-if="totalPagesLink > 1 || footerLinks.length > 10" class="mt-4 px-4 py-3 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Show</span>
+              <select v-model="pageSizeLink" class="px-2 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none">
+                <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                Hal <span class="text-slate-700 dark:text-slate-200">{{ currentPageLink }}</span> / {{ totalPagesLink }}
+              </span>
+              
+              <div class="flex items-center gap-1">
+                <button 
+                  @click="currentPageLink--" 
+                  :disabled="currentPageLink === 1" 
+                  class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 transition-all font-bold text-sm"
+                >
+                  &lsaquo;
+                </button>
+                <button 
+                  @click="currentPageLink++" 
+                  :disabled="currentPageLink >= totalPagesLink" 
+                  class="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-50 transition-all font-bold text-sm"
+                >
+                  &rsaquo;
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

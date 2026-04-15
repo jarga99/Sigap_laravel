@@ -63,7 +63,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSession()
   // 🔒 Hanya Super Admin dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-  if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
+  if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
     return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
   }
 
@@ -144,7 +144,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getSession()
   // 🔒 Hanya Super Admin dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-  if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
+  if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
     return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
   }
 

@@ -73,8 +73,8 @@ export async function POST(request: Request) {
     }
 
     const session = await getSession();
-    // 🔒 Hanya Super Admin dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-    if (!session || !['ADMIN', 'EMPLOYEE'].includes(session.role)) {
+    // 🔒 Hanya Super Admin, Admin Event, dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
+    if (!session || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(session.role)) {
       return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
     }
 

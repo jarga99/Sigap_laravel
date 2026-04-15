@@ -33,6 +33,7 @@ import {
 } from 'lucide-vue-next'
 import api from '@/lib/axios'
 import axios from 'axios'
+import QRCode from 'qrcode'
 
 const router = useRouter()
 const route = useRoute()
@@ -211,6 +212,137 @@ const handleFeedbackClick = () => {
   }
 }
 
+// --- LOGIC QR CODE DRAGGABLE (MIRRORED FROM FEEDBACK) ---
+const isQrDragging = ref(false)
+const qrBtnPos = ref({ x: 0, y: 0 })
+const qrStartPos = ref({ x: 0, y: 0 })
+const isQrModalOpen = ref(false)
+const activeSlug = ref('')
+const qrCanvas = ref(null)
+const qrOptions = ref({
+  color: '#0f172a',
+  bgColor: '#ffffff',
+  shape: 'square',
+  cornerShape: 'square',
+  errorLevel: 'M'
+})
+
+const initQrPos = () => {
+  const saved = localStorage.getItem('qr_btn_pos')
+  if (saved) {
+    qrBtnPos.value = JSON.parse(saved)
+  }
+}
+
+const onQrDragStart = (e) => {
+  isQrDragging.value = false
+  const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX
+  const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY
+  
+  qrStartPos.value = { x: clientX, y: clientY }
+  
+  const moveHandler = (mE) => {
+    const mX = mE.type.includes('touch') ? mE.touches[0].clientX : mE.clientX
+    const mY = mE.type.includes('touch') ? mE.touches[0].clientY : mE.clientY
+    
+    const deltaX = qrStartPos.value.x - mX
+    const deltaY = qrStartPos.value.y - mY
+    
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      isQrDragging.value = true
+    }
+    
+    if (isQrDragging.value) {
+      qrBtnPos.value.x += deltaX
+      qrBtnPos.value.y += deltaY
+      qrStartPos.value = { x: mX, y: mY }
+    }
+  }
+  
+  const stopHandler = () => {
+    window.removeEventListener('mousemove', moveHandler)
+    window.removeEventListener('mouseup', stopHandler)
+    window.removeEventListener('touchmove', moveHandler)
+    window.removeEventListener('touchend', stopHandler)
+    if (isQrDragging.value) {
+      localStorage.setItem('qr_btn_pos', JSON.stringify(qrBtnPos.value))
+    }
+  }
+  
+  window.addEventListener('mousemove', moveHandler)
+  window.addEventListener('mouseup', stopHandler)
+  window.addEventListener('touchmove', moveHandler)
+  window.addEventListener('touchend', stopHandler)
+}
+
+const showQrButton = computed(() => {
+  return route.name === 'admin-event-editor'
+})
+
+const qrTargetUrl = computed(() => {
+  const base = window.location.origin
+  if (activeSlug.value) return `${base}/e/${activeSlug.value}`
+  return `${base}/` // Default to home/portal
+})
+
+const generateQR = () => {
+  if (isQrDragging.value) return
+  isQrModalOpen.value = true
+  setTimeout(renderQrCanvas, 100)
+}
+
+const renderQrCanvas = async () => {
+  if (!qrCanvas.value) return
+  const canvas = qrCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  try {
+    const qrData = QRCode.create(qrTargetUrl.value, { errorCorrectionLevel: qrOptions.value.errorLevel })
+    const { modules } = qrData
+    const moduleCount = modules.size
+    const margin = 4
+    const size = 300
+    const cellSize = size / (moduleCount + margin * 2)
+
+    canvas.width = size
+    canvas.height = size
+    ctx.fillStyle = qrOptions.value.bgColor
+    ctx.fillRect(0, 0, size, size)
+    ctx.fillStyle = qrOptions.value.color
+
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (modules.get(row, col)) {
+          const x = (col + margin) * cellSize
+          const y = (row + margin) * cellSize
+          if (qrOptions.value.shape === 'circle') {
+             ctx.beginPath()
+             ctx.arc(x + cellSize/2, y + cellSize/2, cellSize * 0.45, 0, Math.PI * 2)
+             ctx.fill()
+          } else {
+             ctx.fillRect(x, y, cellSize, cellSize)
+          }
+        }
+      }
+    }
+  } catch (err) { console.error(err) }
+}
+
+const downloadQr = () => {
+  if (!qrCanvas.value) return
+  const link = document.createElement('a')
+  link.href = qrCanvas.value.toDataURL('image/png')
+  link.download = `QR-Event-${activeSlug.value || 'Portal'}.png`
+  link.click()
+}
+
+import { provide } from 'vue'
+provide('setActiveSlug', (slug) => { activeSlug.value = slug })
+
+watch(qrOptions, renderQrCanvas, { deep: true })
+watch(qrTargetUrl, () => { if (isQrModalOpen.value) renderQrCanvas() })
+
 const loadSettings = async () => {
   // Settings are now loaded globally in App.vue via settingsStore
 }
@@ -325,6 +457,7 @@ onMounted(() => {
   loadSettings()
   fetchNotifications()
   initPos()
+  initQrPos()
   // Refresh notifikasi setiap 2 menit
   setInterval(fetchNotifications, 120000)
 })
@@ -424,7 +557,7 @@ onMounted(() => {
           <div class="leading-tight">
             <div class="font-bold text-sm text-slate-700 dark:text-slate-300">{{ user.fullName || user.username }}</div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
-              {{ user.role === 'ADMIN' ? 'Administrator' : (user.department?.name || 'Pegawai') }}
+              {{ user.role === 'ADMIN' ? 'Administrator' : (user.role === 'ADMIN_EVENT' ? 'Admin Event' : (user.department?.name || 'Pegawai')) }}
             </div>
           </div>
         </div>
@@ -459,7 +592,7 @@ onMounted(() => {
         <div>
           <div class="font-bold text-slate-800 dark:text-slate-200">{{ user.fullName || user.username }}</div>
           <div class="text-xs text-slate-500 dark:text-slate-400">
-            {{ user.role === 'ADMIN' ? 'Administrator' : (user.department?.name || 'Pegawai') }}
+            {{ user.role === 'ADMIN' ? 'Administrator' : (user.role === 'ADMIN_EVENT' ? 'Admin Event' : (user.department?.name || 'Pegawai')) }}
           </div>
         </div>
       </div>
@@ -530,6 +663,80 @@ onMounted(() => {
         Butuh Bantuan? Geser atau Klik
       </span>
     </button>
+
+    <!-- 🔥 FLOATING QR BUTTON (ONLY ON EVENT ROUTES) -->
+    <button v-if="showQrButton" 
+      @mousedown="onQrDragStart"
+      @touchstart="onQrDragStart"
+      @click="generateQR"
+      class="fixed z-[9900] w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center shadow-xl hover:shadow-emerald-500/80 transform group active:scale-95 border-2 md:border-4 border-white/30"
+      :class="[isQrDragging ? 'cursor-grabbing scale-105' : 'cursor-move transition-all hover:-translate-y-1']"
+      :style="{ 
+        right: `calc(1.5rem + ${qrBtnPos.x}px)`, 
+        bottom: `calc(5rem + 1.5rem + ${qrBtnPos.y}px)` 
+      }">
+      <LinkIcon :size="22" class="group-hover:rotate-12 transition-transform sm:w-[26px] sm:h-[26px]" />
+      <span class="absolute right-full mr-4 px-3 py-2 bg-slate-800/90 backdrop-blur-md text-white text-[11px] font-bold rounded-xl opacity-0 hidden lg:block group-hover:opacity-100 transition-opacity shadow-lg whitespace-nowrap pointer-events-none border border-white/10">
+        Bagikan Event (QR)
+      </span>
+    </button>
+
+    <!-- 💎 QR MODAL (MATCHING FEEDBACK STYLE) -->
+    <div v-if="isQrModalOpen" class="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="isQrModalOpen = false"></div>
+      
+      <div class="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 overflow-hidden animate-fadeup bg-opacity-95 dark:bg-opacity-95 backdrop-blur-md">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white">
+              <LinkIcon :size="20" />
+            </div>
+            <div>
+              <h3 class="font-black text-slate-800 dark:text-slate-100">Bagikan Event</h3>
+              <p class="text-xs text-slate-500">Scan QR Code untuk akses cepat.</p>
+            </div>
+          </div>
+          <button @click="isQrModalOpen = false" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <X :size="24" />
+          </button>
+        </div>
+
+        <div class="p-8 flex flex-col items-center gap-6">
+          <div class="p-4 bg-white rounded-2xl shadow-inner border border-slate-100">
+            <canvas ref="qrCanvas"></canvas>
+          </div>
+          
+          <div class="w-full bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col gap-1 overflow-hidden">
+             <span class="text-[9px] font-black text-slate-400 uppercase">Target URL</span>
+             <span class="text-xs font-bold text-slate-600 dark:text-slate-300 truncate">{{ qrTargetUrl }}</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 w-full">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase text-slate-400">Titik QR</label>
+              <select v-model="qrOptions.shape" class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-lg text-xs font-bold p-2 outline-none">
+                <option value="square">Kotak</option>
+                <option value="circle">Bulat</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase text-slate-400">Warna</label>
+              <div class="flex gap-2">
+                <input type="color" v-model="qrOptions.color" class="w-full h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent" />
+                <input type="color" v-model="qrOptions.bgColor" class="w-full h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col gap-3">
+          <button @click="downloadQr" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+            <Download :size="18" /> Unduh QR Code
+          </button>
+          <button @click="isQrModalOpen = false" class="w-full py-2 text-slate-400 font-bold text-xs hover:text-slate-600 transition">Tutup</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 💎 FEEDBACK MODAL (GLASSMORPHISM) -->
     <div v-if="isFeedbackModalOpen" class="fixed inset-0 z-[99999] flex items-center justify-center p-4">

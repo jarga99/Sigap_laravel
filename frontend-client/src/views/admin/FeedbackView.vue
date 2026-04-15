@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import api from '@/lib/axios'
 import { useAuthStore } from '@/stores/auth'
 import { 
@@ -25,6 +25,22 @@ const replyImages = ref({})
 const replyPreviewUrls = ref({})
 const isSubmittingReply = ref({})
 const authStore = useAuthStore()
+
+// Pagination
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
+const totalPages = computed(() => Math.ceil(feedbacks.value.length / pageSize.value) || 1)
+const paginatedFeedbacks = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return feedbacks.value.slice(start, start + pageSize.value)
+})
+
+watch(pageSize, () => {
+  currentPage.value = 1
+})
+
 
 const userRole = computed(() => authStore.user?.role || 'EMPLOYEE')
 const isAdmin = computed(() => userRole.value === 'ADMIN')
@@ -176,7 +192,7 @@ onMounted(fetchFeedbacks)
     </div>
 
     <div v-else class="grid grid-cols-1 gap-8">
-      <div v-for="item in feedbacks" :key="item.id" 
+      <div v-for="item in paginatedFeedbacks" :key="item.id" 
         class="group relative bg-white dark:bg-slate-800 rounded-3xl border transition-all duration-300 overflow-hidden shadow-sm"
         :class="item.isRead ? 'border-slate-100 dark:border-slate-700 opacity-90' : 'border-blue-200 dark:border-blue-500/30 ring-1 ring-blue-500/10 shadow-lg'"
       >
@@ -330,6 +346,39 @@ onMounted(fetchFeedbacks)
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div v-if="totalPages > 1 || feedbacks.length > 10" class="mt-12 px-8 py-6 bg-white dark:bg-slate-800 rounded-[32px] border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-12">
+      <div class="flex items-center gap-4">
+        <span class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Tampilkan</span>
+        <select v-model="pageSize" class="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-black outline-none focus:ring-4 focus:ring-blue-500/10 dark:text-slate-200 transition-all">
+          <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Pesan</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-10">
+        <span class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] leading-none">
+          Halaman <span class="text-blue-600 dark:text-blue-400">{{ currentPage }}</span> <span class="mx-1">/</span> {{ totalPages }}
+        </span>
+        
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage-- ; window.scrollTo({ top: 0, behavior: 'smooth' })" 
+            :disabled="currentPage === 1" 
+            class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-20 hover:bg-white dark:hover:bg-slate-700 hover:shadow-xl hover:-translate-y-0.5 transition-all font-black text-xl"
+          >
+            &lsaquo;
+          </button>
+          <button 
+            @click="currentPage++ ; window.scrollTo({ top: 0, behavior: 'smooth' })" 
+            :disabled="currentPage >= totalPages" 
+            class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-20 hover:bg-white dark:hover:bg-slate-700 hover:shadow-xl hover:-translate-y-0.5 transition-all font-black text-xl"
+          >
+            &rsaquo;
+          </button>
         </div>
       </div>
     </div>

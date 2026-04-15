@@ -9,9 +9,12 @@ import {
   ChevronUp, ChevronDown, Upload, Settings, 
   GripVertical, MousePointer2, Share2, Sparkles, Layout,
   MoreVertical, X, CheckCircle, XCircle, Archive, CloudUpload,
-  Circle, Square, Type
+  Circle, Square, Type, Globe, ShieldAlert
 } from 'lucide-vue-next'
 import IconSelectorModal from '../../components/admin/IconSelectorModal.vue'
+import { inject } from 'vue'
+
+const setActiveSlug = inject('setActiveSlug') as (slug: string) => void
 
 const route = useRoute()
 const router = useRouter()
@@ -93,6 +96,7 @@ const fetchEvent = async () => {
     router.push('/admin/events')
   } finally {
     isLoading.value = false
+    if (event.value?.slug) setActiveSlug(event.value.slug)
   }
 }
 
@@ -153,6 +157,19 @@ const openIconSelector = (index: number) => {
 const handleIconSelect = (icon: string) => {
   if (activeItemIndex.value !== null) event.value.items[activeItemIndex.value].icon = icon
 }
+
+const handlePreviewClick = (e: MouseEvent, url: string) => {
+  if (event.value.status !== 'AKTIF') {
+     e.preventDefault();
+     if (confirm(`Peringatan: Pratinjau Link Inaktif. \n\nEvent ini berstatus ${event.value.status}. Publik tidak akan dapat mengklik link ini. \n\nApakah Anda tetap ingin mengetes link ini?`)) {
+       window.open(url, '_blank');
+     }
+  }
+}
+
+watch(() => event.value.slug, (newSlug) => {
+  if (newSlug) setActiveSlug(newSlug)
+})
 
 watch(() => event.value.title, (newTitle) => {
   if (newTitle && (!event.value.slug || event.value.slug.trim() === '')) {
@@ -264,12 +281,35 @@ onMounted(() => {
           <div v-if="selectedPanel === 'branding'" class="space-y-6 animate-fadein">
             <div class="group-v4">
               <label>Informasi Utama</label>
-              <input v-model="event.title" class="input-v3" placeholder="Nama Event" />
-              <select v-model="event.status" class="input-v3 mt-3">
-                <option value="AKTIF">AKTIF</option>
-                <option value="TIDAK_AKTIF">TIDAK AKTIF</option>
-                <option value="ARSIP">ARSIP</option>
-              </select>
+              <div class="space-y-3">
+                <div>
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Judul Event</span>
+                  <input v-model="event.title" class="input-v3 mt-1" placeholder="Masukkan judul..." />
+                </div>
+                
+                <div>
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Custom URL ID (Slug)</span>
+                  <div class="relative mt-1">
+                    <Globe :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input v-model="event.slug" class="input-v3 pl-10" placeholder="slug-event-anda" />
+                  </div>
+                  <div class="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                    <p class="text-[9px] text-blue-600 dark:text-blue-400 font-bold leading-tight flex items-start gap-1.5">
+                      <span class="mt-0.5">🔗</span>
+                      Link Publik: sigap.id/e/{{ event.slug || '...' }}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Status Publikasi</span>
+                  <select v-model="event.status" class="input-v3 mt-1">
+                    <option value="AKTIF">AKTIF (Publik)</option>
+                    <option value="TIDAK_AKTIF">TIDAK AKTIF (Draft)</option>
+                    <option value="ARSIP">ARSIP (Hidden)</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div class="group-v4">
@@ -542,6 +582,12 @@ onMounted(() => {
           <div class="h-full overflow-y-auto scrollbar-hide flex flex-col relative" :style="{ backgroundColor: event.bgType === 'color' ? event.bgValue : '#000' }">
              <img v-if="event.bgType === 'image' && event.bgValue" :src="event.bgValue" class="absolute inset-0 w-full h-full object-cover opacity-60" />
              
+             <!-- 🚧 SIMULATOR PREVIEW BANNER -->
+             <div v-if="event.status !== 'AKTIF'" class="sticky top-0 z-[100] w-full bg-red-600/90 backdrop-blur-md p-2 flex items-center justify-center gap-2 border-b border-white/20">
+               <ShieldAlert :size="14" class="text-white animate-pulse" />
+               <span class="text-[9px] font-black text-white uppercase tracking-widest">Inaktif Preview</span>
+             </div>
+
              <div class="relative z-10 w-full flex flex-col min-h-full">
                 <!-- Cover Image -->
                 <div v-if="event.showCover" class="w-full shrink-0 overflow-hidden bg-slate-800" :style="{ height: event.coverHeight + 'px', maxHeight: '40%' }">
@@ -600,7 +646,12 @@ onMounted(() => {
                            color: it.textColor,
                            borderRadius: event.buttonShape === 'square' ? '4px' : (event.buttonShape === 'rounded' ? event.buttonRadius + 'px' : '16px')
                          }"
-                         :class="{ 'flex-row-reverse': it.layout === 'icon-right', 'justify-center': it.layout === 'icon-left' || it.layout === 'icon-right' }"
+                         :class="{ 
+                           'flex-row-reverse': it.layout === 'icon-right', 
+                           'justify-center': it.layout === 'icon-left' || it.layout === 'icon-right',
+                           'preview-locked-sim': event.status !== 'AKTIF'
+                         }"
+                         @click="handlePreviewClick($event, it.url)"
                          class="flex items-center gap-3 p-4 shadow-lg hover:scale-[1.02] transition-transform duration-200 border border-white/10 group">
                          <component v-if="it.layout !== 'text-only'" :is="(LucideIcons as any)[it.icon || 'Link']" :size="20" :style="{ color: it.iconColor }" />
                          <span class="text-sm font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout.includes('edge') || it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
@@ -619,8 +670,10 @@ onMounted(() => {
                          :class="{ 
                            'flex-row-reverse': it.layout === 'icon-right' || it.layout === 'icon-edge-right', 
                            'justify-center': it.layout === 'icon-only' || it.layout === 'icon-left' || it.layout === 'icon-right',
-                           'justify-between !px-4': it.layout === 'icon-edge-left' || it.layout === 'icon-edge-right'
+                           'justify-between !px-4': it.layout === 'icon-edge-left' || it.layout === 'icon-edge-right',
+                           'preview-locked-sim': event.status !== 'AKTIF'
                          }"
+                         @click="handlePreviewClick($event, it.url)"
                          class="flex items-center gap-3 p-4 shadow-md transition-all hover:scale-[1.02]">
                          <component v-if="it.layout !== 'text-only'" :is="(LucideIcons as any)[it.icon?.split('|')[0] || 'Instagram']" :size="20" :style="{ color: it.iconColor }" />
                          <span v-if="it.layout !== 'icon-only' && it.showLabel" class="text-xs font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout.includes('edge') || it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
@@ -710,6 +763,11 @@ onMounted(() => {
   .sidebar-container.mobile-overlay { transform: translateY(0); }
   .editor-workspace { padding: 20px; flex-shrink: 0; height: calc(100% - 64px); background: #f8fafc; }
   .simulator-container { transform: scale(0.8); transform-origin: top center; border-width: 6px; }
+}
+
+.preview-locked-sim {
+  filter: grayscale(0.8) opacity(0.5);
+  cursor: help !important;
 }
 
 /* Landscape Mode Fix */

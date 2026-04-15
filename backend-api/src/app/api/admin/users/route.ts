@@ -12,7 +12,7 @@ const prisma = new PrismaClient()
 const createUserSchema = z.object({
   username: z.string().min(3, "Username minimal 3 karakter"),
   password: z.string().min(6, "Password minimal 6 karakter"),
-  // Role tidak lagi diterima dari input, otomatis EMPLOYEE
+  role: z.enum(['ADMIN_EVENT', 'EMPLOYEE']).optional(),
   // Ubah validasi: Terima departmentId sebagai angka (atau string yang bisa jadi angka)
   departmentId: z.union([z.string(), z.number()]).optional().transform((val) => val ? Number(val) : null), 
 })
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: msg }, { status: 400 })
     }
 
-    const { username, password, departmentId } = validation.data
+    const { username, password, departmentId, role } = validation.data
 
     // Cek Username
     const existingUser = await prisma.user.findUnique({
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       data: {
         username,
         password: hashedPassword,
-        role: 'EMPLOYEE', // Paksa role EMPLOYEE untuk semua user baru
+        role: role || 'EMPLOYEE', 
         // Masukkan ID kategori jika ada
         departmentId: departmentId || null, 
         fullName: username, 
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       action: 'CREATE_USER',
       resource: 'User',
       resourceId: newUser.id,
-      details: { after: { id: newUser.id, username: newUser.username, role: 'EMPLOYEE', departmentId: newUser.departmentId } },
+      details: { after: { id: newUser.id, username: newUser.username, role: newUser.role, departmentId: newUser.departmentId } },
       departmentId: newUser.departmentId,
       ip: request.headers.get('x-forwarded-for')
     })

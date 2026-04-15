@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed, watch } from 'vue'
 import api from '../../lib/axios'
 import * as LucideIcons from 'lucide-vue-next'
 import { Plus, Edit2, Trash2, FolderOpen, Save, X, Briefcase, Globe, Activity, Archive, Book, Heart, Star, Video, Image as ImageIcon } from 'lucide-vue-next'
@@ -24,6 +24,21 @@ const isLoading = ref(true)
 const showModal = ref(false)
 const isEditing = ref(false)
 const isSaving = ref(false)
+ 
+ // Pagination
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+
+const totalPages = computed(() => Math.ceil(categories.value.length / pageSize.value) || 1)
+const paginatedCategories = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return categories.value.slice(start, start + pageSize.value)
+})
+
+watch(pageSize, () => {
+  currentPage.value = 1
+})
 
 const form = reactive({
   id: null as number | null,
@@ -140,7 +155,7 @@ onMounted(() => {
       <div class="grid-container">
       <div v-if="isLoading">Memuat data...</div>
 
-      <div v-else v-for="cat in categories" :key="cat.id" class="cat-card">
+      <div v-else v-for="cat in paginatedCategories" :key="cat.id" class="cat-card">
         <div class="cat-icon">
           <component :is="(LucideIcons as any)[cat.icon || 'FolderOpen']" :size="24" />
         </div>
@@ -158,9 +173,42 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="userRole === 'ADMIN'" class="cat-card add-card" @click="openModal()">
+      <div v-if="userRole === 'ADMIN' && currentPage === 1" class="cat-card add-card" @click="openModal()">
         <Plus :size="32" />
         <span>Buat Baru</span>
+      </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="mt-8 px-6 py-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tampilkan</span>
+        <select v-model="pageSize" class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20 dark:text-slate-200">
+          <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Item</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
+          Hal <span class="text-slate-700 dark:text-slate-200">{{ currentPage }}</span> dari {{ totalPages }}
+        </span>
+        
+        <div class="flex items-center gap-1">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold"
+          >
+            &lsaquo;
+          </button>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage >= totalPages" 
+            class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold"
+          >
+            &rsaquo;
+          </button>
+        </div>
       </div>
     </div>
 

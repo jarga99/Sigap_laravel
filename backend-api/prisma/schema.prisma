@@ -72,6 +72,8 @@ model Link {
 
   @@index([category_id], map: "Link_category_id_fkey")
   @@index([userId], map: "Link_userId_fkey")
+  @@index([slug, is_active])
+  @@index([visibility])
 }
 
 model Category {
@@ -124,6 +126,7 @@ model AuditLog {
   @@index([userId])
   @@index([departmentId])
   @@index([createdAt])
+  @@index([action, userId, createdAt])
 }
 
 enum EventStatus {
@@ -176,6 +179,7 @@ model Event {
 
   @@index([userId])
   @@index([slug])
+  @@index([slug, status])
 }
 
 model EventItem {

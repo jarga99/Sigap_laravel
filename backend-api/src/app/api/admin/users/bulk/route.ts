@@ -71,12 +71,15 @@ export async function POST(request: Request) {
         // Hash Password
         const hashedPassword = await bcrypt.hash(password, 10)
         
+        const roleInput = row.role?.toString().toUpperCase().trim()
+        const role = ['ADMIN_EVENT', 'EMPLOYEE'].includes(roleInput) ? roleInput : 'EMPLOYEE'
+
         const newUser = await prisma.user.create({
           data: {
             username,
             password: hashedPassword,
             fullName,
-            role: 'EMPLOYEE', // Paksa role EMPLOYEE
+            role: role,
             departmentId,
           }
         })

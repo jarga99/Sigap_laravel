@@ -60,7 +60,7 @@ export async function POST(request: Request) {
             url: url,
             slug: slug,
             category_id: categoryId,
-            visibility: (row.visibility?.toString().toUpperCase() as any) || 'PUBLIC',
+            visibility: (row.visibility?.toString().toUpperCase() as any) || 'INTERNAL',
             // Handle boolean or numeric string
             is_active: row.is_active === true || row.is_active === 'true' || row.is_active === 1 || row.is_active === '1' || !row.is_active,
             desc: row.desc?.toString() || '',

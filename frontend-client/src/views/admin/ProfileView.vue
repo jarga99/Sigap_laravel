@@ -26,13 +26,26 @@ const previewImage = ref<string | null>(null)
 const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// --- FUNGSI AMBIL NAMA KATEGORI ---
 const fetchCategoryName = async () => {
+    // Super Admin & Admin Event punya label kategori khusus
     if (authStore.user?.role === 'ADMIN') {
         form.value.subdivision = 'Tidak Ada (Super Admin)'
         return
     }
 
+    if (authStore.user?.role === 'ADMIN_EVENT') {
+        form.value.subdivision = 'Manajemen Event'
+        return
+    }
+
+    // Cek jika sudah ada di authStore (hasil include dari backend)
+    const userDept = authStore.user?.department
+    if (userDept && userDept.name) {
+        form.value.subdivision = userDept.name
+        return
+    }
+
+    // Jika tidak ada tapi ada ID, coba fetch (fallback)
     const deptId = authStore.user?.departmentId
     if (!deptId) {
         form.value.subdivision = '-'
