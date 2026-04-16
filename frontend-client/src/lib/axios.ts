@@ -1,9 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-  // Ganti ke URL Backend Next.js Anda. 
-  // Jika port backend bukan 3000, sesuaikan.
-  baseURL: '/api' 
+  // Gunakan variabel environment agar fleksibel saat dideploy
+  baseURL: import.meta.env.VITE_API_URL || '/api'
 })
 
 // Interceptor Request (Biarkan seperti kode Anda, ini sudah benar)

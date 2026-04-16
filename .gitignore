@@ -57,3 +57,7 @@ pnpm-debug.log*
 
 # Allow documentation screenshots to be pushed
 !/frontend-client/public/docs/
+
+# Build artifacts
+deploy_package/
+

@@ -324,7 +324,15 @@ const escapeCsv = (val: any) => {
 }
 
 const handleExportExcel = () => {
-  const settings = JSON.parse(localStorage.getItem('public_settings') || '{}')
+  let settings = {};
+  const storedSettings = localStorage.getItem('public_settings');
+  if (storedSettings && storedSettings !== 'undefined') {
+    try {
+      settings = JSON.parse(storedSettings);
+    } catch (e) {
+      console.error('Failed to parse settings:', e);
+    }
+  }
   const instansi = settings.instansi_name || 'SIGAP'
   const periode = getPeriodText()
   
@@ -386,7 +394,11 @@ watch(pageSize, () => {
 
 const settings = computed(() => {
   try {
-    return JSON.parse(localStorage.getItem('public_settings') || '{}')
+    const stored = localStorage.getItem('public_settings')
+    if (stored && stored !== 'undefined') {
+      return JSON.parse(stored)
+    }
+    return {}
   } catch (e) {
     return {}
   }

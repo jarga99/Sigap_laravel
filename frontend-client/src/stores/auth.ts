@@ -2,11 +2,23 @@ import { defineStore } from 'pinia'
 import api from '../lib/axios'
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    user: JSON.parse(localStorage.getItem('user') || 'null'), // Ambil dari storage agar F5 tidak hilang
-    token: localStorage.getItem('token') || '',
-    isVerified: false, // Flag untuk menandakan sesi sudah divalidasi ke backend
-  }),
+  state: () => {
+    let savedUser = null;
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored && stored !== 'undefined') {
+        savedUser = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Storage Error:", e);
+    }
+
+    return {
+      user: savedUser,
+      token: localStorage.getItem('token') || '',
+      isVerified: false,
+    }
+  },
   actions: {
     async login(payload: any) {
       try {
