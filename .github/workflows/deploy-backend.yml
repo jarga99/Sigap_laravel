@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     # Tentukan environment   berdasarkan trigger (Push = Staging, Manual = sesuai input)
     env:
-      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'production' || github.event.inputs.target }}
+      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'staging' || github.event.inputs.target }}
       
     steps:
       - name: Checkout Code
