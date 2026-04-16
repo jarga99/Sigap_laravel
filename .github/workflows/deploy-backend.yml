@@ -64,7 +64,7 @@ jobs:
           username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
           password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
           local-dir: ./backend-api/deploy_ready/
-          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
+          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}/
           exclude: |
             **/.git*
             **/.git*/**

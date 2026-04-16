@@ -53,5 +53,5 @@ jobs:
           username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
           password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
           local-dir: ./frontend-client/dist/
-          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_FRONTEND_DIR || secrets.STAGING_REMOTE_FRONTEND_DIR }}
+          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_FRONTEND_DIR || secrets.STAGING_REMOTE_FRONTEND_DIR }}/
           dangerously-clean-slot: true
