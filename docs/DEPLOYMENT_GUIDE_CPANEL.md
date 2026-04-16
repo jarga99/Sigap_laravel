@@ -181,30 +181,34 @@ CI/CD adalah singkatan dari **Continuous Integration & Continuous Deployment**. 
 GitHub membutuhkan izin untuk masuk ke cPanel Anda. Karena kita menggunakan sistem **Staging & Production**, Anda perlu menyiapkan dua set rahasia:
 
 #### A. Data Testing (Staging) - Otomatis saat Push
-Gunakan awalan **`STAGING_`** untuk semua nama secret:
-| Nama Secret | Contoh Value |
+Gunakan awalan **`STAGING_`** untuk semua nama secret berikut:
+
+| Nama Secret (Ketikan di Name) | Isian Secret (Ketikan di Value/Secret) |
 | :--- | :--- |
-| `STAGING_FTP_SERVER` | `ftp.blkpasuruan.go.id` |
-| `STAGING_FTP_USERNAME` | `u1234567` |
-| `STAGING_FTP_PASSWORD` | `********` |
-| `STAGING_DATABASE_URL` | `mysql://user:pass@localhost:3306/db_test` |
-| `STAGING_NEXTAUTH_URL` | `https://test.blkpasuruan.go.id` |
-| `STAGING_VITE_API_BASE_URL` | `https://api-test.blkpasuruan.go.id` |
-| `STAGING_REMOTE_BACKEND_DIR` | `/backend-api-test` |
-| `STAGING_REMOTE_FRONTEND_DIR` | `/public_html/sigap-test` |
+| **`STAGING_FTP_SERVER`** | Alamat FTP (contoh: `ftp.blkpasuruan.go.id`) |
+| **`STAGING_FTP_USERNAME`** | Username login cPanel Anda |
+| **`STAGING_FTP_PASSWORD`** | Password cPanel (yang baru Anda ganti) |
+| **`STAGING_DATABASE_URL`** | URL Database (contoh: `mysql://u123_test:pass@localhost:3306/u123_db_test`) |
+| **`STAGING_NEXTAUTH_SECRET`** | Bebas (contoh: `kode_rahasia_sigap_123`) |
+| **`STAGING_NEXTAUTH_URL`** | URL subdomain backend (contoh: `https://api-test.blkpasuruan.go.id`) |
+| **`STAGING_VITE_API_BASE_URL`** | Sama dengan URL backend di atas |
+| **`STAGING_REMOTE_BACKEND_DIR`** | Folder backend di server (contoh: `/backend-api-test`) |
+| **`STAGING_REMOTE_FRONTEND_DIR`** | Folder frontend di server (contoh: `/sigap.blkpasuruan.com`) |
+| **`STAGING_SSH_PRIVATE_KEY`** | Isi dengan **seluruh teks Private Key** dari cPanel (Authorized) |
 
 #### B. Data Real (Production) - Manual (Klik Tombol)
-Gunakan awalan **`PROD_`** untuk semua nama secret. **Isi ini hanya jika domain utama sudah siap**:
-| Nama Secret | Contoh Value |
+Gunakan awalan **`PROD_`** untuk data ini. **Hanya diisi jika website utama sudah siap**:
+
+| Nama Secret | Keterangan |
 | :--- | :--- |
-| `PROD_FTP_SERVER` | `ftp.blkpasuruan.go.id` |
-| `PROD_FTP_USERNAME` | `u1234567` |
-| `PROD_FTP_PASSWORD` | `********` |
-| `PROD_DATABASE_URL` | `mysql://user:pass@localhost:3306/db_real` |
-| `PROD_NEXTAUTH_URL` | `https://sigap.blkpasuruan.go.id` |
-| `PROD_VITE_API_BASE_URL` | `https://api.sigap.blkpasuruan.go.id` |
-| `PROD_REMOTE_BACKEND_DIR` | `/backend-api-real` |
-| `PROD_REMOTE_FRONTEND_DIR` | `/public_html/sigap` |
+| **`PROD_FTP_SERVER`** | Alamat FTP server utama |
+| **`PROD_FTP_USERNAME`** | Username cPanel |
+| **`PROD_FTP_PASSWORD`** | Password cPanel |
+| **`PROD_DATABASE_URL`** | URL Database Real/Produksi |
+| **`PROD_NEXTAUTH_URL`** | URL website utama Anda |
+| **`PROD_VITE_API_BASE_URL`** | URL API backend produksi |
+| **`PROD_REMOTE_BACKEND_DIR`** | Folder backend produksi |
+| **`PROD_REMOTE_FRONTEND_DIR`** | Folder public_html utama |
 
 ### Langkah 2: Memahami File Workflow
 Saya telah menyiapkan dua file di folder `.github/workflows/`:
