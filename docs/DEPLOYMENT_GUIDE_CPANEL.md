@@ -204,9 +204,11 @@ Gunakan awalan **`PROD_`** untuk data ini. **Hanya diisi jika website utama suda
 | **`PROD_FTP_USERNAME`** | Username cPanel |
 | **`PROD_FTP_PASSWORD`** | Password cPanel |
 | **`PROD_DATABASE_URL`** | URL Database Real/Produksi |
+| **`PROD_JWT_SECRET`** | Password JWT untuk website utama |
 | **`PROD_VITE_API_BASE_URL`** | URL website utama Anda |
 | **`PROD_REMOTE_BACKEND_DIR`** | Folder backend produksi |
 | **`PROD_REMOTE_FRONTEND_DIR`** | Folder public_html utama |
+| **`PROD_SSH_PORT`** | Port SSH server utama (default: 21098/22) |
 
 ### Langkah 2: Memahami File Workflow
 Saya telah menyiapkan dua file di folder `.github/workflows/`:
