@@ -58,8 +58,12 @@ jobs:
           cp -r public/. deploy_ready/public/ || true
           
           # MANUALLY COPY PRISMA ENGINES (Critical for cPanel/Older OpenSSL)
+          # We check both local node_modules and standalone node_modules
           mkdir -p deploy_ready/node_modules/.prisma/client
-          cp node_modules/.prisma/client/libquery_engine-* deploy_ready/node_modules/.prisma/client/
+          cp node_modules/.prisma/client/libquery_engine-* deploy_ready/node_modules/.prisma/client/ || true
+          
+          # Also ensure engines are in the root of node_modules if needed
+          cp node_modules/.prisma/client/libquery_engine-* .next/standalone/node_modules/.prisma/client/ || true
 
       - name: Create Restart Trigger File
         run: |
