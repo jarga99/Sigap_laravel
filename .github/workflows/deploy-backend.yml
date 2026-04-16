@@ -57,6 +57,11 @@ jobs:
           cp -r .next/static/. deploy_ready/.next/static/
           cp -r public/. deploy_ready/public/ || true
 
+      - name: Create Restart Trigger File
+        run: |
+          mkdir -p backend-api/deploy_ready/tmp
+          touch backend-api/deploy_ready/tmp/restart.txt
+
       - name: Deploy to cPanel via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -69,15 +74,3 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
-
-      - name: Restart Node.js App (via SSH)
-        uses: appleboy/ssh-action@v1.0.3
-        continue-on-error: true # Tetap sukses meskipun SSH timeout, karena file sudah terkirim via FTP
-        with:
-          host: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
-          username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
-          password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
-          port: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_SSH_PORT || '21098' }}
-          script: |
-             cd ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
-             touch tmp/restart.txt
