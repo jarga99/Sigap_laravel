@@ -210,6 +210,28 @@ Gunakan awalan **`PROD_`** untuk data ini. **Hanya diisi jika website utama suda
 | **`PROD_REMOTE_FRONTEND_DIR`** | Folder public_html utama |
 | **`PROD_SSH_PORT`** | Port SSH server utama (default: 21098/22) |
 
+### Langkah 4: Pengaturan Database (Satu Kali)
+Setelah file terkirim, Anda perlu menyiapkan database di server:
+
+1.  **Buat Database & User** di menu **MySQL® Databases** cPanel.
+2.  **Edit File .env** di folder backend server Anda, pastikan `DATABASE_URL` sudah benar.
+3.  **Buka Terminal** di cPanel dan jalankan perintah:
+    ```bash
+    cd /home/username/path-ke-backend
+    source ~/.nvm/nvm.sh # Jika menggunakan NVM
+    npx prisma generate
+    npx prisma db push
+    npx prisma db seed
+    ```
+
+## FAQ & Troubleshooting
+*   **Aplikasi tidak jalan?** Cek folder `tmp/` apakah ada file `restart.txt`. Jika tidak ada, buat manual atau klik **Restart** di menu **Setup Node.js App**.
+*   **Error 500?** Cek log di `stderr.log` di dalam folder root aplikasi.
+*   **Database Error?** Pastikan port database (`3306`) dan credentials di `.env` sudah sesuai dengan yang dibuat di cPanel.
+
+---
+*Dibuat otomatis oleh Antigravity untuk SIGAP Project.*
+
 ### Langkah 2: Memahami File Workflow
 Saya telah menyiapkan dua file di folder `.github/workflows/`:
 1. **deploy-backend.yml**: Mengotomatisasi Next.js. Ia melakukan `build` di GitHub, lalu mengirimkan folder `standalone` ke server.
