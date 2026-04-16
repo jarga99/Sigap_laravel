@@ -4,6 +4,7 @@ import mysql from 'mysql2/promise';
  * 🛡️ STABLE DATABASE CONNECTION POOL
  * Dioptimalkan untuk MariaDB 10.6 di lingkungan cPanel/Jagoan Hosting.
  * Menambahkan KeepAlive untuk mencegah "Connection Lost" saat server idle.
+ * Database Connection Pool - SIGAP Stable Version 1.0.1 (MySQL Native)
  */
 const pool = mysql.createPool({
   uri: process.env.DATABASE_URL,
