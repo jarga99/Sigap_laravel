@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import pool, { queryOne, query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import { writeFile, mkdir } from 'fs/promises'
@@ -7,8 +7,6 @@ import path from 'path'
 import { callGemini, translateIndoToEnglish } from '@/lib/gemini'
 import { isAuthorized, reportUnauthorized } from '@/lib/security'
 import { headers } from 'next/headers'
-
-const prisma = new PrismaClient()
 
 async function translateToEnglish(text: string) {
   return await translateIndoToEnglish(text);
@@ -168,16 +166,19 @@ export async function PUT(request: Request) {
     }
 
     // --- SIMPAN KE DATABASE (Gunakan ID 1 secara konsisten) ---
-    console.log("DEBUG: Mengupayakan simpan data settings:", dataToSave);
+    console.log("DEBUG: Mengupayakan simpan data settings via MySQL:", dataToSave);
     
-    const updated = await prisma.settings.upsert({
-      where: { id: 1 },
-      update: dataToSave,
-      create: {
-        id: 1,
-        ...dataToSave as any
-      }
-    })
+    // Gunakan UPDATE untuk ID 1
+    const keys = Object.keys(dataToSave);
+    const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
+    const values = Object.values(dataToSave);
+
+    await pool.execute(
+      `UPDATE Settings SET ${setClause} WHERE id = 1`,
+      [...values]
+    );
+
+    const updated = await queryOne('SELECT * FROM Settings WHERE id = 1');
 
     // 📝 Record Audit Log
     recordAuditLog({

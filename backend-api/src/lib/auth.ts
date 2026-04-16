@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import * as jwt from 'jsonwebtoken'
-import { prisma } from './prisma'
+import pool, { queryOne } from './db'
 
 const SECRET = process.env.JWT_SECRET || 'Rahasia_Negara_Sigap_2025_!@#'
 
@@ -22,26 +22,31 @@ export async function getSession(customToken?: string | null) {
     }
 
     if (decoded.userId && decoded.sessionId) {
-      const user = await prisma.user.findUnique({
-        where: { id: Number(decoded.userId) }, // Pastikan ID adalah Number
-        include: {
-          department: {
-            select: { id: true, name: true, name_en: true }
-          }
-        }
-      })
+      const user = await queryOne(`
+        SELECT u.*, c.name as dept_name, c.name_en as dept_name_en 
+        FROM User u
+        LEFT JOIN Category c ON u.departmentId = c.id
+        WHERE u.id = ?
+      `, [Number(decoded.userId)]);
       
       if (!user) {
         console.warn(`[AUTH] User ID ${decoded.userId} tidak ditemukan di database.`);
         return null;
       }
 
+      // Re-format object agar sesuai dengan ekspektasi aplikasi (nesting department)
+      const formattedUser = {
+        ...user,
+        department: user.departmentId ? {
+          id: user.departmentId,
+          name: user.dept_name,
+          name_en: user.dept_name_en
+        } : null
+      };
+
       // Jika seeder baru dijalankan dan user.sessionId kosong, update saja (self-healing)
       if (!user.sessionId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { sessionId: decoded.sessionId }
-        });
+        await pool.execute('UPDATE User SET sessionId = ? WHERE id = ?', [decoded.sessionId, user.id]);
       }
 
       // Jika session ID tidak valid (login di browser/device lain), tolak.
@@ -54,7 +59,7 @@ export async function getSession(customToken?: string | null) {
       return {
         ...decoded,
         userId: user.id, // Pastikan userId selalu ada di top level
-        user: user      // Sertakan objek user lengkap
+        user: formattedUser      // Sertakan objek user lengkap yang sudah di-format
       }
     }
 

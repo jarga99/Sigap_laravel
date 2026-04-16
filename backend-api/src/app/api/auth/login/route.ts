@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import pool, { queryOne } from '@/lib/db'
 import bcrypt from 'bcryptjs' // Pastikan pakai bcryptjs, bukan bcrypt (lebih aman di Next.js)
 import * as jwt from 'jsonwebtoken'
 import { z } from 'zod'
@@ -7,7 +7,6 @@ import crypto from 'crypto'
 import { isAuthorized, reportUnauthorized } from '@/lib/security'
 import { headers } from 'next/headers'
 
-import { prisma } from '@/lib/prisma'
 const JWT_SECRET = process.env.JWT_SECRET || 'Rahasia_Negara_Sigap_2025_!@#'
 
 const loginSchema = z.object({
@@ -33,19 +32,13 @@ export async function POST(request: Request) {
       await reportUnauthorized(host, `LOGIN_ATTEMPT: ${username}`)
     }
 
-    // 1. Cari User berdasarkan USERNAME saja (Hapus logika email)
-    const user = await prisma.user.findUnique({
-      where: { username: username },
-      include: {
-        department: {
-          select: {
-            id: true,
-            name: true,
-            name_en: true
-          }
-        }
-      }
-    })
+    // 1. Cari User berdasarkan USERNAME saja
+    const user = await queryOne(`
+      SELECT u.*, c.name as dept_name, c.name_en as dept_name_en 
+      FROM User u
+      LEFT JOIN Category c ON u.departmentId = c.id
+      WHERE u.username = ?
+    `, [username]);
 
     if (!user) {
       return NextResponse.json({ error: 'Akun tidak ditemukan' }, { status: 401 })
@@ -60,10 +53,7 @@ export async function POST(request: Request) {
     // 3. Buat Session ID unik (Concurrent Login Protection)
     const sessionId = crypto.randomUUID()
     
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { sessionId: sessionId }
-    })
+    await pool.execute('UPDATE User SET sessionId = ? WHERE id = ?', [sessionId, user.id]);
 
     // 4. Buat Token
     const token = jwt.sign(
@@ -79,16 +69,17 @@ export async function POST(request: Request) {
     )
 
     // 5. Catat Log Aktivitas Login
-    await prisma.auditLog.create({
-      data: {
-        action: 'LOGIN_SUCCESS',
-        resource: 'User',
-        resourceId: user.id.toString(),
-        details: JSON.stringify({ username: user.username, method: 'PASSWORD' }),
-        userId: user.id,
-        ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1'
-      }
-    })
+    await pool.execute(
+      'INSERT INTO AuditLog (action, resource, resourceId, details, userId, ipAddress) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        'LOGIN_SUCCESS',
+        'User',
+        user.id.toString(),
+        JSON.stringify({ username: user.username, method: 'PASSWORD' }),
+        user.id,
+        request.headers.get('x-forwarded-for') || '127.0.0.1'
+      ]
+    );
 
     return NextResponse.json({
       message: 'Login berhasil',
@@ -99,7 +90,11 @@ export async function POST(request: Request) {
         fullName: user.fullName,
         email: user.email, 
         image_url: user.image_url,
-        department: user.department 
+        department: user.departmentId ? {
+          id: user.departmentId,
+          name: user.dept_name,
+          name_en: user.dept_name_en
+        } : null
       },
       token
     })
