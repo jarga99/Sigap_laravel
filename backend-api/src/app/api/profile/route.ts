@@ -1,9 +1,4 @@
-import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import * as bcrypt from 'bcryptjs'
-import { getSession } from '@/lib/auth'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 export async function PUT(request: Request) {
   const session = await getSession()

@@ -1,27 +1,51 @@
-import { PrismaClient } from '@prisma/client'
+// 🛡️ NUCLEAR STERILIZATION PRISMA
+// File ini dirancang agar TIDAK PERNAH memuat library Prisma ke RAM saat startup.
+// Ini mencegah error "PrismaClientInitializationError" yang mematikan seluruh aplikasi.
 
-// Mencegah error "Too many connections" saat development (Hot Reload)
 const globalForPrisma = global as unknown as { prisma: any }
 
 /**
- * 🛡️ SAFE PRISMA INITIALIZATION
- * Jika engine binary gagal di-load, kita bungkus dalam try-catch agar tidak mematikan SELURUH aplikasi (503).
+ * Fungsi ini menggunakan Dynamic Import atau Lazy Loading.
+ * Selama tidak ada kode yang memanggil 'prisma.user...', maka library Prisma 
+ * sama sekali tidak akan pernah di-load oleh Node.js.
  */
-function createSafePrismaClient() {
-  try {
-    return new PrismaClient();
-  } catch (err: any) {
-    console.error("🚨 [PRISMA_CRASH_PREVENTED] Gagal inisialisasi Prisma Client (Engine Error).");
-    return new Proxy({}, {
-      get: (target, prop) => {
-        return () => {
-          throw new Error(`Prisma tidak tersedia (Engine Error). Gunakan SQL murni untuk fitur ini. [Prop: ${String(prop)}]`);
+function createNuclearSafePrismaClient() {
+  if (typeof window !== 'undefined') return {} as any;
+
+  return new Proxy({}, {
+    get: (target: any, prop: string) => {
+      // Lazy initialization saat properti pertama kali diakses
+      if (!target._instance && !target._failed) {
+        try {
+          console.log(`[PRISMA_NUCLEAR] Mencoba memuat library secara dinamis untuk: ${prop}`);
+          // Menggunakan require secara lokal di dalam trap agar tidak kena top-level search
+          const { PrismaClient } = require('@prisma/client');
+          target._instance = new PrismaClient();
+        } catch (err: any) {
+          console.error("🚨 [PRISMA_NUCLEAR_SHIELD] Gagal memuat Prisma. Mengaktifkan mode isolasi.");
+          target._failed = true;
+          target._error = err.message;
+        }
+      }
+
+      // Jika inisialisasi gagal atau sedang dalam mode isolasi
+      if (target._failed || !target._instance) {
+        return (...args: any[]) => {
+          console.error(`[PRISMA_ISOLATED] Operasi '${prop}' dibatalkan untuk mencegah crash.`);
+          return Promise.reject(new Error("Prisma Engine Offline. Gunakan jalur MySQL murni."));
         };
       }
-    }) as unknown as PrismaClient;
-  }
+
+      // Teruskan ke instance asli
+      const value = target._instance[prop];
+      if (typeof value === 'function') {
+        return value.bind(target._instance);
+      }
+      return value;
+    }
+  });
 }
 
-export const prisma = globalForPrisma.prisma || createSafePrismaClient();
+export const prisma = globalForPrisma.prisma || createNuclearSafePrismaClient();
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
