@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { OAuth2Client } from 'google-auth-library'
 import * as jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
 
 // Disarankan untuk menyimpan CLIENT_ID Anda di .env
 // Gunakan Client ID dari .env
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const client = new OAuth2Client(GOOGLE_CLIENT_ID)
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret'
+const JWT_SECRET = process.env.JWT_SECRET || 'Rahasia_Negara_Sigap_2025_!@#'
 
 export async function POST(request: Request) {
   try {

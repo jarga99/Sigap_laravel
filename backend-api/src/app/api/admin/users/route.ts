@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
-
-const prisma = new PrismaClient()
 
 // Skema Validasi Update: Menyesuaikan database baru
 // Frontend harus mengirim 'departmentId' (Int) bukan string subdivision manual

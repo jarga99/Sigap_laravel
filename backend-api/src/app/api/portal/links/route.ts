@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient, Visibility, Prisma } from '@prisma/client'
+import { Visibility, Prisma } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
-
-const prisma = new PrismaClient()
 
 // 🤖 AI Translator dihilangkan untuk optimalisasi performa tinggi
 

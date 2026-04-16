@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import * as bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
-
-const prisma = new PrismaClient()
 
 // 1. PUT: Edit User
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {

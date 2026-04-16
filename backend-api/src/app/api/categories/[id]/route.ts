@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import translate from 'translate'
 
 translate.engine = 'google'
-const prisma = new PrismaClient()
 
 export async function PUT(
   request: Request,

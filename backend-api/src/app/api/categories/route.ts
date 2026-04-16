@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import translate from 'translate'
 
 // Konfigurasi engine penerjemah ke Google
 translate.engine = 'google'
-
-const prisma = new PrismaClient()
 
 export async function GET() {
   try {

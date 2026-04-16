@@ -1,7 +1,4 @@
-import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // Fungsi Helper (Disalin ke sini juga agar PUT bisa menggunakannya)
 import { translateIndoToEnglish } from '@/lib/gemini'
