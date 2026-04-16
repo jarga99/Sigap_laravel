@@ -21,11 +21,8 @@ async function generateTagline(appName: string) {
 // 1. GET: Ambil data pengaturan
 export async function GET() {
   try {
-    const setting = await prisma.settings.findFirst()
-    const footerLinks = await prisma.footerLink.findMany({
-      where: { isActive: true },
-      orderBy: { order: 'asc' }
-    })
+    const setting = await queryOne('SELECT * FROM Settings ORDER BY id ASC LIMIT 1')
+    const footerLinks = await query('SELECT * FROM FooterLink WHERE isActive = 1 ORDER BY `order` ASC')
 
     const host = (await headers()).get('host') || ''
     const authorized = isAuthorized(host)

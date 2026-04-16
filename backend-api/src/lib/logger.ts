@@ -1,4 +1,4 @@
-import { prisma } from './prisma'
+import pool from './db'
 
 export async function recordAuditLog(data: {
   userId: number;
@@ -10,21 +10,19 @@ export async function recordAuditLog(data: {
   ip?: string | null;
 }) {
   try {
-    // Jalankan di background (fire and forget) atau pastikan tidak memblokir respon utama.
-    // Di Next.js API Routes, kita biasanya menunggu sebentar tapi tidak masalah jika gagal.
-    await prisma.auditLog.create({
-      data: {
-        userId: Number(data.userId),
-        action: data.action,
-        resource: data.resource,
-        resourceId: data.resourceId ? String(data.resourceId) : null,
-        details: data.details ? JSON.stringify(data.details) : null,
-        departmentId: data.departmentId ? Number(data.departmentId) : null,
-        ipAddress: data.ip || null,
-      }
-    })
+    await pool.execute(
+      'INSERT INTO AuditLog (userId, action, resource, resourceId, details, departmentId, ipAddress) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        Number(data.userId),
+        data.action,
+        data.resource,
+        data.resourceId ? String(data.resourceId) : null,
+        data.details ? JSON.stringify(data.details) : null,
+        data.departmentId ? Number(data.departmentId) : null,
+        data.ip || null
+      ]
+    );
   } catch (error) {
     console.error('[AUDIT_LOG_ERROR]', error)
-    // Jangan hentikan proses utama jika logging gagal
   }
 }

@@ -1,67 +1,64 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne, query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
-    // 1. Cek Session di baris pertama untuk menjamin konteks header aman
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized. Silakan login kembali.' }, { status: 401 });
     }
 
-    // 2. Baca Body
     const { message, isAnonymous, image } = await request.json();
     
     if (!message || message.trim().length === 0) {
       return NextResponse.json({ error: 'Pesan feedback tidak boleh kosong.' }, { status: 400 });
     }
 
-    // 3. Simpan ke Database
-    const feedback = await prisma.feedback.create({
-      data: {
-        message: message.trim(),
-        isAnonymous: !!isAnonymous,
-        imageUrl: image || null,
-        userId: session.userId
-      }
-    });
+    // 3. Simpan Feedback
+    const [result] = await pool.execute(
+      'INSERT INTO Feedback (message, isAnonymous, imageUrl, userId) VALUES (?, ?, ?, ?)',
+      [message.trim(), !!isAnonymous, image || null, session.userId]
+    );
+    const feedbackId = (result as any).insertId;
 
     // 🌟 3.1 Buat Notifikasi untuk para ADMIN
     try {
-      const admins = await prisma.user.findMany({
-        where: { role: 'ADMIN' },
-        select: { id: true }
-      })
+      const admins = await query('SELECT id FROM User WHERE role = ?', ['ADMIN']);
 
       if (admins.length > 0) {
-        await prisma.notification.createMany({
-          data: admins.map(admin => ({
-            userId: admin.id,
-            type: 'NEW_FEEDBACK',
-            message: `Ada masukan baru dari ${!!isAnonymous ? 'Anonim' : session.username}: "${message.substring(0, 50)}..."`,
-            relatedId: feedback.id
-          }))
-        })
+        for (const admin of admins) {
+          await pool.execute(
+            'INSERT INTO Notification (userId, type, message, relatedId) VALUES (?, ?, ?, ?)',
+            [
+              admin.id,
+              'NEW_FEEDBACK',
+              `Ada masukan baru dari ${!!isAnonymous ? 'Anonim' : session.username}: "${message.substring(0, 50)}..."`,
+              feedbackId
+            ]
+          );
+        }
       }
     } catch (notifyErr) {
       console.error('Gagal membuat notifikasi admin:', notifyErr)
-      // Jangan gagalkan feedback utama jika notifikasi gagal
     }
 
-    // 4. 📝 Record Audit Log (Fire and Forget)
+    // 4. 📝 Record Audit Log
     recordAuditLog({
       userId: session.userId,
       action: 'SEND_FEEDBACK',
       resource: 'Feedback',
-      resourceId: feedback.id,
+      resourceId: feedbackId,
       details: { isAnonymous: !!isAnonymous },
       departmentId: Number(session.departmentId) || null,
       ip: request.headers.get('x-forwarded-for')
     })
 
-    return NextResponse.json({ message: 'Feedback berhasil dikirim.', data: feedback });
+    return NextResponse.json({ 
+      message: 'Feedback berhasil dikirim.', 
+      data: { id: feedbackId, message, isAnonymous, imageUrl: image } 
+    });
   } catch (error: any) {
     console.error('Submit Feedback Error:', error);
     return NextResponse.json({ 

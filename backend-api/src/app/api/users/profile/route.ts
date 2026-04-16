@@ -1,25 +1,22 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import pool, { queryOne } from '@/lib/db'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import * as bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
-
-const prisma = new PrismaClient()
+import { recordAuditLog } from '@/lib/logger'
 
 export async function GET() {
   try {
     const decoded = await getSession()
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        department: {
-          select: { id: true, name: true }
-        }
-      }
-    })
+    const user = await queryOne(`
+        SELECT u.*, c.name as dept_name 
+        FROM User u
+        LEFT JOIN Category c ON u.departmentId = c.id
+        WHERE u.id = ?
+    `, [decoded.userId]);
 
     if (!user) return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 })
 
@@ -31,7 +28,7 @@ export async function GET() {
         email: user.email,
         role: user.role,
         image_url: user.image_url,
-        department: user.department
+        department: user.departmentId ? { id: user.departmentId, name: user.dept_name } : null
       }
     })
   } catch (error) {
@@ -42,21 +39,18 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    // 1. Validasi Token
     const decoded = await getSession()
     if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     
     const userId = decoded.userId
 
-    // 2. Ambil FormData
     const formData = await request.formData()
     const fullName = formData.get('fullName') as string
     const password = formData.get('password') as string
     const email = formData.get('email') as string
-    const file = formData.get('image') as File | null // Ambil file dengan key 'image'
+    const file = formData.get('image') as File | null 
 
-    // Ambil data user saat ini untuk record awal
-    const user = await prisma.user.findUnique({ where: { id: userId } })
+    const user = await queryOne('SELECT * FROM User WHERE id = ?', [userId])
     if (!user) return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 })
 
     const updateData: Record<string, string | number | null> = {}
@@ -66,15 +60,10 @@ export async function PUT(request: Request) {
       updateData.password = await bcrypt.hash(password, 10)
     }
 
-    // 3. Proses Simpan File Jika Ada
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
-
-      // Tentukan lokasi: public/uploads/profiles
       const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles')
-      
-      // Buat folder jika belum ada
       await mkdir(uploadDir, { recursive: true })
 
       const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
@@ -84,30 +73,27 @@ export async function PUT(request: Request) {
       const random = Math.random().toString(36).substring(2, 8)
       const ext = path.extname(file.name) || '.webp'
       const filename = `PROFILE_${date}_${initials}_${random}${ext}`
-      
       const filePath = path.join(uploadDir, filename)
       
-      // Simpan file ke sistem
       await writeFile(filePath, buffer)
-      console.log("File berhasil ditulis ke:", filePath)
-
-      // Simpan path di database (Gunakan versi bersih)
       updateData.image_url = filename 
     }
 
-    // 4. Update ke Database
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData
-    })
+    if (Object.keys(updateData).length > 0) {
+      const keys = Object.keys(updateData);
+      const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
+      const values = Object.values(updateData);
+      await pool.execute(`UPDATE User SET ${setClause} WHERE id = ?`, [...values, userId]);
+    }
 
-    // 📝 Record Audit Log
+    const updatedUser = await queryOne('SELECT * FROM User WHERE id = ?', [userId])
+
     recordAuditLog({
       userId: userId,
       action: 'UPDATE_PROFILE',
       resource: 'User',
       resourceId: userId,
-      details: { // Catat apa saja yang berubah (kecuali password)
+      details: {
         fields: Object.keys(updateData).filter(k => k !== 'password')
       },
       departmentId: Number(updatedUser.departmentId) || null,
@@ -126,8 +112,8 @@ export async function PUT(request: Request) {
       }
     })
 
-  } catch {
-    console.error("[PROFILE_UPDATE_ERROR]")
-    return NextResponse.json({ error: 'Gagal update profil' }, { status: 500 })
+  } catch (error: any) {
+    console.error("[PROFILE_UPDATE_ERROR]", error)
+    return NextResponse.json({ error: 'Gagal update profil', details: error.message }, { status: 500 })
   }
 }

@@ -11,23 +11,23 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/node": "^20.19.33",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.9.2",
+    "mysql2": "^3.22.0",
     "next": "15.1.0",
     "prisma": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.34.5",
-    "ts-node": "^10.9.2",
     "translate": "^3.0.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "xlsx": "^0.18.5",
-    "zod": "^4.3.6",
-    "@types/node": "^20.19.33"
+    "zod": "^4.3.6"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
