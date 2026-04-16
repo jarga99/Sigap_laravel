@@ -29,7 +29,7 @@ function getRandomDateBetween(start: Date, end: Date) {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
-async function main() {
+export async function seedDatabase() {
   console.log('🌱 Starting AI-Powered DB Seeder with Historical Data...');
 
   // 1. Total Cleanup
@@ -267,11 +267,14 @@ async function main() {
   console.log('🎉 Seeding completed! All _en fields and historical logs are successfully populated.');
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+// Call if executed via CLI
+if (require.main === module) {
+  seedDatabase()
+    .catch((e) => {
+      console.error(e)
+      process.exit(1)
+    })
+    .finally(async () => {
+      await prisma.$disconnect()
+    })
+}

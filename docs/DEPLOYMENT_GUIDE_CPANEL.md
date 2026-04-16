@@ -211,14 +211,19 @@ Gunakan awalan **`PROD_`** untuk data ini. **Hanya diisi jika website utama suda
 | **`PROD_SSH_PORT`** | Port SSH server utama (default: 21098/22) |
 
 ### Langkah 4: Pengaturan Database (Satu Kali)
-Setelah file terkirim, Anda perlu menyiapkan database di server:
+Jika Anda memiliki akses **Terminal** di cPanel, jalankan perintah standar Prisma. Jika **TIDAK** memiliki akses terminal, gunakan metode **One-Click Setup** berikut:
 
-1.  **Buat Database & User** di menu **MySQL® Databases** cPanel.
-2.  **Edit File .env** di folder backend server Anda, pastikan `DATABASE_URL` sudah benar.
-3.  **Buka Terminal** di cPanel dan jalankan perintah:
+#### Opsi A: One-Click Setup (Tanpa Terminal)
+1.  **Tambah Secret**: Masukkan `MAINTENANCE_TOKEN` (isi bebas) ke **GitHub Secrets** dan file **.env** di cPanel.
+2.  **Panggil URL**: Buka browser dan kunjungi alamat berikut:
+    `https://api-anda.com/api/admin/setup-db?token=TOKEN_ANDA`
+3.  **Selesai**: Jika muncul pesan "success", database Anda sudah siap digunakan.
+
+#### Opsi B: Terminal cPanel (Jika Tersedia)
+1.  **Buka Terminal** di cPanel dan jalankan:
     ```bash
     cd /home/username/path-ke-backend
-    source ~/.nvm/nvm.sh # Jika menggunakan NVM
+    source ~/.nvm/nvm.sh
     npx prisma generate
     npx prisma db push
     npx prisma db seed
