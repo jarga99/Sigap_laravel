@@ -178,40 +178,60 @@ CI/CD adalah singkatan dari **Continuous Integration & Continuous Deployment**. 
 > Metode ini sangat efisien karena tidak memakan RAM 3 GB milik server hosting Anda saat proses *build*.
 
 ### Langkah 1: Menyiapkan GitHub Secrets
-GitHub membutuhkan izin untuk masuk ke cPanel Anda. Jangan tulis password di kode! Masukkan di **Secrets**:
-1. Buka repository Anda di GitHub.
-2. Klik **Settings** > **Secrets and Variables** > **Actions**.
-3. Klik **New repository secret** dan masukkan data berikut:
+GitHub membutuhkan izin untuk masuk ke cPanel Anda. Karena kita menggunakan sistem **Staging & Production**, Anda perlu menyiapkan dua set rahasia:
 
-| Nama Secret | Contoh Value | Kegunaan |
-| :--- | :--- | :--- |
-| `FTP_SERVER` | `ftp.blkpasuruan.go.id` | Alamat FTP Hosting Anda |
-| `FTP_USERNAME` | `u1234567` | Username login cPanel/FTP |
-| `FTP_PASSWORD` | `********` | Password login cPanel/FTP |
-| `DATABASE_URL` | `mysql://user:pass@localhost:3306/db` | Koneksi database server |
-| `NEXTAUTH_SECRET` | `kode-rahasia-anda` | Kode enkripsi sesi login |
-| `NEXTAUTH_URL` | `https://sigap.blkpasuruan.go.id` | URL backend Anda |
-| `VITE_API_BASE_URL` | `https://backend.sigap.blkpasuruan.go.id` | URL API untuk frontend |
-| `REMOTE_BACKEND_DIR` | `/backend-api` | Folder tujuan backend (root app) |
-| `REMOTE_FRONTEND_DIR` | `/public_html/sigap` | Folder tujuan frontend (root domain) |
+#### A. Data Testing (Staging) - Otomatis saat Push
+Gunakan awalan **`STAGING_`** untuk semua nama secret:
+| Nama Secret | Contoh Value |
+| :--- | :--- |
+| `STAGING_FTP_SERVER` | `ftp.blkpasuruan.go.id` |
+| `STAGING_FTP_USERNAME` | `u1234567` |
+| `STAGING_FTP_PASSWORD` | `********` |
+| `STAGING_DATABASE_URL` | `mysql://user:pass@localhost:3306/db_test` |
+| `STAGING_NEXTAUTH_URL` | `https://test.blkpasuruan.go.id` |
+| `STAGING_VITE_API_BASE_URL` | `https://api-test.blkpasuruan.go.id` |
+| `STAGING_REMOTE_BACKEND_DIR` | `/backend-api-test` |
+| `STAGING_REMOTE_FRONTEND_DIR` | `/public_html/sigap-test` |
+
+#### B. Data Real (Production) - Manual (Klik Tombol)
+Gunakan awalan **`PROD_`** untuk semua nama secret. **Isi ini hanya jika domain utama sudah siap**:
+| Nama Secret | Contoh Value |
+| :--- | :--- |
+| `PROD_FTP_SERVER` | `ftp.blkpasuruan.go.id` |
+| `PROD_FTP_USERNAME` | `u1234567` |
+| `PROD_FTP_PASSWORD` | `********` |
+| `PROD_DATABASE_URL` | `mysql://user:pass@localhost:3306/db_real` |
+| `PROD_NEXTAUTH_URL` | `https://sigap.blkpasuruan.go.id` |
+| `PROD_VITE_API_BASE_URL` | `https://api.sigap.blkpasuruan.go.id` |
+| `PROD_REMOTE_BACKEND_DIR` | `/backend-api-real` |
+| `PROD_REMOTE_FRONTEND_DIR` | `/public_html/sigap` |
 
 ### Langkah 2: Memahami File Workflow
 Saya telah menyiapkan dua file di folder `.github/workflows/`:
 1. **deploy-backend.yml**: Mengotomatisasi Next.js. Ia melakukan `build` di GitHub, lalu mengirimkan folder `standalone` ke server.
 2. **deploy-frontend.yml**: Mengotomatisasi Vue 3. Ia melakukan `build`, lalu mengirim folder `dist` saja.
 
-### Langkah 3: Eksekusi
-Cukup lakukan push ke GitHub:
+### Langkah 3: Cara Deployment
+
+#### 1. Deployment ke Staging (OTOMATIS)
+Setiap kali Anda melakukan `git push origin master`, robot akan otomatis melakukan build dan mengirimkan hasilnya ke server **Staging/Testing**. Cukup lakukan:
 ```bash
 git add .
-git commit -m "feat: setup automated deployment"
+git commit -m "feat: update staging"
 git push origin master
 ```
-Lalu pantau menu **Actions** di GitHub. Jika ikonnya berubah jadi hijau (Checkmark), selamat! Website Anda sudah terupdate otomatis.
+
+#### 2. Deployment ke Production (MANUAL - SATU KLIK)
+Jika setelah dites di Staging sudah aman dan tidak ada bug, Anda bisa "melempar" ke server **Utama/Production** tanpa perlu push kode lagi:
+1. Buka tab **Actions** di GitHub.
+2. Di sidebar kiri, pilih **Multi-Environment Deploy Backend** (atau Frontend).
+3. Klik tombol **Run workflow** di sebelah kanan atas.
+4. Pilih branchnya (`master`) dan pilih Target: **production**.
+5. Klik **Run workflow**. 🚀
 
 ### FAQ / Tips Tambahan:
 - **Restart App**: Untuk backend, workflow akan otomatis menjalankan perintah `touch tmp/restart.txt` di server untuk me-restart Node.js.
 - **Node Modules**: Karena kita menggunakan sistem **Standalone**, Anda tidak perlu lagi menjalankan `npm install` di server cPanel. Semua dependensi sudah dibungkus rapi oleh GitHub.
 
 ---
-> SIGAP Deployment Engine v1.2.0 - CI/CD Integrated
+> SIGAP Deployment Engine v1.3.0 - Dual Staging/Production Edition

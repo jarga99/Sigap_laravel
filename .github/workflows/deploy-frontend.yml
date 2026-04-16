@@ -1,4 +1,4 @@
-name: Deploy Frontend to cPanel
+name: Multi-Environment Deploy Frontend
 
 on:
   push:
@@ -6,10 +6,23 @@ on:
     paths:
       - 'frontend-client/**'
       - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'staging' || github.event.inputs.target }}
+      
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -31,14 +44,14 @@ jobs:
           cd frontend-client
           npm run build
         env:
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_VITE_API_BASE_URL || secrets.STAGING_VITE_API_BASE_URL }}
 
       - name: Deploy to cPanel via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
+          username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
+          password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
           local-dir: ./frontend-client/dist/
-          server-dir: ${{ secrets.REMOTE_FRONTEND_DIR }}
-          dangerously-clean-slot: true # Hapus file lama di server
+          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_FRONTEND_DIR || secrets.STAGING_REMOTE_FRONTEND_DIR }}
+          dangerously-clean-slot: true

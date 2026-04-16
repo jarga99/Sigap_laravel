@@ -1,4 +1,4 @@
-name: Deploy Backend to cPanel
+name: Multi-Environment Deploy Backend
 
 on:
   push:
@@ -6,10 +6,24 @@ on:
     paths:
       - 'backend-api/**'
       - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    # Tentukan environment   berdasarkan trigger (Push = Staging, Manual = sesuai input)
+    env:
+      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'staging' || github.event.inputs.target }}
+      
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -31,9 +45,9 @@ jobs:
           cd backend-api
           npm run build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_NEXTAUTH_SECRET || secrets.STAGING_NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_NEXTAUTH_URL || secrets.STAGING_NEXTAUTH_URL }}
 
       - name: Prepare Standalone Artifacts
         run: |
@@ -47,11 +61,11 @@ jobs:
       - name: Deploy to cPanel via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
+          username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
+          password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
           local-dir: ./backend-api/deploy_ready/
-          server-dir: ${{ secrets.REMOTE_BACKEND_DIR }}
+          server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
@@ -60,10 +74,10 @@ jobs:
       - name: Restart Node.js App (via SSH)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21098 # Ubah jika port SSH cPanel berbeda
+          host: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
+          username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
+          password: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
+          port: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_SSH_PORT || '21098' }}
           script: |
-            cd ${{ secrets.REMOTE_BACKEND_DIR }}
-            touch tmp/restart.txt
+             cd ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
+             touch tmp/restart.txt
