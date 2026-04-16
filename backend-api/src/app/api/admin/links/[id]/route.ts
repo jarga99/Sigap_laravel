@@ -118,7 +118,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       slug: body.slug || oldLink.slug,
       visibility: body.visibility || oldLink.visibility,
       is_active: body.is_active !== undefined ? (body.is_active ? 1 : 0) : oldLink.is_active,
-      \`desc\`: desc || oldLink.desc || '',          
+      desc: desc || oldLink.desc || '',          
       desc_en: desc_en || oldLink.desc_en || '',    
       updatedAt: new Date()
     };

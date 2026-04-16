@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       slug: slug,
       visibility: visibility || 'INTERNAL',
       is_active: is_active ?? 1,
-      \`desc\`: desc || '',
+      desc: desc || '',
       desc_en: desc_en || '',
       category_id: Number(category_id),
       userId: session.userId,
