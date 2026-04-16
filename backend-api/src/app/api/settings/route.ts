@@ -134,8 +134,8 @@ export async function PUT(request: Request) {
       const buffer = Buffer.from(bytes)
       
       const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
-      const initials = session?.fullName
-        ? session.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+      const initials = session?.user?.fullName
+        ? session.user.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
         : 'SYS'
       const random = Math.random().toString(36).substring(2, 8)
       const ext = path.extname(file.name) || '.webp'

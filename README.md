@@ -21,12 +21,16 @@ Proyek ini terbagi menjadi dua bagian utama:
 ### 1. Alur Kerja Utama
 ```mermaid
 graph TD
-    A[Public/Guest] -->|Cari Layanan| B(Portal SIGAP)
-    B -->|Submit Feedback| C{Admin Dashboard}
-    D[Pegawai] -->|Kelola Tautan| C
-    E[Admin Event] -->|Hybrid Layout Editor| F[Landing Page Event]
-    C -->|Audit Logs| G[Super Admin]
-    G -->|Konfigurasi Branding| B
+    subgraph "Akses Publik (Guest)"
+        G[Guest] -->|Hanya via Shared Link| E[Landing Page Event]
+    end
+
+    subgraph "Akses Internal (Staff)"
+        P[Staff/Pegawai] -->|Login Berhasil| PT(Portal Utama SIGAP)
+        PT -->|Kelola Konten| D[Dashboard Admin]
+        AE[Admin Event] -->|Hybrid Editor| E
+        SA[Super Admin] -->|Full Control| D
+    end
 ```
 
 ### 2. Struktur Database (ERD)

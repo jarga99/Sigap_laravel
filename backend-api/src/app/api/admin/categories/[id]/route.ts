@@ -21,8 +21,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const resolvedParams = await params;
     const id = parseInt(resolvedParams.id)
     const user = await getSession()
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'EMPLOYEE')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
+      return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa mengelola kategori.' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -62,7 +62,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const resolvedParams = await params;
     const id = parseInt(resolvedParams.id)
     const user = await getSession()
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'EMPLOYEE')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa menghapus kategori.' }, { status: 403 })
 
     const deletedCategory = await prisma.category.delete({ where: { id } })
 

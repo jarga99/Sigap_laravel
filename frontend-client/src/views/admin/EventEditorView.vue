@@ -74,6 +74,11 @@ const fontOptions = [
   { name: 'Space Grotesk', value: "'Space Grotesk', sans-serif" }
 ]
 
+const getFontStack = (fontName: string) => {
+  const found = fontOptions.find(f => f.name === fontName)
+  return found ? found.value : "'Inter', sans-serif"
+}
+
 const fetchEvent = async () => {
   const id = route.params.id
   try {
@@ -210,6 +215,12 @@ const suggestAI = async (type: 'description' | 'footer') => {
   }
 }
 
+const copyShareLink = () => {
+  const url = `${window.location.origin}/e/${event.value.slug}`
+  navigator.clipboard.writeText(url)
+  alert(`Link Event berhasil disalin ke clipboard:\n\n${url}`)
+}
+
 onMounted(() => {
   fetchEvent()
   window.addEventListener('resize', () => {
@@ -246,6 +257,11 @@ onMounted(() => {
           <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
           SYNCED
         </div>
+
+        <button @click="copyShareLink" class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg shadow-emerald-500/30 hover:bg-emerald-700 transition-all">
+          <Share2 :size="16" />
+          <span class="hidden sm:inline">Share</span>
+        </button>
 
         <button @click="saveEvent" :disabled="isSaving" class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50">
           <Loader2 v-if="isSaving" class="animate-spin" :size="16" />
@@ -405,13 +421,21 @@ onMounted(() => {
                </select>
 
                <div v-if="event.profileBorderStyle !== 'none'" class="space-y-4">
-                 <div>
-                   <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Ketebalan: {{ event.profileBorderWidth }}px</span>
-                   <input type="range" v-model.number="event.profileBorderWidth" min="1" max="15" class="w-full accent-blue-600 h-1.5 bg-slate-100 rounded-lg appearance-none" />
+                 <div class="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/50">
+                   <div class="flex justify-between items-center mb-2">
+                     <span class="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Ketebalan Border</span>
+                     <span class="text-[10px] font-black text-slate-400">{{ event.profileBorderWidth }}px</span>
+                   </div>
+                   <input type="range" v-model.number="event.profileBorderWidth" min="1" max="15" class="w-full accent-blue-600 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none" />
                  </div>
                   <div class="flex gap-2">
-                    <input type="color" v-model="event.profileBgColor" class="w-10 h-10 rounded-lg cursor-pointer" />
-                    <input v-model="event.profileBgColor" class="input-v3 font-mono text-xs uppercase flex-1" />
+                    <div class="flex-1">
+                       <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Warna Border</span>
+                       <div class="flex gap-2">
+                         <input type="color" v-model="event.profileBgColor" class="w-10 h-10 rounded-lg cursor-pointer border-none" />
+                         <input v-model="event.profileBgColor" class="input-v3 font-mono text-xs uppercase flex-1" />
+                       </div>
+                    </div>
                   </div>
                 </div>
 
@@ -528,12 +552,17 @@ onMounted(() => {
                       </div>
                     </div>
 
-                    <!-- Divider Customization (Bug 5) -->
-                    <div v-else class="flex items-center gap-4 bg-slate-50 p-2 rounded-xl">
-                      <input type="color" v-model="it.color" class="w-6 h-6 rounded-full" />
+                    <!-- Divider Customization (Bug 5 Fix: Use 'order' as thickness visually but preserve logic) -->
+                    <div v-else class="flex items-center gap-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div class="flex-shrink-0">
+                        <input type="color" v-model="it.color" class="w-8 h-8 rounded-lg cursor-pointer border-none" />
+                      </div>
                       <div class="flex-1">
-                        <span class="text-[8px] font-black uppercase text-slate-400 block mb-1">Ketebalan: {{ it.order }}px</span>
-                        <input type="range" v-model.number="it.order" min="1" max="12" class="w-full h-1 accent-slate-400" />
+                        <div class="flex justify-between items-center mb-1">
+                           <span class="text-[8px] font-black uppercase text-slate-400">Ketebalan Garis</span>
+                           <span class="text-[9px] font-bold text-slate-500">{{ it.order }}px</span>
+                        </div>
+                        <input type="range" v-model.number="it.order" min="1" max="20" class="w-full h-1 accent-slate-400 bg-slate-200 dark:bg-slate-700 rounded-full" />
                       </div>
                     </div>
                   </div>
@@ -604,31 +633,37 @@ onMounted(() => {
                       }">
                     <!-- Profile Image with Dynamic Border (Bug 2 & 3 Fix) -->
                     <div v-if="event.showProfile" 
-                         class="relative overflow-hidden mb-6 transition-all duration-300 shadow-xl"
+                         class="relative overflow-hidden mb-6 transition-all duration-300 shadow-2xl"
                          :style="event.profileBorderStyle === 'outline' 
                            ? { 
                                width: event.profileWidth + 'px', 
                                height: event.profileHeight + 'px',
                                maxWidth: '90%',
-                               borderRadius: event.profileShape === 'circle' ? '50%' : '16px',
+                               borderRadius: event.profileShape === 'circle' ? '50%' : '24px',
                                outline: `${event.profileBorderWidth}px solid ${event.profileBgColor}`,
-                               outlineOffset: '4px',
-                               backgroundColor: '#fff'
+                               outlineOffset: '6px',
+                               backgroundColor: '#fff',
+                               zIndex: 20
                              }
                            : {
                                width: event.profileWidth + 'px', 
                                height: event.profileHeight + 'px',
                                maxWidth: '90%',
-                               borderRadius: event.profileShape === 'circle' ? '50%' : '16px',
-                               border: `${event.profileBorderWidth}px ${event.profileBorderStyle} ${event.profileBgColor}`,
-                               backgroundColor: '#fff'
+                               borderRadius: event.profileShape === 'circle' ? '50%' : '24px',
+                               border: event.profileBorderStyle !== 'none' ? `${event.profileBorderWidth}px ${event.profileBorderStyle} ${event.profileBgColor}` : 'none',
+                               backgroundColor: '#fff',
+                               zIndex: 20
                              }">
                         <img v-if="event.profilePhoto" :src="event.profilePhoto" class="w-full h-full object-cover" />
+                        <!-- Fallback initials if no photo -->
+                        <div v-else class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 font-bold text-2xl uppercase">
+                           {{ event.title ? event.title.substring(0, 1) : 'E' }}
+                        </div>
                     </div>
                     
-                    <!-- Title & Desc (Bug 4) -->
-                    <h2 v-if="event.showTitle" :style="{ color: event.titleColor, fontFamily: event.titleFont }" class="text-2xl font-black drop-shadow-md leading-tight">{{ event.title || 'Judul Event' }}</h2>
-                    <p v-if="event.showDescription" :style="{ color: event.descColor, fontFamily: event.descFont }" class="mt-3 text-xs font-medium leading-relaxed drop-shadow-sm whitespace-pre-wrap opacity-90 px-4">{{ event.description || 'Deskripsi singkat event Anda...' }}</p>
+                    <!-- Title & Desc (Bug 4 Fix: Correct Font Handling) -->
+                    <h2 v-if="event.showTitle" :style="{ color: event.titleColor, fontFamily: getFontStack(event.titleFont) }" class="text-2xl font-black drop-shadow-md leading-tight">{{ event.title || 'Judul Event' }}</h2>
+                    <p v-if="event.showDescription" :style="{ color: event.descColor, fontFamily: getFontStack(event.descFont) }" class="mt-3 text-xs font-medium leading-relaxed drop-shadow-sm whitespace-pre-wrap opacity-90 px-6">{{ event.description || 'Deskripsi singkat event Anda...' }}</p>
                  </div>
 
                  <!-- Safe Padding when everything is hidden -->
@@ -690,10 +725,15 @@ onMounted(() => {
                     </div>
                   </template>
 
-                  <!-- Simulator Footer Branding (Bug 4) -->
-                  <div v-if="event.showFooter" class="pt-10 pb-16 text-center">
-                    <div class="h-[1px] w-1/2 mx-auto bg-white/20 mb-6"></div>
-                    <p :style="{ color: event.footerColor, fontFamily: event.footerFont }" class="text-[10px] font-bold px-8 leading-relaxed opacity-60 whitespace-pre-wrap italic">{{ event.footerText || 'Create your own event portal with Sigap.' }}</p>
+                  <!-- Simulator Footer Branding (Bug 4 & 10 Fix) -->
+                  <div v-if="event.showFooter" class="pt-12 pb-16 text-center">
+                    <div class="h-[1px] w-1/3 mx-auto bg-white/30 mb-8"></div>
+                    <p :style="{ color: event.footerColor, fontFamily: getFontStack(event.footerFont) }" class="text-[10px] font-bold px-10 leading-relaxed opacity-70 whitespace-pre-wrap italic">{{ event.footerText || 'Create your own event portal with Sigap.' }}</p>
+                    
+                    <!-- Premium Watermark -->
+                    <div class="mt-8 flex items-center justify-center gap-1 opacity-40">
+                      <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white">Powered by SIGAP</span>
+                    </div>
                   </div>
                 </div>
              </div>

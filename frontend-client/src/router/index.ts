@@ -170,12 +170,12 @@ router.beforeEach((to, from, next) => {
     if (!authStore.isVerified) {
       authStore.syncProfile().then(success => {
         if (success) {
-          next()
+          router.push(to.fullPath) // Re-trigger navigation after sync
         } else {
-          next('/login')
+          router.push('/login')
         }
       })
-      return // Tunggu sync selesai
+      return // Halt current navigation until sync finishes
     }
   }
   

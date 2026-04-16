@@ -17,10 +17,13 @@ async function translateToEnglish(text: string) {
 
 // GET: Ambil semua kategori (Bersih dari logika visibility lama)
 export async function GET() {
-  try {
     const session = await getSession()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Pegawai dan Admin bisa melihat kategori (untuk manajemen link internal)
+    if (!session || !['ADMIN', 'EMPLOYEE'].includes(session.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
+    try {
     const categories = await prisma.category.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -37,8 +40,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const user = await getSession()
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'EMPLOYEE')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
+      return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa mengelola kategori.' }, { status: 403 })
     }
 
     const body = await request.json()

@@ -55,8 +55,14 @@ export async function POST(request: Request) {
       await writeFile(filePath, buffer)
     }
 
+    // Tentukan URL publik yang akan dikembalikan
+    const publicUrl = `/uploads/${type}/${fileName}`
+
     // Kembalikan URL publik
-    return NextResponse.json({ url: publicUrl })
+    return NextResponse.json({ 
+      url: publicUrl,
+      filename: fileName
+    })
 
   } catch (error) {
     console.error('[UPLOAD_ERROR]', error)

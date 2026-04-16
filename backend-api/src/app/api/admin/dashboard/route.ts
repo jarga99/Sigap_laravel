@@ -28,9 +28,7 @@ export async function GET(request: Request) {
     }
 
     // --- AUTH & VISIBILITY FILTER ---
-    if (session?.role === 'ADMIN_EVENT') {
-       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // Admin Event diizinkan masuk ke dashboard untuk melihat statistik umum
 
     let linkVisibilityWhere: any = {};
 
@@ -105,7 +103,7 @@ export async function GET(request: Request) {
         if (stat.linkId === link.id) {
           if (stat.userRole === 'GUEST') {
             guestCount += stat._count._all;
-          } else if (['ADMIN', 'EMPLOYEE'].includes(stat.userRole)) {
+          } else if (['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(stat.userRole)) {
             userCount += stat._count._all;
           }
         }
