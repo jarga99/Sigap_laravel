@@ -21,7 +21,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'staging' || github.event.inputs.target }}
+      DEPLOY_TARGET: ${{ github.event_name == 'push' && 'production' || github.event.inputs.target }}
       
     steps:
       - name: Checkout Code
