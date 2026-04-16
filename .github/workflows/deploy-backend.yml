@@ -46,7 +46,7 @@ jobs:
           npm run build
         env:
           DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
-          NEXTAUTH_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_NEXTAUTH_SECRET || secrets.STAGING_NEXTAUTH_SECRET }}
+          JWT_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_JWT_SECRET || secrets.STAGING_JWT_SECRET }}
           NEXTAUTH_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_NEXTAUTH_URL || secrets.STAGING_NEXTAUTH_URL }}
 
       - name: Prepare Standalone Artifacts

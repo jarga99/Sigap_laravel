@@ -189,7 +189,7 @@ Gunakan awalan **`STAGING_`** untuk semua nama secret berikut:
 | **`STAGING_FTP_USERNAME`** | Username login cPanel Anda |
 | **`STAGING_FTP_PASSWORD`** | Password cPanel (yang baru Anda ganti) |
 | **`STAGING_DATABASE_URL`** | URL Database (contoh: `mysql://u123_test:pass@localhost:3306/u123_db_test`) |
-| **`STAGING_NEXTAUTH_SECRET`** | Bebas (contoh: `kode_rahasia_sigap_123`) |
+| **`STAGING_JWT_SECRET`** | Isi dengan **JWT_SECRET** yang ada di .env Anda |
 | **`STAGING_NEXTAUTH_URL`** | URL subdomain backend (contoh: `https://api-test.blkpasuruan.go.id`) |
 | **`STAGING_VITE_API_BASE_URL`** | Sama dengan URL backend di atas |
 | **`STAGING_REMOTE_BACKEND_DIR`** | Folder backend di server (contoh: `/backend-api-test`) |
