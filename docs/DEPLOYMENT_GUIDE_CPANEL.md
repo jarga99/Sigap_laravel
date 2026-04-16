@@ -1,10 +1,13 @@
 # 🚀 Panduan Deployment SIGAP ke Subdomain (cPanel)
 
-Panduan ini disusun khusus untuk membantu Anda melakukan deployment aplikasi SIGAP ke server produksi (Jagoan Hosting/cPanel) menggunakan sistem **Next.js Standalone** dan **Vue Static Build**.
+Dokumen ini berisi langkah-langkah teknis untuk memindahkan aplikasi SIGAP dari lokal ke server produksi (cPanel/Shared Hosting). Terdapat dua metode: **Manual** (untuk kontrol penuh) dan **Otomatis/CI-CD** (untuk efisiensi).
 
 ---
 
-## 🏗️ Tahap 1: Persiapan di Komputer Lokal
+## 🛠️ Opsi 1: Deployment Manual (Git Pull / Zip)
+*Gunakan ini jika Anda ingin melakukan semuanya sendiri via File Manager atau SSH.*
+
+### 1. Persiapan di Komputer Lokal
 
 Sebelum mengunggah apa pun, kita perlu membungkus aplikasi menjadi paket yang siap jalan.
 
@@ -162,3 +165,53 @@ cd ~/sigap/backend-api && npm run build
 
 *   **Error 404 saat Refresh**: Pastikan file `.htaccess` ada di folder frontend (sudah dibuat otomatis oleh script).
 *   **Database Error**: Cek kembali `DATABASE_URL` di file `.env`.
+
+---
+
+## 🤖 Opsi 2: Automasi Deployment (CI/CD) - REKOMENDASI
+*Gunakan ini agar website terupdate otomatis setiap kali Anda melakukan `git push` ke GitHub.*
+
+### Apa itu CI/CD?
+CI/CD adalah singkatan dari **Continuous Integration & Continuous Deployment**. Sederhananya: Anda tidak perlu lagi masuk ke SSH untuk melakukan `git pull` atau `npm run build`. Server GitHub akan melakukan pekerjaan berat itu untuk Anda (di awan) dan mengirimkan hasilnya langsung ke cPanel.
+
+> [!TIP]
+> Metode ini sangat efisien karena tidak memakan RAM 3 GB milik server hosting Anda saat proses *build*.
+
+### Langkah 1: Menyiapkan GitHub Secrets
+GitHub membutuhkan izin untuk masuk ke cPanel Anda. Jangan tulis password di kode! Masukkan di **Secrets**:
+1. Buka repository Anda di GitHub.
+2. Klik **Settings** > **Secrets and Variables** > **Actions**.
+3. Klik **New repository secret** dan masukkan data berikut:
+
+| Nama Secret | Contoh Value | Kegunaan |
+| :--- | :--- | :--- |
+| `FTP_SERVER` | `ftp.blkpasuruan.go.id` | Alamat FTP Hosting Anda |
+| `FTP_USERNAME` | `u1234567` | Username login cPanel/FTP |
+| `FTP_PASSWORD` | `********` | Password login cPanel/FTP |
+| `DATABASE_URL` | `mysql://user:pass@localhost:3306/db` | Koneksi database server |
+| `NEXTAUTH_SECRET` | `kode-rahasia-anda` | Kode enkripsi sesi login |
+| `NEXTAUTH_URL` | `https://sigap.blkpasuruan.go.id` | URL backend Anda |
+| `VITE_API_BASE_URL` | `https://backend.sigap.blkpasuruan.go.id` | URL API untuk frontend |
+| `REMOTE_BACKEND_DIR` | `/backend-api` | Folder tujuan backend (root app) |
+| `REMOTE_FRONTEND_DIR` | `/public_html/sigap` | Folder tujuan frontend (root domain) |
+
+### Langkah 2: Memahami File Workflow
+Saya telah menyiapkan dua file di folder `.github/workflows/`:
+1. **deploy-backend.yml**: Mengotomatisasi Next.js. Ia melakukan `build` di GitHub, lalu mengirimkan folder `standalone` ke server.
+2. **deploy-frontend.yml**: Mengotomatisasi Vue 3. Ia melakukan `build`, lalu mengirim folder `dist` saja.
+
+### Langkah 3: Eksekusi
+Cukup lakukan push ke GitHub:
+```bash
+git add .
+git commit -m "feat: setup automated deployment"
+git push origin master
+```
+Lalu pantau menu **Actions** di GitHub. Jika ikonnya berubah jadi hijau (Checkmark), selamat! Website Anda sudah terupdate otomatis.
+
+### FAQ / Tips Tambahan:
+- **Restart App**: Untuk backend, workflow akan otomatis menjalankan perintah `touch tmp/restart.txt` di server untuk me-restart Node.js.
+- **Node Modules**: Karena kita menggunakan sistem **Standalone**, Anda tidak perlu lagi menjalankan `npm install` di server cPanel. Semua dependensi sudah dibungkus rapi oleh GitHub.
+
+---
+> SIGAP Deployment Engine v1.2.0 - CI/CD Integrated

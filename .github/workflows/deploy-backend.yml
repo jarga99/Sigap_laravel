@@ -1,0 +1,69 @@
+name: Deploy Backend to cPanel
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'backend-api/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend-api/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd backend-api
+          npm install
+
+      - name: Build Next.js (Standalone)
+        run: |
+          cd backend-api
+          npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+
+      - name: Prepare Standalone Artifacts
+        run: |
+          cd backend-api
+          mkdir -p deploy_ready
+          cp -r .next/standalone/. deploy_ready/
+          mkdir -p deploy_ready/.next/static
+          cp -r .next/static/. deploy_ready/.next/static/
+          cp -r public/. deploy_ready/public/ || true
+
+      - name: Deploy to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./backend-api/deploy_ready/
+          server-dir: ${{ secrets.REMOTE_BACKEND_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+
+      - name: Restart Node.js App (via SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21098 # Ubah jika port SSH cPanel berbeda
+          script: |
+            cd ${{ secrets.REMOTE_BACKEND_DIR }}
+            touch tmp/restart.txt
