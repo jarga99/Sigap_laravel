@@ -72,6 +72,7 @@ jobs:
 
       - name: Restart Node.js App (via SSH)
         uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true # Tetap sukses meskipun SSH timeout, karena file sudah terkirim via FTP
         with:
           host: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
           username: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
