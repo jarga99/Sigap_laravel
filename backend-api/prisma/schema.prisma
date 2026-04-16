@@ -3,6 +3,8 @@ generator client {
   binaryTargets = ["native", "debian-openssl-1.1.x"]
 }
 
+// Forced update to trigger engine regeneration for cPanel
+
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")

@@ -56,6 +56,10 @@ jobs:
           mkdir -p deploy_ready/.next/static
           cp -r .next/static/. deploy_ready/.next/static/
           cp -r public/. deploy_ready/public/ || true
+          
+          # MANUALLY COPY PRISMA ENGINES (Critical for cPanel/Older OpenSSL)
+          mkdir -p deploy_ready/node_modules/.prisma/client
+          cp node_modules/.prisma/client/libquery_engine-* deploy_ready/node_modules/.prisma/client/
 
       - name: Create Restart Trigger File
         run: |
