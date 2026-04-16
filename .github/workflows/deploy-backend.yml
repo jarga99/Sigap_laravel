@@ -43,13 +43,12 @@ jobs:
       - name: Build Next.js (Standalone)
         env:
           PRISMA_CLI_BINARY_TARGETS: native,debian-openssl-1.1.x,rhel-openssl-1.1.x
+          DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+          JWT_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_JWT_SECRET || secrets.STAGING_JWT_SECRET }}
         run: |
           cd backend-api
           npx prisma generate
           npm run build
-        env:
-          DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
-          JWT_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_JWT_SECRET || secrets.STAGING_JWT_SECRET }}
 
       - name: Prepare Standalone Artifacts
         run: |
