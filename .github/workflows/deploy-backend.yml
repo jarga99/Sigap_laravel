@@ -41,8 +41,11 @@ jobs:
           npm install
 
       - name: Build Next.js (Standalone)
+        env:
+          PRISMA_CLI_BINARY_TARGETS: native,debian-openssl-1.1.x,rhel-openssl-1.1.x
         run: |
           cd backend-api
+          npx prisma generate
           npm run build
         env:
           DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
@@ -52,18 +55,20 @@ jobs:
         run: |
           cd backend-api
           mkdir -p deploy_ready
+          
+          # MANUALLY BUNDLE PRISMA ENGINES (Critical for cPanel)
+          # Ensure they exist in the standalone node_modules
+          mkdir -p .next/standalone/node_modules/.prisma/client
+          cp node_modules/.prisma/client/libquery_engine-* .next/standalone/node_modules/.prisma/client/ || true
+          
           cp -r .next/standalone/. deploy_ready/
           mkdir -p deploy_ready/.next/static
           cp -r .next/static/. deploy_ready/.next/static/
           cp -r public/. deploy_ready/public/ || true
           
-          # MANUALLY COPY PRISMA ENGINES (Critical for cPanel/Older OpenSSL)
-          # We check both local node_modules and standalone node_modules
-          mkdir -p deploy_ready/node_modules/.prisma/client
-          cp node_modules/.prisma/client/libquery_engine-* deploy_ready/node_modules/.prisma/client/ || true
-          
-          # Also ensure engines are in the root of node_modules if needed
-          cp node_modules/.prisma/client/libquery_engine-* .next/standalone/node_modules/.prisma/client/ || true
+          # VERIFICATION (For Debug Logs)
+          echo "Checking Bundled Prisma Engines:"
+          ls -R deploy_ready/node_modules/.prisma/client || echo "Engines folder not found!"
 
       - name: Create Restart Trigger File
         run: |
