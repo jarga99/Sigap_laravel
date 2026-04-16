@@ -417,9 +417,9 @@ watch(qrOptions, renderCanvas, { deep: true })
       <!-- Footer -->
       <div v-if="event.showFooter !== false" class="event-footer !border-none">
         <p v-if="event.footerText" class="custom-footer-text" :style="{ color: event.footerColor, fontFamily: event.footerFont }">{{ event.footerText }}</p>
-        <div class="system-branding opacity-40">
-           <div class="sys-name">© {{ new Date().getFullYear() }} SIGAP PROJECT</div>
-           <div class="dev-info">Powered by Advanced Event Engine</div>
+        <div v-if="event.showSystemBranding !== false" class="system-branding opacity-40">
+           <div class="sys-name">© {{ new Date().getFullYear() }} {{ event.customBranding || 'SIGAP PROJECT' }}</div>
+           <div class="dev-info">Powered by {{ event.customPoweredBy || 'Advanced Event Engine' }}</div>
         </div>
       </div>
     </div>

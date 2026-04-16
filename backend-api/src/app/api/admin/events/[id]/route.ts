@@ -68,6 +68,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       buttonRadius,
       eventPhoto, 
       footerText, 
+      showSystemBranding,
+      customBranding,
+      customPoweredBy,
       items 
     } = body
 
@@ -137,6 +140,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
           buttonRadius: (buttonRadius != null && !isNaN(Number(buttonRadius))) ? Number(buttonRadius) : 12,
           eventPhoto: eventPhoto ?? oldEvent.eventPhoto, 
           footerText: footerText ?? oldEvent.footerText, 
+          showSystemBranding: session.role === 'ADMIN' ? (showSystemBranding ?? oldEvent.showSystemBranding) : oldEvent.showSystemBranding,
+          customBranding: session.role === 'ADMIN' ? (customBranding ?? oldEvent.customBranding) : oldEvent.customBranding,
+          customPoweredBy: session.role === 'ADMIN' ? (customPoweredBy ?? oldEvent.customPoweredBy) : oldEvent.customPoweredBy,
           slug: slug || oldEvent.slug
         }
       })

@@ -13,6 +13,9 @@ import {
 } from 'lucide-vue-next'
 import IconSelectorModal from '../../components/admin/IconSelectorModal.vue'
 import { inject } from 'vue'
+import { useAuthStore } from '../../stores/auth'
+
+const authStore = useAuthStore()
 
 const setActiveSlug = inject('setActiveSlug') as (slug: string) => void
 
@@ -48,6 +51,9 @@ const event = ref<any>({
   showTitle: true,
   showDescription: true,
   showFooter: true,
+  showSystemBranding: true,
+  customBranding: 'SIGAP PROJECT',
+  customPoweredBy: 'Advanced Event Engine',
   eventPhoto: '',
   footerText: '',
   profileWidth: 80,
@@ -598,6 +604,47 @@ onMounted(() => {
               </div>
               <textarea v-model="event.footerText" rows="6" class="input-v3 text-xs leading-relaxed" placeholder="Pesan akhir event..."></textarea>
             </div>
+
+            <!-- 🛡️ SUPER ADMIN ONLY: Branding Settings -->
+            <div v-if="authStore.user?.role === 'ADMIN'" class="group-v4 border-t border-slate-200/10 pt-4 mt-4 bg-blue-50/5 p-3 rounded-xl border border-blue-500/20">
+              <div class="flex items-center gap-2 mb-3 text-blue-600">
+                <ShieldAlert :size="14" />
+                <span class="text-[10px] font-black uppercase tracking-wider">Super Admin: Branding Controls</span>
+              </div>
+              
+              <div class="flex items-center justify-between mb-4">
+                <label class="text-[11px] font-bold text-slate-700">Tampilkan Branding Sistem</label>
+                <button 
+                  @click="event.showSystemBranding = !event.showSystemBranding"
+                  class="w-10 h-5 rounded-full transition-all duration-300 relative"
+                  :class="event.showSystemBranding ? 'bg-blue-600' : 'bg-slate-300'"
+                >
+                  <div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300" :style="{ left: event.showSystemBranding ? '24px' : '4px' }"></div>
+                </button>
+              </div>
+
+              <div v-if="event.showSystemBranding" class="space-y-2 opacity-animate">
+                <label class="uppercase tracking-widest text-[9px] font-black text-slate-500">Nama Copyright Custom</label>
+                <input 
+                  v-model="event.customBranding" 
+                  type="text" 
+                  class="input-v3 text-xs" 
+                  placeholder="Contoh: SIGAP PROJECT" 
+                />
+                <p class="text-[9px] text-slate-400 italic">Teks ini akan muncul di samping simbol ©.</p>
+              </div>
+
+              <div v-if="event.showSystemBranding" class="space-y-2 mt-4 opacity-animate">
+                <label class="uppercase tracking-widest text-[9px] font-black text-slate-500">Teks Powered By</label>
+                <input 
+                  v-model="event.customPoweredBy" 
+                  type="text" 
+                  class="input-v3 text-xs" 
+                  placeholder="Contoh: Advanced Event Engine" 
+                />
+                <p class="text-[9px] text-slate-400 italic">Contoh: Powered by [Teks Anda]</p>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -730,9 +777,10 @@ onMounted(() => {
                     <div class="h-[1px] w-1/3 mx-auto bg-white/30 mb-8"></div>
                     <p :style="{ color: event.footerColor, fontFamily: getFontStack(event.footerFont) }" class="text-[10px] font-bold px-10 leading-relaxed opacity-70 whitespace-pre-wrap italic">{{ event.footerText || 'Create your own event portal with Sigap.' }}</p>
                     
-                    <!-- Premium Watermark -->
-                    <div class="mt-8 flex items-center justify-center gap-1 opacity-40">
-                      <span class="text-[8px] font-black uppercase tracking-[0.2em] text-white">Powered by SIGAP</span>
+                    <!-- Dynamic System Branding -->
+                    <div v-if="event.showSystemBranding" class="mt-8 opacity-40">
+                      <div class="text-[8px] font-black uppercase tracking-[0.2em] text-white">© {{ new Date().getFullYear() }} {{ event.customBranding || 'SIGAP PROJECT' }}</div>
+                      <div class="text-[7px] font-bold uppercase tracking-[0.1em] text-white/60 mt-0.5">Powered by {{ event.customPoweredBy || 'Advanced Event Engine' }}</div>
                     </div>
                   </div>
                 </div>

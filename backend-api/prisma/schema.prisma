@@ -156,6 +156,9 @@ model Event {
   showTitle         Boolean     @default(true)
   showDescription   Boolean     @default(true)
   showFooter        Boolean     @default(true)
+  showSystemBranding Boolean     @default(true)
+  customBranding    String      @default("SIGAP PROJECT")
+  customPoweredBy   String      @default("Advanced Event Engine")
   eventPhoto        String?     
   footerText        String?
 
