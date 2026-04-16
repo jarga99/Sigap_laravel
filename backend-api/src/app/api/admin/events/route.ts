@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import crypto from 'crypto'
@@ -12,23 +12,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
-    const where: any = {}
+    let sql = `
+      SELECT e.*, 
+      (SELECT COUNT(*) FROM EventItem WHERE eventId = e.id) as item_count
+      FROM \`Event\` e
+    `;
+    const params: any[] = [];
+
     if (status) {
-      where.status = status
+      sql += ' WHERE e.status = ?';
+      params.push(status);
     }
 
-    const events = await prisma.event.findMany({
-      where,
-      include: {
-        _count: {
-          select: { items: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    })
+    sql += ' ORDER BY e.createdAt DESC';
+
+    const events = await query(sql, params);
 
     // Pastikan hasil selalu array, bahkan jika kosong
-    return NextResponse.json(events || [])
+    // Dan map _count agar kompatibel dengan frontend yang mengharapkan prisma structure
+    const formattedEvents = (events as any[]).map(e => ({
+      ...e,
+      _count: { items: e.item_count }
+    }));
+
+    return NextResponse.json(formattedEvents || [])
   } catch (error) {
     console.error('[EVENTS_GET]', error)
     return NextResponse.json({ error: 'Gagal mengambil data event' }, { status: 500 })
@@ -58,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     // Ensure unique slug
-    const existing = await prisma.event.findUnique({ where: { slug } })
+    const existing = await queryOne('SELECT id FROM \`Event\` WHERE slug = ?', [slug]);
     if (existing) {
       if (customSlug) {
         return NextResponse.json({ error: 'Slug sudah digunakan, silakan pilih yang lain' }, { status: 400 })
@@ -66,43 +73,56 @@ export async function POST(request: Request) {
       slug = slug + '-' + crypto.randomBytes(2).toString('hex')
     }
 
-    const newEvent = await prisma.event.create({
-      data: {
-        title,
-        description,
-        slug,
-        bgType: bgType || 'color',
-        bgValue: bgValue || '#0f172a',
-        profileShape: 'circle',
-        profileBorderStyle: 'none',
-        profileBorderWidth: 2,
-        profileBgColor: '#ffffff',
-        profileWidth: 80,
-        profileHeight: 80,
-        showProfile: true,
-        showCover: true,
-        showTitle: true,
-        showDescription: true,
-        showFooter: true,
-        coverHeight: 128,
-        titleColor: '#ffffff',
-        titleFont: 'Inter',
-        descColor: '#ffffff',
-        descFont: 'Inter',
-        footerColor: '#ffffff',
-        footerFont: 'Inter',
-        buttonShape: 'rounded',
-        buttonRadius: 12,
-        status: 'TIDAK_AKTIF',
-        userId: session.userId
-      }
-    })
+    const eventData = {
+      title,
+      description: description || null,
+      slug,
+      bgType: bgType || 'color',
+      bgValue: bgValue || '#0f172a',
+      profileShape: 'circle',
+      profileBorderStyle: 'none',
+      profileBorderWidth: 2,
+      profileBgColor: '#ffffff',
+      profileWidth: 80,
+      profileHeight: 80,
+      showProfile: 1, // Boolean di MySQL sering kali 1/0
+      showCover: 1,
+      showTitle: 1,
+      showDescription: 1,
+      showFooter: 1,
+      coverHeight: 128,
+      titleColor: '#ffffff',
+      titleFont: 'Inter',
+      descColor: '#ffffff',
+      descFont: 'Inter',
+      footerColor: '#ffffff',
+      footerFont: 'Inter',
+      buttonShape: 'rounded',
+      buttonRadius: 12,
+      status: 'TIDAK_AKTIF',
+      userId: session.userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const keys = Object.keys(eventData);
+    const placeholders = keys.map(() => '?').join(', ');
+    const columns = keys.map(k => `\`${k}\``).join(', ');
+    const values = Object.values(eventData);
+
+    const result = await pool.execute(
+      `INSERT INTO \`Event\` (${columns}) VALUES (${placeholders})`,
+      values
+    );
+
+    const insertId = (result[0] as any).insertId;
+    const newEvent = await queryOne('SELECT * FROM \`Event\` WHERE id = ?', [insertId]);
 
     recordAuditLog({
       userId: session.userId,
       action: 'CREATE_EVENT',
       resource: 'Event',
-      resourceId: newEvent.id.toString(),
+      resourceId: insertId.toString(),
       details: { after: newEvent },
       ip: request.headers.get('x-forwarded-for')
     })

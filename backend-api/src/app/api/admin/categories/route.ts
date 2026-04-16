@@ -1,34 +1,43 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
-
+import pool, { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
-
-import { callGemini, translateIndoToEnglish } from '@/lib/gemini'
+import { translateIndoToEnglish } from '@/lib/gemini'
 
 // 🤖 Helper AI Translate
 async function translateToEnglish(text: string) {
-  return await translateIndoToEnglish(text);
+  try {
+    return await translateIndoToEnglish(text);
+  } catch (err) {
+    console.error("Gemini Translation Error:", err);
+    return text;
+  }
 }
 
-// GET: Ambil semua kategori (Bersih dari logika visibility lama)
+// GET: Ambil semua kategori
 export async function GET() {
+  try {
     const session = await getSession()
-    // Pegawai dan Admin bisa melihat kategori (untuk manajemen link internal)
-    if (!session || !['ADMIN', 'EMPLOYEE'].includes(session.role)) {
+    if (!session || !['ADMIN', 'EMPLOYEE', 'ADMIN_EVENT'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    try {
-    const categories = await prisma.category.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: { select: { links: true } }
-      }
-    })
-    return NextResponse.json(categories)
-  } catch {
+    const categories = await query(`
+      SELECT c.*, 
+      (SELECT COUNT(*) FROM Link WHERE category_id = c.id) as link_count
+      FROM Category c
+      ORDER BY c.createdAt DESC
+    `);
+
+    // Format agar struktur _count sesuai dengan yang diharapkan Frontend Vue
+    const formattedCategories = (categories as any[]).map(c => ({
+      ...c,
+      _count: { links: c.link_count }
+    }));
+
+    return NextResponse.json(formattedCategories)
+  } catch (error) {
+    console.error('[CATEGORIES_GET_ERROR]', error);
     return NextResponse.json({ error: 'Gagal memuat kategori' }, { status: 500 })
   }
 }
@@ -38,7 +47,7 @@ export async function POST(request: Request) {
   try {
     const user = await getSession()
     if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
-      return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa mengelola kategori.' }, { status: 403 })
+      return NextResponse.json({ error: 'Akses Ditolak' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -52,23 +61,28 @@ export async function POST(request: Request) {
       name_en = await translateToEnglish(name)
     }
 
-    const newCategory = await prisma.category.create({
-      data: { name, name_en, icon }
-    })
+    const result = await pool.execute(
+      'INSERT INTO Category (name, name_en, icon, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+      [name, name_en || '', icon || '', new Date(), new Date()]
+    );
+
+    const insertId = (result[0] as any).insertId;
+    const newCategory = await queryOne('SELECT * FROM Category WHERE id = ?', [insertId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
       userId: user.userId,
       action: 'CREATE_CATEGORY',
       resource: 'Category',
-      resourceId: newCategory.id,
+      resourceId: insertId,
       details: { after: newCategory },
-      departmentId: newCategory.id, // Untuk kategori, ID-nya sendiri adalah departemennya
+      departmentId: insertId,
       ip: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(newCategory, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error('[CATEGORIES_POST_ERROR]', error);
     return NextResponse.json({ error: 'Gagal membuat kategori' }, { status: 500 })
   }
 }

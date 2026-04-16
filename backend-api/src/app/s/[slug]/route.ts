@@ -1,4 +1,6 @@
-import { prisma } from '@/lib/prisma'
+import { queryOne, query } from '@/lib/db'
+import pool from '@/lib/db'
+import { NextResponse } from 'next/server'
 
 export async function GET(
   request: Request,
@@ -9,43 +11,39 @@ export async function GET(
   // Ambil metadata pengunjung
   const headers = request.headers
   const ip = headers.get('x-forwarded-for') || headers.get('x-real-ip') || 'unknown'
-  
-  // Catatan: Karena ini redirect publik, kita asumsikan GUEST. 
-  // Jika ingin mendeteksi USERNAME, butuh pengecekan Cookie Auth di sini (opsional).
   const userRole = 'GUEST' 
+
+  const connection = await pool.getConnection();
 
   try {
     // 1. Cari Link & Validasi Status Aktif
-    const link = await prisma.link.findUnique({
-      where: { slug: slug }
-    })
+    const link = await queryOne('SELECT id, url, is_active FROM Link WHERE slug = ?', [slug]);
 
     // Jika link tidak ada atau is_active = false, lempar ke Home
     if (!link || !link.is_active) {
       return NextResponse.redirect(new URL('/', request.url))
     }
 
-    // 2. Jalankan Tracking & Counter secara Atomik
+    // 2. Jalankan Tracking & Counter secara Atomik (Transaction)
     try {
-      await prisma.$transaction([
-        // A. Update total clicks di tabel Link
-        prisma.link.update({
-          where: { id: link.id },
-          data: { clicks: { increment: 1 } }
-        }),
-        // B. Buat record baru di ClickLog (Menyesuaikan schema Anda)
-        prisma.clickLog.create({
-          data: {
-            linkId: link.id,     // Sesuai schema: linkId
-            ipAddress: ip.split(',')[0], // Sesuai schema: ipAddress
-            userRole: userRole,   // Sesuai schema: userRole
-            username: null        // Guest tidak punya username
-          }
-        })
-      ])
+      await connection.beginTransaction();
+
+      // A. Update total clicks
+      await connection.execute(
+        'UPDATE Link SET clicks = clicks + 1 WHERE id = ?',
+        [link.id]
+      );
+
+      // B. Buat ClickLog
+      await connection.execute(
+        'INSERT INTO ClickLog (linkId, ipAddress, userRole, username, clickedAt) VALUES (?, ?, ?, ?, ?)',
+        [link.id, ip.split(',')[0], userRole, null, new Date()]
+      );
+
+      await connection.commit();
     } catch (e) {
-      // Jika tracking gagal (misal DB sibuk), redirect harus tetap jalan
-      console.error('Tracking Error:', e)
+      if (connection) await connection.rollback();
+      console.error('Tracking Error (ShortLink):', e)
     }
 
     // 3. Redirect ke URL tujuan
@@ -56,7 +54,9 @@ export async function GET(
     return NextResponse.redirect(targetUrl)
 
   } catch (error) {
-    console.error('Fatal Error:', error)
+    console.error('Fatal Error (ShortLink):', error)
     return NextResponse.redirect(new URL('/', request.url))
+  } finally {
+    if (connection) connection.release();
   }
 }

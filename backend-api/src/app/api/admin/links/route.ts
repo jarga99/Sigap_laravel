@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { Visibility } from '@prisma/client'
+import pool, { query, queryOne } from '@/lib/db'
 import crypto from 'crypto'
 
 import { getSession } from '@/lib/auth'
@@ -13,40 +12,54 @@ export async function GET() {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
   }
 
-  let whereClause = {};
+  try {
+    let sql = `
+      SELECT l.*, 
+             c.name as category_name, c.name_en as category_name_en,
+             u.fullName as creator_name, u.username as creator_username
+      FROM Link l
+      LEFT JOIN Category c ON l.category_id = c.id
+      LEFT JOIN User u ON l.userId = u.id
+    `;
+    const params: any[] = [];
 
-  // Jika bukan ADMIN, batasi hasil berdasarkan aturan visibilitas
-  if (session?.role !== 'ADMIN') {
-    const rawDeptId = session?.departmentId;
-    const userDeptId = (rawDeptId !== null && rawDeptId !== undefined) ? Number(rawDeptId) : -1;
+    // Jika bukan ADMIN, batasi hasil berdasarkan aturan visibilitas
+    if (session?.role !== 'ADMIN') {
+      const userDeptId = session?.departmentId ? Number(session.departmentId) : -1;
+      
+      sql += ` 
+        WHERE l.visibility = 'INTERNAL' 
+        OR (l.visibility = 'DEPARTMENT' AND l.category_id = ?)
+      `;
+      params.push(userDeptId);
+    }
+
+    sql += ' ORDER BY l.createdAt DESC';
+
+    const links = await query(sql, params);
     
-    whereClause = {
-      OR: [
-        { visibility: Visibility.INTERNAL },
-        { 
-          AND: [
-            { visibility: Visibility.DEPARTMENT },
-            { category_id: userDeptId }
-          ]
-        }
-      ]
-    };
-  }
+    // Format output agar UI Vue kaget (tetap kompatibel dengan struktur Prisma)
+    const formattedLinks = (links as any[]).map(l => ({
+      ...l,
+      category: l.category_id ? { id: l.category_id, name: l.category_name, name_en: l.category_name_en } : null,
+      createdBy: l.userId ? { fullName: l.creator_name, username: l.creator_username } : null
+    }));
 
-  const links = await prisma.link.findMany({
-    where: whereClause,
-    include: { 
-      category: true, 
-      createdBy: { select: { fullName: true, username: true } } 
-    },
-    orderBy: { createdAt: 'desc' }
-  })
-  
-  return NextResponse.json(links)
+    return NextResponse.json(formattedLinks)
+  } catch (error) {
+    console.error('[LINKS_GET_ERROR]', error);
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    // 🔒 Hanya Super Admin, Admin Event, dan Pegawai yang bisa mengelola link
+    if (!session || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(session.role)) {
+      return NextResponse.json({ message: 'Akses Ditolak' }, { status: 403 });
+    }
+
     const body = await request.json()
 
     // Validasi Field Wajib
@@ -59,51 +72,55 @@ export async function POST(request: Request) {
     if (!slug) {
       slug = crypto.randomBytes(3).toString('hex')
     }
-    const existingSlug = await prisma.link.findUnique({ where: { slug } })
+    const existingSlug = await queryOne('SELECT id FROM Link WHERE slug = ?', [slug])
     if (existingSlug) {
       return NextResponse.json({ message: 'URL Short (Slug) ini sudah dipakai. Silakan gunakan yang lain.' }, { status: 400 })
     }
 
     // Cek duplikasi Judul (Title) persis sama
-    const existingTitle = await prisma.link.findFirst({
-      where: { title: body.title }
-    })
+    const existingTitle = await queryOne('SELECT id FROM Link WHERE title = ?', [body.title])
     if (existingTitle) {
       return NextResponse.json({ message: 'Judul Layanan ini sudah terdaftar. Silakan gunakan judul lain.' }, { status: 400 })
     }
 
-    const session = await getSession();
-    // 🔒 Hanya Super Admin, Admin Event, dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-    if (!session || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(session.role)) {
-      return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
-    }
+    const { title_en, desc, desc_en, visibility, is_active, category_id } = body;
 
-    const { title_en, desc, desc_en } = body;
+    const linkData = {
+      title: body.title,
+      title_en: title_en || '',
+      url: body.url,
+      slug: slug,
+      visibility: visibility || 'INTERNAL',
+      is_active: is_active ?? 1,
+      \`desc\`: desc || '',
+      desc_en: desc_en || '',
+      category_id: Number(category_id),
+      userId: session.userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    const newLink = await prisma.link.create({
-      data: {
-        title: body.title,
-        title_en: title_en || '',
-        url: body.url,
-        slug: slug,
-        visibility: body.visibility || 'INTERNAL',
-        is_active: body.is_active ?? true,
-        desc: desc || '',
-        desc_en: desc_en || '',
-        category: { connect: { id: Number(body.category_id) } },
-        createdBy: { connect: { id: session.userId } }
-      }
-    })
-    // ... dst
+    const keys = Object.keys(linkData);
+    const columns = keys.map(k => `\`${k}\``).join(', ');
+    const placeholders = keys.map(() => '?').join(', ');
+    const values = Object.values(linkData);
+
+    const result = await pool.execute(
+      `INSERT INTO Link (${columns}) VALUES (${placeholders})`,
+      values
+    );
+
+    const insertId = (result[0] as any).insertId;
+    const newLink = await queryOne('SELECT * FROM Link WHERE id = ?', [insertId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
       userId: session.userId,
       action: 'CREATE_LINK',
       resource: 'Link',
-      resourceId: newLink.id,
+      resourceId: insertId,
       details: { after: newLink },
-      departmentId: Number(body.category_id),
+      departmentId: Number(category_id),
       ip: request.headers.get('x-forwarded-for') || '127.0.0.1'
     })
 

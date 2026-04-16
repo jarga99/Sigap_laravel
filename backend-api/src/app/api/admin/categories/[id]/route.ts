@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
-
+import pool, { queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
-
 import { translateIndoToEnglish } from '@/lib/gemini'
 
 // 🤖 Helper AI Translate
 async function translateToEnglish(text: string) {
-  return await translateIndoToEnglish(text);
+  try {
+    return await translateIndoToEnglish(text);
+  } catch (err) {
+    console.error("Gemini Translation Error:", err);
+    return text;
+  }
 }
 
 // PUT: Edit Kategori
@@ -19,7 +21,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const id = parseInt(resolvedParams.id)
     const user = await getSession()
     if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) {
-      return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa mengelola kategori.' }, { status: 403 })
+      return NextResponse.json({ error: 'Akses Ditolak' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -31,10 +33,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       name_en = await translateToEnglish(name)
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: { id },
-      data: { name, name_en, icon } // Bersih dari visibility/targetSubdivision
-    })
+    const oldCategory = await queryOne('SELECT * FROM Category WHERE id = ?', [id]);
+    if (!oldCategory) return NextResponse.json({ error: 'Kategori tidak ditemukan' }, { status: 404 });
+
+    await pool.execute(
+      'UPDATE Category SET name = ?, name_en = ?, icon = ?, updatedAt = ? WHERE id = ?',
+      [name || oldCategory.name, name_en || oldCategory.name_en, icon || oldCategory.icon, new Date(), id]
+    );
+
+    const updatedCategory = await queryOne('SELECT * FROM Category WHERE id = ?', [id]);
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -48,7 +55,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     })
 
     return NextResponse.json({ message: 'Category updated', data: updatedCategory })
-  } catch {
+  } catch (error) {
+    console.error('[CATEGORIES_PUT_ERROR]', error);
     return NextResponse.json({ error: 'Gagal update kategori' }, { status: 500 })
   }
 }
@@ -59,9 +67,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const resolvedParams = await params;
     const id = parseInt(resolvedParams.id)
     const user = await getSession()
-    if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) return NextResponse.json({ error: 'Akses Ditolak. Hanya Admin atau Pegawai yang bisa menghapus kategori.' }, { status: 403 })
+    if (!user || !['ADMIN', 'EMPLOYEE'].includes(user.role)) return NextResponse.json({ error: 'Akses Ditolak' }, { status: 403 })
 
-    const deletedCategory = await prisma.category.delete({ where: { id } })
+    const oldCategory = await queryOne('SELECT * FROM Category WHERE id = ?', [id]);
+    if (!oldCategory) return NextResponse.json({ error: 'Kategori tidak ditemukan' }, { status: 404 });
+
+    await pool.execute('DELETE FROM Category WHERE id = ?', [id]);
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -69,13 +80,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       action: 'DELETE_CATEGORY',
       resource: 'Category',
       resourceId: id,
-      details: { before: deletedCategory },
+      details: { before: oldCategory },
       departmentId: id,
       ip: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Category deleted' })
-  } catch {
+  } catch (error) {
+    console.error('[CATEGORIES_DELETE_ERROR]', error);
     return NextResponse.json({ error: 'Gagal hapus kategori' }, { status: 500 })
   }
 }

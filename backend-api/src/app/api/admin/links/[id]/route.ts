@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
+import pool, { queryOne } from '@/lib/db'
 
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
@@ -10,13 +9,23 @@ import { callGemini, translateIndoToEnglish } from '@/lib/gemini'
 // 2. HELPER GEMINI AI
 // ==========================================
 async function translateToEnglish(text: string) {
-  return await translateIndoToEnglish(text);
+  try {
+    return await translateIndoToEnglish(text);
+  } catch (err) {
+    console.error("Gemini Translation Error:", err);
+    return text;
+  }
 }
 
 async function generateDescriptionID(title: string) {
   if (!title) return '';
-  const prompt = `Buat deskripsi singkat, profesional, dan informatif dalam bahasa Indonesia (maksimal 2 kalimat) untuk aplikasi/layanan bernama "${title}". Langsung berikan hasilnya tanpa tanda kutip atau kata pengantar.`;
-  return await callGemini(prompt) || '';
+  try {
+    const prompt = `Buat deskripsi singkat, profesional, dan informatif dalam bahasa Indonesia (maksimal 2 kalimat) untuk aplikasi/layanan bernama "${title}". Langsung berikan hasilnya tanpa tanda kutip atau kata pengantar.`;
+    return await callGemini(prompt) || '';
+  } catch (err) {
+    console.error("Gemini Suggestion Error:", err);
+    return title;
+  }
 }
 
 // ==========================================
@@ -25,110 +34,117 @@ async function generateDescriptionID(title: string) {
 
 // GET
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const session = await getSession();
+  try {
+    const { id } = await params
+    const session = await getSession();
 
-  if (!session) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-  }
+    if (!session) {
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    }
 
-  const link = await prisma.link.findUnique({
-    where: { id: Number(id) },
-    include: { category: true }
-  })
+    const link = await queryOne(`
+      SELECT l.*, c.name as category_name, c.name_en as category_name_en 
+      FROM Link l
+      LEFT JOIN Category c ON l.category_id = c.id
+      WHERE l.id = ?
+    `, [Number(id)]);
 
-  if (!link) return NextResponse.json({ message: 'Link tidak ditemukan' }, { status: 404 });
+    if (!link) return NextResponse.json({ message: 'Link tidak ditemukan' }, { status: 404 });
 
-  // 🔒 Keamanan: Jika bukan ADMIN, cek apakah boleh melihat link ini
-  if (session?.role !== 'ADMIN') {
-    // 1. Jika visibilitasnya DEPARTMENT, wajib cek kesesuaian kategori
-    if (link.visibility === 'DEPARTMENT') {
-      if (link.category_id !== session?.departmentId) {
+    // Format output category agar sesuai ekspektasi frontend
+    const formattedLink = {
+      ...link,
+      category: link.category_id ? { id: link.category_id, name: link.category_name, name_en: link.category_name_en } : null
+    };
+
+    // 🔒 Keamanan: Jika bukan ADMIN, cek apakah boleh melihat link ini
+    if (session?.role !== 'ADMIN') {
+      if (link.visibility === 'DEPARTMENT' && link.category_id !== session?.departmentId) {
         return NextResponse.json({ message: 'Akses Ditolak. Link ini khusus departemen tertentu.' }, { status: 403 });
       }
     }
-    
-    // 2. Jika visibilitasnya INTERNAL, wajib sudah login (session ada)
-    if (link.visibility === 'INTERNAL' && !session) {
-       return NextResponse.json({ message: 'Akses Ditolak. Silakan login.' }, { status: 401 });
-    }
 
-    // Link bersifat INTERNAL atau DEPARTMENT
+    return NextResponse.json(formattedLink)
+  } catch (error) {
+    console.error('[LINK_GET_ERROR]', error);
+    return NextResponse.json({ message: 'Gagal memuat link' }, { status: 500 });
   }
-
-  return NextResponse.json(link)
 }
 
 // PUT (EDIT)
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getSession()
-  // 🔒 Hanya Super Admin dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-  if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
-    return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
-  }
+  try {
+    const user = await getSession()
+    if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
+      return NextResponse.json({ message: 'Akses Ditolak' }, { status: 403 });
+    }
 
-  const { id } = await params
+    const { id } = await params
+    const linkId = Number(id);
 
-  // 🔒 CEK OTORISASI LINTAS DEPARTEMEN
-  if (user.role === 'EMPLOYEE') {
-    const targetLink = await prisma.link.findUnique({ where: { id: Number(id) } })
-    if (!targetLink) return NextResponse.json({ message: 'Link tidak ditemukan' }, { status: 404 })
+    // 🔒 CEK OTORISASI LINTAS DEPARTEMEN
+    const oldLink = await queryOne('SELECT * FROM Link WHERE id = ?', [linkId]);
+    if (!oldLink) return NextResponse.json({ message: 'Link tidak ditemukan' }, { status: 404 })
 
-    // Validasi: Apakah category_id link ini SAMA dengan departmentId si Employee?
-    if (targetLink.category_id !== user.departmentId) {
+    if (user.role === 'EMPLOYEE' && oldLink.category_id !== user.departmentId) {
       return NextResponse.json({ message: 'Akses Ditolak. Anda hanya bisa mengedit link dari departemen Anda sendiri.' }, { status: 403 })
     }
-  }
 
-  try {
     const body = await request.json()
     
     // Cek duplikasi Slug
     if (body.slug) {
-      const existingSlug = await prisma.link.findFirst({
-        where: { slug: body.slug, id: { not: Number(id) } }
-      })
+      const existingSlug = await queryOne('SELECT id FROM Link WHERE slug = ? AND id != ?', [body.slug, linkId])
       if (existingSlug) return NextResponse.json({ message: 'URL Short (Slug) ini sudah dipakai. Silakan gunakan yang lain.' }, { status: 400 })
     }
 
-    // Cek duplikasi Judul (Title) persis sama
+    // Cek duplikasi Judul (Title)
     if (body.title) {
-      const existingTitle = await prisma.link.findFirst({
-        where: { title: body.title, id: { not: Number(id) } }
-      })
+      const existingTitle = await queryOne('SELECT id FROM Link WHERE title = ? AND id != ?', [body.title, linkId])
       if (existingTitle) return NextResponse.json({ message: 'Judul Layanan ini sudah terdaftar. Silakan gunakan judul lain.' }, { status: 400 })
     }
 
     let { title_en, desc, desc_en } = body;
 
+    // ✨ Gemini AI Generation (Lazy)
     if (!desc && body.title) desc = await generateDescriptionID(body.title) || body.title;
     if (!title_en && body.title) title_en = await translateToEnglish(body.title) || body.title; 
     if (!desc_en && desc) desc_en = await translateToEnglish(desc) || desc; 
 
-    const updatedLink = await prisma.link.update({
-      where: { id: Number(id) },
-      data: {
-        title: body.title,
-        title_en: title_en || '',
-        url: body.url,
-        slug: body.slug,
-        visibility: body.visibility || 'INTERNAL',
-        is_active: body.is_active ?? true,
-        desc: desc || '',          
-        desc_en: desc_en || '',    
-        ...(body.category_id && { category: { connect: { id: Number(body.category_id) } } })
-      }
-    })
+    const updateFields: any = {
+      title: body.title || oldLink.title,
+      title_en: title_en || oldLink.title_en || '',
+      url: body.url || oldLink.url,
+      slug: body.slug || oldLink.slug,
+      visibility: body.visibility || oldLink.visibility,
+      is_active: body.is_active !== undefined ? (body.is_active ? 1 : 0) : oldLink.is_active,
+      \`desc\`: desc || oldLink.desc || '',          
+      desc_en: desc_en || oldLink.desc_en || '',    
+      updatedAt: new Date()
+    };
+
+    if (body.category_id) {
+       updateFields.category_id = Number(body.category_id);
+    }
+
+    const keys = Object.keys(updateFields);
+    const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
+    const values = Object.values(updateFields);
+
+    await pool.execute(
+      `UPDATE Link SET ${setClause} WHERE id = ?`,
+      [...values, linkId]
+    );
+
+    const updatedLink = await queryOne('SELECT * FROM Link WHERE id = ?', [linkId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
       userId: user.userId,
       action: 'UPDATE_LINK',
       resource: 'Link',
-      resourceId: updatedLink.id,
-      details: { // In a real system, we'd fetch 'before', but for now we log updated
-        after: updatedLink 
-      },
+      resourceId: linkId,
+      details: { after: updatedLink },
       departmentId: updatedLink.category_id,
       ip: request.headers.get('x-forwarded-for')
     })
@@ -142,37 +158,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 // DELETE 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getSession()
-  // 🔒 Hanya Super Admin dan Pegawai yang bisa mengelola link (Sesuai mapping menu)
-  if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
-    return NextResponse.json({ message: 'Akses Ditolak. Role Anda tidak diizinkan mengelola link.' }, { status: 403 });
-  }
+  try {
+    const user = await getSession()
+    if (!user || !['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'].includes(user.role)) {
+      return NextResponse.json({ message: 'Akses Ditolak' }, { status: 403 });
+    }
 
-  const { id } = await params
+    const { id } = await params
+    const linkId = Number(id);
 
-  // 🔒 CEK OTORISASI LINTAS DEPARTEMEN
-  if (user.role === 'EMPLOYEE') {
-    const targetLink = await prisma.link.findUnique({ where: { id: Number(id) } })
+    // 🔒 CEK OTORISASI LINTAS DEPARTEMEN
+    const targetLink = await queryOne('SELECT * FROM Link WHERE id = ?', [linkId]);
     if (!targetLink) return NextResponse.json({ message: 'Link tidak ditemukan' }, { status: 404 })
 
-    // Validasi: Apakah category_id link ini SAMA dengan departmentId si Employee?
-    if (targetLink.category_id !== user.departmentId) {
+    if (user.role === 'EMPLOYEE' && targetLink.category_id !== user.departmentId) {
       return NextResponse.json({ message: 'Akses Ditolak. Anda hanya bisa menghapus link dari departemen Anda sendiri.' }, { status: 403 })
     }
+
+    await pool.execute('DELETE FROM Link WHERE id = ?', [linkId]);
+
+    // 📝 Record Audit Log
+    recordAuditLog({
+      userId: user.userId,
+      action: 'DELETE_LINK',
+      resource: 'Link',
+      resourceId: linkId,
+      details: { before: targetLink },
+      departmentId: targetLink.category_id,
+      ip: request.headers.get('x-forwarded-for')
+    })
+
+    return NextResponse.json({ message: 'Deleted' })
+  } catch (error) {
+    console.error('DELETE Error:', error)
+    return NextResponse.json({ message: 'Gagal menghapus link' }, { status: 500 })
   }
-
-  const deletedLink = await prisma.link.delete({ where: { id: Number(id) } })
-
-  // 📝 Record Audit Log
-  recordAuditLog({
-    userId: user.userId,
-    action: 'DELETE_LINK',
-    resource: 'Link',
-    resourceId: id,
-    details: { before: deletedLink },
-    departmentId: deletedLink.category_id,
-    ip: request.headers.get('x-forwarded-for')
-  })
-
-  return NextResponse.json({ message: 'Deleted' })
 }

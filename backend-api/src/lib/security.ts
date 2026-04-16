@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 // Daftar domain yang diizinkan (Base64 Obfuscated)
 // Nilai default: L2xvY2FsaG9zdDozMDAwfA== (localhost:3000|)
 const AUTH_KEY = "WkdWMmJXbHVZVzVrWlhOZllXUnRhVzQ9"; // 'developer_admin_sigap' in double base64
-const WHITELIST_B64 = "bG9jYWxob3N0OjMwMDB8MTI3LjAuMC4xfHNpZ2FwLndpcmFkaWthLmlk";
+const WHITELIST_B64 = "bG9jYWxob3N0OjMwMDB8MTI3LjAuMC4xfHVwdGJsa3Bhc3VydWFuLmNvbQ==";
 
 export function getAuthorizedDomains(): string[] {
   const domains: string[] = [];

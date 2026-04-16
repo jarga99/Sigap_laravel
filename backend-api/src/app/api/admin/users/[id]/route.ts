@@ -1,38 +1,45 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 
 // 1. PUT: Edit User
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  // Cek Session: Hanya ADMIN yang boleh edit user
   const session = await getSession()
   if (!session || session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  // FIX: params di Next.js 15+ harus di-await jika error, tapi untuk aman parse int langsung
-  const resolvedParams = await params;
-  const userId = parseInt(resolvedParams.id)
-  const body = await request.json()
-
-  // Siapkan data update
-  const updateData: Record<string, string | number | null> = {
-    // UPDATE: Izinkan role ADMIN_EVENT & EMPLOYEE
-    role: (body.role && ['ADMIN_EVENT', 'EMPLOYEE'].includes(body.role)) ? body.role : 'EMPLOYEE',
-    // UPDATE: Gunakan departmentId, bukan subdivision string
-    departmentId: body.departmentId ? Number(body.departmentId) : null
-  }
-
-  // Jika input password, hash ulang
-  if (body.password && body.password.length >= 6) {
-    updateData.password = await bcrypt.hash(body.password, 10)
-  }
-
   try {
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData
-    })
+    const resolvedParams = await params;
+    const userId = parseInt(resolvedParams.id)
+    const body = await request.json()
+
+    // Ambil data lama untuk audit log & fallback
+    const oldUser = await queryOne('SELECT * FROM User WHERE id = ?', [userId]);
+    if (!oldUser) return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 });
+
+    // Siapkan data update
+    const updateFields: any = {
+      role: (body.role && ['ADMIN_EVENT', 'EMPLOYEE'].includes(body.role)) ? body.role : oldUser.role,
+      departmentId: body.departmentId ? Number(body.departmentId) : null,
+      updatedAt: new Date()
+    }
+
+    // Jika input password, hash ulang
+    if (body.password && body.password.length >= 6) {
+      updateFields.password = await bcrypt.hash(body.password, 10)
+    }
+
+    const keys = Object.keys(updateFields);
+    const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
+    const values = Object.values(updateFields);
+
+    await pool.execute(
+      `UPDATE User SET ${setClause} WHERE id = ?`,
+      [...values, userId]
+    );
+
+    const updatedUser = await queryOne('SELECT * FROM User WHERE id = ?', [userId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -46,22 +53,25 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     })
 
     return NextResponse.json({ message: 'User updated' })
-  } catch {
-    console.error("Update Error")
+  } catch (error) {
+    console.error("Update User Error:", error)
     return NextResponse.json({ error: 'Gagal update user' }, { status: 500 })
   }
 }
 
 // 2. DELETE: Hapus User
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession() 
-  if (!session || session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const resolvedParams = await params;
-  const userId = parseInt(resolvedParams.id)
-
   try {
-    const deletedUser = await prisma.user.delete({ where: { id: userId } })
+    const session = await getSession() 
+    if (!session || session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const resolvedParams = await params;
+    const userId = parseInt(resolvedParams.id)
+
+    const oldUser = await queryOne('SELECT * FROM User WHERE id = ?', [userId]);
+    if (!oldUser) return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 404 });
+
+    await pool.execute('DELETE FROM User WHERE id = ?', [userId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -69,13 +79,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       action: 'DELETE_USER',
       resource: 'User',
       resourceId: userId,
-      details: { before: { id: deletedUser.id, username: deletedUser.username, role: deletedUser.role } },
-      departmentId: deletedUser.departmentId,
+      details: { before: { id: oldUser.id, username: oldUser.username, role: oldUser.role } },
+      departmentId: oldUser.departmentId,
       ip: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'User deleted' })
-  } catch {
+  } catch (error) {
+    console.error("Delete User Error:", error)
     return NextResponse.json({ error: 'Gagal menghapus user' }, { status: 500 })
   }
 }

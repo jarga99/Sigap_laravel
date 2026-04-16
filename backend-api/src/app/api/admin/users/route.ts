@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { query, queryOne } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 
 // Skema Validasi Update: Menyesuaikan database baru
-// Frontend harus mengirim 'departmentId' (Int) bukan string subdivision manual
 const createUserSchema = z.object({
   username: z.string().min(3, "Username minimal 3 karakter"),
   password: z.string().min(6, "Password minimal 6 karakter"),
   role: z.enum(['ADMIN_EVENT', 'EMPLOYEE']).optional(),
-  // Ubah validasi: Terima departmentId sebagai angka (atau string yang bisa jadi angka)
   departmentId: z.union([z.string(), z.number()]).optional().transform((val) => val ? Number(val) : null), 
 })
 
@@ -22,35 +20,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized. Admin only.' }, { status: 401 })
     }
 
-    const users = await prisma.user.findMany({
-      // HAPUS select manual, gunakan include untuk relasi
-      include: {
-        department: true // Ambil data kategori yang berelasi
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+    const users = await query(`
+      SELECT u.*, c.name as dept_name 
+      FROM User u
+      LEFT JOIN Category c ON u.departmentId = c.id
+      ORDER BY u.createdAt DESC
+    `);
 
-    // Mapping data
-    const formattedUsers = users.map(user => ({
+    // Mapping data agar kompatibel dengan Frontend Vue lama
+    const formattedUsers = (users as any[]).map(user => ({
       id: user.id,
       username: user.username,
       fullName: user.fullName,
       role: user.role,
       image_url: user.image_url,
-      
-      // LOGIC BARU: Ambil nama dari relasi department. Jika null, isi "-"
-      // Ini menjaga agar Frontend tabel tidak error (karena masih panggil field subdivision)
-      subdivision: user.department ? user.department.name : '-',
-      departmentId: user.departmentId, // Kirim ID juga untuk keperluan edit nanti
-
+      subdivision: user.dept_name || '-',
+      departmentId: user.departmentId,
       created_at: user.createdAt 
     }))
 
     return NextResponse.json(formattedUsers)
   } catch (error) {
-    console.error("GET Error:", error)
+    console.error("GET Users Error:", error)
     return NextResponse.json({ error: 'Gagal mengambil data' }, { status: 500 })
   }
 }
@@ -74,10 +65,7 @@ export async function POST(request: Request) {
     const { username, password, departmentId, role } = validation.data
 
     // Cek Username
-    const existingUser = await prisma.user.findUnique({
-      where: { username }
-    })
-
+    const existingUser = await queryOne('SELECT id FROM User WHERE username = ?', [username]);
     if (existingUser) {
       return NextResponse.json({ error: 'Username sudah digunakan' }, { status: 409 })
     }
@@ -85,25 +73,22 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Simpan ke Database (Gunakan departmentId)
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role: role || 'EMPLOYEE', 
-        // Masukkan ID kategori jika ada
-        departmentId: departmentId || null, 
-        fullName: username, 
-      }
-    })
+    const result = await pool.execute(
+      'INSERT INTO User (username, password, role, departmentId, fullName, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, role || 'EMPLOYEE', departmentId || null, username, new Date(), new Date()]
+    );
+
+    const insertId = (result[0] as any).insertId;
+    const newUser = await queryOne('SELECT * FROM User WHERE id = ?', [insertId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
       userId: session.userId,
       action: 'CREATE_USER',
       resource: 'User',
-      resourceId: newUser.id,
-      details: { after: { id: newUser.id, username: newUser.username, role: newUser.role, departmentId: newUser.departmentId } },
-      departmentId: newUser.departmentId,
+      resourceId: insertId,
+      details: { after: { id: insertId, username: username, role: role || 'EMPLOYEE', departmentId: departmentId || null } },
+      departmentId: departmentId || null,
       ip: request.headers.get('x-forwarded-for')
     })
 
