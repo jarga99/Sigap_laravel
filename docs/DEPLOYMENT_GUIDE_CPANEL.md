@@ -190,8 +190,7 @@ Gunakan awalan **`STAGING_`** untuk semua nama secret berikut:
 | **`STAGING_FTP_PASSWORD`** | Password cPanel (yang baru Anda ganti) |
 | **`STAGING_DATABASE_URL`** | URL Database (contoh: `mysql://u123_test:pass@localhost:3306/u123_db_test`) |
 | **`STAGING_JWT_SECRET`** | Isi dengan **JWT_SECRET** yang ada di .env Anda |
-| **`STAGING_NEXTAUTH_URL`** | URL subdomain backend (contoh: `https://api-test.blkpasuruan.go.id`) |
-| **`STAGING_VITE_API_BASE_URL`** | Sama dengan URL backend di atas |
+| **`STAGING_VITE_API_BASE_URL`** | URL subdomain backend (contoh: `https://api-test.blkpasuruan.go.id`) |
 | **`STAGING_REMOTE_BACKEND_DIR`** | Folder backend di server (contoh: `/backend-api-test`) |
 | **`STAGING_REMOTE_FRONTEND_DIR`** | Folder frontend di server (contoh: `/sigap.blkpasuruan.com`) |
 | **`STAGING_SSH_PRIVATE_KEY`** | Isi dengan **seluruh teks Private Key** dari cPanel (Authorized) |
@@ -205,8 +204,7 @@ Gunakan awalan **`PROD_`** untuk data ini. **Hanya diisi jika website utama suda
 | **`PROD_FTP_USERNAME`** | Username cPanel |
 | **`PROD_FTP_PASSWORD`** | Password cPanel |
 | **`PROD_DATABASE_URL`** | URL Database Real/Produksi |
-| **`PROD_NEXTAUTH_URL`** | URL website utama Anda |
-| **`PROD_VITE_API_BASE_URL`** | URL API backend produksi |
+| **`PROD_VITE_API_BASE_URL`** | URL website utama Anda |
 | **`PROD_REMOTE_BACKEND_DIR`** | Folder backend produksi |
 | **`PROD_REMOTE_FRONTEND_DIR`** | Folder public_html utama |
 
