@@ -218,6 +218,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       status: 'success',
+      build_engine: 'SIGAP-MYSQL-NATIVE-V1.0',
       message: 'Database initialization completed.',
       report: report,
       timestamp: new Date().toISOString()
