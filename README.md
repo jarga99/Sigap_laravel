@@ -1,135 +1,59 @@
-# 🛡️ SIGAP - Sistem Gerbang Akses Pintar (UPT BLK Pasuruan)
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/jarga99/sigap/releases)
-[![Live Demo](https://img.shields.io/badge/Demo-Live-green?style=for-the-badge)](https://sigap.blkpasuruan.go.id)
-[![Next.js 15](https://img.shields.io/badge/Backend-Next.js%2015-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![Vue.js 3](https://img.shields.io/badge/Frontend-Vue%203-4fc08d?style=for-the-badge&logo=vuedotjs)](https://vuejs.org/)
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-**SIGAP (Sistem Gerbang Akses Pintar)** adalah platform manajemen portal satu pintu (single-entry gateway) yang digunakan oleh **UPT BLK Pasuruan - Dinas Tenaga Kerja dan Transmigrasi Provinsi Jawa Timur**.
+## About Laravel
 
----
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-## 🏗️ I. Struktur Proyek & Modul
-Proyek ini terbagi menjadi dua bagian utama:
-- 💻 [**Frontend Client**](./frontend-client) - Framework Vue 3 untuk portal publik dan dashboard.
-- ⚙️ [**Backend API**](./backend-api) - Framework Next.js 15 dengan autentikasi robust dan AI Gateway.
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
----
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## 📐 II. Arsitektur & Alur Sistem
+## Learning Laravel
 
-### 1. Alur Kerja Utama
-```mermaid
-graph TD
-    subgraph "Akses Publik (Guest)"
-        G[Guest] -->|Hanya via Shared Link| E[Landing Page Event]
-    end
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
-    subgraph "Akses Internal (Staff)"
-        P[Staff/Pegawai] -->|Login Berhasil| PT(Portal Utama SIGAP)
-        PT -->|Kelola Konten| D[Dashboard Admin]
-        AE[Admin Event] -->|Hybrid Editor| E
-        SA[Super Admin] -->|Full Control| D
-    end
-```
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 
-### 2. Struktur Database (ERD)
-```mermaid
-erDiagram
-    USER ||--o{ LINK : "manages"
-    USER ||--o{ EVENT : "creates"
-    CATEGORY ||--o{ LINK : "categorizes"
-    EVENT ||--o{ EVENT_ITEM : "contains"
-    LINK ||--o{ CLICK_LOG : "tracked by"
-    USER ||--o{ AUDIT_LOG : "logged actions"
-```
+## Laravel Sponsors
 
----
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
 
-## 🚀 III. Fitur Unggulan Berdasarkan Peran
+### Premium Partners
 
-| Role | Fitur Kunci | Deskripsi |
-| :--- | :--- | :--- |
-| **Super Admin** | **RBAC Monitoring** | Kendali penuh user, audit logs per aksi, dan branding global. |
-| **Admin Event** | **Hybrid Editor v2** | Pembuat landing page (Linktree-style) dengan kontrol visual penuh. |
-| **Pegawai** | **Link Analytics** | Manajemen shortlink kustom dengan statistik klik real-time. |
-| **Guest** | **Feedback Portal** | Sistem pengaduan terintegrasi dengan upload bukti gambar. |
+- **[Vehikl](https://vehikl.com)**
+- **[Tighten Co.](https://tighten.co)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Redberry](https://redberry.international/laravel-development)**
+- **[Active Logic](https://activelogic.com)**
 
----
+## Contributing
 
-## 🎨 IV. Dokumentasi Visual (Galeri Fitur)
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
-### 1. Portal Utama & Feedback (Tamu)
-| Beranda Publik | Kotak Saran (Feedback) |
-| :--- | :--- |
-| ![Portal Utama](./docs/screenshots/guest_portal_home.png) | ![Feedback Pelayanan](./docs/screenshots/admin_feedback.png) |
+## Code of Conduct
 
-### 2. Dashboard & Kontrol (Super Admin)
-| Statistik Global | Audit Trail (Logs) | Manajemen User |
-| :--- | :--- | :--- |
-| ![Admin Dashboard](./docs/screenshots/admin_dashboard.png) | ![Audit Logs](./docs/screenshots/admin_audit_logs.png) | ![Daftar User](./docs/screenshots/admin_users.png) |
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-### 3. Manajemen Layanan (Pegawai)
-| Manajemen Tautan | Statistik Klik |
-| :--- | :--- |
-| ![Pegawai Links](./docs/screenshots/pegawai_links.png) | ![Statistik Pegawai](./docs/screenshots/pegawai_stats.png) |
+## Security Vulnerabilities
 
-### 4. Hybrid Event Editor (v2)
-![Hybrid Editor](./docs/screenshots/hybrid_editor.png)
-*Alat kustomisasi tampilan landing page event (Warna, Font, Shape, Drag-and-drop).*
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
----
+## License
 
-## 🛠️ V. Panduan Instalasi (Development)
-
-### 📋 Prasyarat
-- **Node.js**: v20.x or higher
-- **MySQL**: v8.0+
-- **NPM/PNPM**
-
-### ⚙️ Alur Setup
-1. **Database**: Buat database `sigap_db` di MySQL.
-2. **Backend**:
-   ```bash
-   cd backend-api
-   npm install
-   cp .env.example .env # Atur DATABASE_URL & JWT_SECRET
-   npx prisma db push
-   npx prisma db seed # Penting: Gunakan password 'sigap2025'
-   ```
-3. **Frontend**:
-   ```bash
-   cd frontend-client
-   npm install
-   npm run dev
-   ```
-
----
-
-## 🔐 VI. Mekanisme Keamanan & Backup
-SIGAP dilengkapi dengan fitur **"Reset Global with Mandatory Backup"**.
-- Setiap kali data di-reset, sistem otomatis menjalankan `mysqldump` dan mengompres folder `uploads` menjadi file `.tar.gz`.
-- Backup disimpan di folder `/backups/` di root proyek (Terproteksi dari akses publik).
-
----
-
-## 📚 VII. Dokumentasi & Panduan Resmi
-Seluruh panduan operasional tersedia dalam folder [**/docs**](./docs) untuk referensi cepat:
-
-1. 📄 [**DOKUMENTASI_LENGKAP.pdf**](./docs/DOKUMENTASI_SIGAP.pdf) - Panduan lengkap format PDF.
-2. 🎤 [**PANDUAN_PRESENTASI.md**](./docs/PRESENTATION_GUIDE.md) - Materi presentasi fitur lengkap.
-3. 📖 [**USER_GUIDE.md**](./docs/USER_GUIDE.md) - Panduan penggunaan untuk tiap level user.
-4. ⚙️ [**SETUP_GUIDE.md**](./docs/DEMO_SETUP_GUIDE.md) - Panduan teknis instalasi lanjutan.
-5. 🛡️ [**SOP_PELINDUNGAN.md**](./docs/PROTECTION_SOP.md) - Standar operasional prosedur keamanan.
-
----
-
----
-
-## 🤝 VIII. Kontribusi & Lisensi
-Proyek ini dikembangkan secara eksklusif untuk **UPT BLK Pasuruan**. Segala bentuk penggunaan kembali tanpa izin pengembang (`wiradika.jr`) dianggap melanggar hukum hak cipta.
-
-Copyright © 2026 **Sistem Gerbang Akses Pintar (SIGAP)**. Seluruh hak cipta dilindungi undang-undang.
-
----
-*Dikembangkan dengan ❤️ untuk modernisasi layanan publik di Jawa Timur.*
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
