@@ -130,19 +130,54 @@ cd /home/usercpanel/public_html/nama_folder_domain_anda
 ```bash
 cp .env.example .env
 ```
+
 4. Edit file `.env` di File Manager Anda dan sambungkan isi baris koneksinya agar selaras dengan **Database cPanel**.
+> **PENTING: JANGAN LUPAKAN BARIS INI DI DALAM .env cPanel!**
+> Tambahkan Kunci Google dan API AI persis seperti di laptop Anda agar fitur cerdas Sigap berfungsi:
+> ```env
+> VITE_GOOGLE_CLIENT_ID="KUNCI_CLIENT_GOOGLE_ANDA"
+> GEMINI_API_KEY="KUNCI_GEMINI_ANDA"
+> GROQ_API_KEY="KUNCI_GROQ_ANDA"
+> ```
+
 5. Inisialisasi Database dan Sistem Keamanan (Jalankan di Terminal dan selesaikan urusannya!):
 ```bash
 # Pastikan cPanel Anda menunjuk PHP/PHP-CLI 8.2 minimal!
 php artisan key:generate
-php artisan storage:link
 
 # Peringatan! Perintah ini akan menghancurkan data lama dan menggantikannya dengan seeder Super Admin yang segar:
 php artisan migrate:fresh --seed
+
+# Membuka jalur gambar dari Storage ke Public:
+# (Jika ini gagal di cPanel, hapus folder public/storage lalu jalankan kembali)
+php artisan storage:link
 
 # Bekukan konfigurasi Laravel biar tidak lelet (Cache)
 php artisan config:cache
 php artisan route:cache
 ```
+
+## 🚨 TAHAP 5 (SANGAT KRUSIAL!): MENGARAHKAN ALAMAT KE FOLDER "PUBLIC"
+Tidak seperti aplikasi web biasa atau NodeJS, **Laravel menyembunyikan semua mesin utamanya dari peretas** dan hanya membuka 1 pintu masuk, yaitu folder `public/`. Jika Anda tidak menyetelnya, saat Anda membuka domain, yang terlihat adalah daftar folder (Directory Listing) atau Error!
+
+Ada 2 cara paling standar di cPanel untuk membereskan ini:
+**Cara A (Ubah Document Root di cPanel):**
+Jika aplikasi Anda diinstal di domain utama (atau Subdomain khusus):
+1. Ke menu cPanel > **Domains** (atau Subdomains).
+2. Temukan list nama situs Anda, klik tombol **Manage** atau edit.
+3. Ubah kolom jalurnya (Document Root) menjadi menunjuk langsung ke foldernya, dan tambahkan `/public` di akhirnya. (Contoh: `public_html/sigap/public` atau `sigap.domain.com/public`)
+4. Simpan.
+
+**Cara B (Trik Menggunakan file `.htaccess` rahasia):**
+Jika Cara A diblokir oleh kampus/hostingan Anda, Anda CUKUP membuat 1 file baru bernama `.htaccess` persis di dalam folder induk SIGAP Anda (sejajar dengan `.env`), berisikan kode ini:
+```apache
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+```
+Lalu simpan! Website SIGAP Anda akan langsung otomatis mengarah ke pintu gerbang yang benar dan menampilkan form Login Sleek Anda!
+
+🚀 Selesai dan Aman! Selamat menikmati SIGAP Versi Laravel dengan infrastruktur Deployment *Continuous Delivery*! Kapanpun Anda ingin mengubah sebuah koma pada *code editor*, perubahan akan mendistribusi sempurna ke pengguna ujung (End-User)!.
 
 🚀 Selesai dan Aman! Selamat menikmati SIGAP Versi Laravel dengan infrastruktur Deployment *Continuous Delivery*! Kapanpun Anda ingin mengubah sebuah koma pada *code editor*, perubahan akan mendistribusi sempurna ke pengguna ujung (End-User)!.
