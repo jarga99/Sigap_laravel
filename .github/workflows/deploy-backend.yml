@@ -75,7 +75,9 @@ jobs:
           cp -r public/. deploy_ready/public/ || true
           
           # Final sanity check: remove absolute path references if any
-          grep -rl "/home/jr/sigap" deploy_ready | xargs sed -i "s|/home/jr/sigap|/home/uptblkpa/apiv1-sigap.uptblkpasuruan.com|g" || true
+          # Menggunakan variable REMOTE_DIR agar fleksibel antara Staging dan Production
+          REMOTE_DIR=${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
+          grep -rl "/home/jr/sigap" deploy_ready | xargs sed -i "s|/home/jr/sigap|$REMOTE_DIR|g" || true
 
       - name: Create Restart Trigger File
         run: |
@@ -91,7 +93,9 @@ jobs:
           local-dir: ./backend-api/deploy_ready/
           server-dir: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}/
           state-name: .ftp-deploy-sync-backend.json # Unique state for backend
+          dangerously-clean-slot: true
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/.cache/**
+            **/.env
