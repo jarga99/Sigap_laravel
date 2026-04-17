@@ -9,6 +9,7 @@ import {
   Printer, FileSpreadsheet, ChevronDown,
   Briefcase, Activity, Archive, Book, Heart, Star, Video, Image as ImageIcon, FolderOpen
 } from 'lucide-vue-next'
+import { downloadFile } from '../../lib/download'
 import IconSelectorModal from '../../components/admin/IconSelectorModal.vue'
 import { useRouter } from 'vue-router'
 import QRCode from 'qrcode'
@@ -360,19 +361,8 @@ const handleExportExcel = () => {
     csvContent += row.map(escapeCsv).join(';') + '\n'
   })
 
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
   const fileName = `Rekap_Links_${periode.replace(/\s+/g, '_')}.csv`
-  
-  if ((navigator as any).msSaveBlob) {
-    (navigator as any).msSaveBlob(blob, fileName)
-  } else {
-    link.href = URL.createObjectURL(blob)
-    link.setAttribute('download', fileName)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+  downloadFile('\ufeff' + csvContent, fileName, 'text/csv;charset=utf-8;')
 }
 
 const handlePrintPDF = () => {
@@ -494,11 +484,12 @@ const handleImport = async (event: Event) => {
   }
 }
 
-const downloadTemplate = () => {
-  // Menggunakan rute relatif /api yang sudah dikonfigurasi di axios.ts
-  const apiBase = import.meta.env.VITE_API_URL || '/api'
-  const token = localStorage.getItem('token')
-  window.open(`${apiBase}/admin/links/template?token=${token}`, '_blank')
+const downloadTemplate = async () => {
+  try {
+    await downloadFile('/admin/links/template', 'template_import_links.xlsx')
+  } catch (error) {
+    alert('Gagal mendownload template.')
+  }
 }
 
 onMounted(fetchData)

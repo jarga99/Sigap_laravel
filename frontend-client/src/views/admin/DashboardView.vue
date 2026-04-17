@@ -11,6 +11,7 @@ import {
 } from 'chart.js'
 import { Bar } from 'vue-chartjs'
 import { Download, LayoutDashboard, MousePointer2, Layers, Eye } from 'lucide-vue-next'
+import { downloadFile } from '@/lib/download'
 import api from '@/services/api' 
 import { useAuthStore } from '@/stores/auth'
 import { API_BASE_URL } from '@/lib/config'
@@ -122,12 +123,16 @@ const fetchData = async () => {
   }
 }
 
-const downloadRecap = () => {
-  const authStore = useAuthStore()
-  // Ambil origin dinamis dari config
-  const apiBase = API_BASE_URL
-  const exportUrl = `${apiBase}/api/admin/dashboard/export?token=${authStore.token}`
-  window.open(exportUrl, '_blank')
+const downloadRecap = async () => {
+  const dateStr = new Date().toISOString().split('T')[0]
+  try {
+    await downloadFile(
+      `/admin/dashboard/export`, 
+      `rekap-data-sigap-${dateStr}.csv`
+    )
+  } catch (error) {
+    alert('Gagal mengunduh rekap data.')
+  }
 }
 
 onMounted(() => {

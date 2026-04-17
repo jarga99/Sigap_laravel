@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import crypto from 'crypto'
@@ -23,14 +23,13 @@ export async function POST(request: Request) {
     const worksheet = workbook.Sheets[sheetName]
     
     // 3. Konversi ke JSON (Array of Objects)
-    // header: 1 berarti baris pertama adalah header
     const data: any[] = XLSX.utils.sheet_to_json(worksheet)
 
     if (data.length === 0) {
       return NextResponse.json({ error: 'File kosong atau tidak memiliki data' }, { status: 400 })
     }
 
-    const createdLinks = []
+    const createdIds = []
     const errors = []
 
     for (let i = 0; i < data.length; i++) {
@@ -54,20 +53,19 @@ export async function POST(request: Request) {
           categoryId = session.departmentId ? Number(session.departmentId) : categoryId
         }
         
-        const newLink = await prisma.link.create({
-          data: {
-            title: title,
-            url: url,
-            slug: slug,
-            category_id: categoryId,
-            visibility: (row.visibility?.toString().toUpperCase() as any) || 'INTERNAL',
-            // Handle boolean or numeric string
-            is_active: row.is_active === true || row.is_active === 'true' || row.is_active === 1 || row.is_active === '1' || !row.is_active,
-            desc: row.desc?.toString() || '',
-            userId: session.userId
-          }
-        })
-        createdLinks.push(newLink)
+        const visibility = (row.visibility?.toString().toUpperCase()) || 'INTERNAL'
+        const is_active = (row.is_active === true || row.is_active === 'true' || row.is_active === 1 || row.is_active === '1' || row.is_active === undefined) ? 1 : 0
+        const desc = row.desc?.toString() || ''
+
+        // Insert via MySQL Native
+        const [result]: any = await pool.execute(`
+          INSERT INTO Link (title, url, slug, category_id, visibility, is_active, \`desc\`, userId)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [title, url, slug, categoryId, visibility, is_active, desc, session.userId])
+
+        if (result && result.insertId) {
+          createdIds.push(result.insertId)
+        }
       } catch (err: any) {
         errors.push(`Baris ${i + 2} (${title}): ${err.message || 'Gagal diimpor'}`)
       }
@@ -79,16 +77,16 @@ export async function POST(request: Request) {
       action: 'BULK_IMPORT_LINKS',
       resource: 'Link',
       details: { 
-        successCount: createdLinks.length, 
+        successCount: createdIds.length, 
         errorCount: errors.length,
-        errors: errors.slice(0, 5) // Batasi log detail
+        errors: errors.slice(0, 5) 
       },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ 
-      message: `${createdLinks.length} link berhasil dimasukkan.`,
-      successCount: createdLinks.length,
+      message: `${createdIds.length} link berhasil dimasukkan.`,
+      successCount: createdIds.length,
       errorCount: errors.length,
       errors: errors
     })

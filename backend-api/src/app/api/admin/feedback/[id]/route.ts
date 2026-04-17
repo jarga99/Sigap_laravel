@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 
@@ -17,51 +17,52 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const payload = await request.json();
     
-    // Jika ada replyMessage, otomatis isRead menjadi true
-    const updateData: any = { isRead: payload.isRead }
+    // Logic Data via MySQL Native
+    let isRead = payload.isRead ? 1 : 0
+    let replyMessage = payload.replyMessage || null
+    let replyImageUrl = payload.replyImageUrl || null
+    let repliedAt = null
+    let repliedById = null
+
     if (payload.replyMessage) {
-      updateData.replyMessage = payload.replyMessage
-      if (payload.replyImageUrl) {
-        updateData.replyImageUrl = payload.replyImageUrl
-      }
-      updateData.repliedAt = new Date()
-      updateData.repliedById = session.userId
-      updateData.isRead = true // Otomatis tandai selesai jika dibalas
+      repliedAt = new Date()
+      repliedById = session.userId
+      isRead = 1 // Otomatis tandai selesai jika dibalas
     }
 
-    const updated = await prisma.feedback.update({
-      where: { id },
-      data: updateData,
-      include: { user: true }
-    });
+    // Update via MySQL Native
+    await pool.execute(`
+      UPDATE Feedback 
+      SET isRead = ?, replyMessage = ?, replyImageUrl = ?, repliedAt = ?, repliedById = ? 
+      WHERE id = ?
+    `, [isRead, replyMessage, replyImageUrl, repliedAt, repliedById, id]);
 
-    // 📝 Buat Notifikasi untuk User jika ini adalah balasan
-    if (payload.replyMessage) {
-      await prisma.notification.create({
-        data: {
-          userId: updated.userId,
-          type: 'FEEDBACK_REPLY',
-          message: `Feedback Anda telah dibalas oleh Admin: "${payload.replyMessage.substring(0, 50)}..."`,
-          relatedId: updated.id
-        }
-      })
+    // Ambil data terbaru untuk response
+    const updated = await queryOne('SELECT * FROM Feedback WHERE id = ?', [id]);
+
+    // 📝 Buat Notifikasi untuk User jika ini adalah balasan via MySQL Native
+    if (payload.replyMessage && updated) {
+      await pool.execute(`
+        INSERT INTO Notification (userId, type, message, relatedId) 
+        VALUES (?, ?, ?, ?)
+      `, [updated.userId, 'FEEDBACK_REPLY', `Feedback Anda telah dibalas oleh Admin: "${payload.replyMessage.substring(0, 50)}..."`, id]);
     }
 
-    // 📝 Record Audit Log
+    // 📝 Record Audit Log via Logger terpusat
     recordAuditLog({
       userId: session.userId,
       action: payload.replyMessage ? 'REPLY_FEEDBACK' : 'UPDATE_FEEDBACK_STATUS',
       resource: 'Feedback',
-      resourceId: updated.id,
-      details: { isRead: updateData.isRead, hasReply: !!payload.replyMessage },
+      resourceId: id,
+      details: { isRead: isRead, hasReply: !!payload.replyMessage },
       departmentId: null, 
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Feedback diperbarui', data: updated });
   } catch (error: any) {
     console.error('Update Feedback Error:', error);
-    return NextResponse.json({ error: 'Gagal memperbarui feedback.' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal memperbarui feedback: ' + error.message }, { status: 500 });
   }
 }
 
@@ -76,21 +77,25 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const id = parseInt(paramId);
     if (isNaN(id)) return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
 
-    const deleted = await prisma.feedback.delete({ where: { id } });
+    // Get before delete for log
+    const beforeDeleted = await queryOne('SELECT * FROM Feedback WHERE id = ?', [id]);
 
-    // 📝 Record Audit Log
+    await pool.execute('DELETE FROM Feedback WHERE id = ?', [id]);
+
+    // 📝 Record Audit Log via Logger terpusat
     recordAuditLog({
       userId: session.userId,
       action: 'DELETE_FEEDBACK',
       resource: 'Feedback',
       resourceId: id,
-      details: { before: deleted },
+      details: { before: beforeDeleted },
       departmentId: null,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Feedback berhasil dihapus.' });
-  } catch (error) {
-    return NextResponse.json({ error: 'Gagal menghapus feedback.' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Delete Feedback Error:', error);
+    return NextResponse.json({ error: 'Gagal menghapus feedback: ' + error.message }, { status: 500 });
   }
 }

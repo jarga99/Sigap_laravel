@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import fs from 'fs'
@@ -14,18 +14,19 @@ async function createFullBackup(session: any, request: Request) {
   const backupDir = path.join(process.cwd(), '..', 'backups');
   const tempSqlPath = path.join(backupDir, `db_dump_${dateStr}.sql`);
   const finalBackupPath = path.join(backupDir, `sigap_reset_backup_${dateStr}.tar.gz`);
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+  
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
 
   try {
-    // 1. Database Dump
+    // 1. Database Dump via CLI (Environment variables must be correct)
     const dbUrl = new URL(process.env.DATABASE_URL!);
     const dbName = dbUrl.pathname.replace('/', '');
     const dumpCmd = `mysqldump -h ${dbUrl.hostname} -P ${dbUrl.port || '3306'} -u ${dbUrl.username} -p"${dbUrl.password}" ${dbName} --no-tablespaces > "${tempSqlPath}"`;
     await execPromise(dumpCmd);
 
     // 2. Compress both SQL and Uploads
-    // -C process.cwd() changes to the root of the search
-    // We include public/uploads and the temp SQL file
     const tarCmd = `tar -czf "${finalBackupPath}" -C "${process.cwd()}" public/uploads -C "${backupDir}" "${path.basename(tempSqlPath)}"`;
     await execPromise(tarCmd);
 
@@ -35,7 +36,6 @@ async function createFullBackup(session: any, request: Request) {
     return finalBackupPath;
   } catch (error) {
     console.error('Backup creation failed during reset:', error);
-    // Cleanup if partially failed
     if (fs.existsSync(tempSqlPath)) fs.unlinkSync(tempSqlPath);
     throw error;
   }
@@ -59,60 +59,52 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // 1. Bersihkan seluruh Data Operasional dengan Transaksi
-    await prisma.$transaction([
-      prisma.eventClickLog.deleteMany(),
-      prisma.eventItem.deleteMany(),
-      prisma.event.deleteMany(),
-      prisma.auditLog.deleteMany(),
-      prisma.clickLog.deleteMany(),
-      prisma.link.deleteMany(),
-      prisma.category.deleteMany(),
-      prisma.footerLink.deleteMany(),
-      prisma.feedback.deleteMany(),
-      prisma.notification.deleteMany(),
-      prisma.settings.deleteMany()
-    ]);
+    // 1. Bersihkan seluruh Data Operasional via MySQL Native Transaction
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      
+      // Matikan FK checks sementara agar bisa wipe berurutan
+      await conn.execute('SET FOREIGN_KEY_CHECKS = 0');
 
-    // 2. Hapus semua user kecuali sigap_admin
-    await prisma.user.deleteMany({
-      where: {
-        username: { not: 'sigap_admin' }
+      const tables = [
+        'EventClickLog', 'EventItem', 'Event', 'AuditLog', 
+        'ClickLog', 'Link', 'Category', 'FooterLink', 
+        'Feedback', 'Notification', 'Settings'
+      ];
+
+      for (const table of tables) {
+        await conn.execute(`DELETE FROM ${table}`);
+        await conn.execute(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
       }
-    });
 
-    // 3. ⚡ RESET INDEXING (Auto-Increment) ke 1
-    // Perintah ini akan memaksa MySQL untuk memulai ID dari 1 kembali (atau ID terkecil tersedia)
-    await prisma.$executeRawUnsafe(`ALTER TABLE EventClickLog AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE EventItem AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Event AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE AuditLog AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE ClickLog AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Link AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Category AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE FooterLink AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Feedback AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Notification AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE Settings AUTO_INCREMENT = 1`);
-    await prisma.$executeRawUnsafe(`ALTER TABLE User AUTO_INCREMENT = 1`);
+      // Hapus semua user kecuali sigap_admin & admin (original)
+      await conn.execute("DELETE FROM User WHERE username NOT IN ('sigap_admin', 'admin')");
+      await conn.execute('ALTER TABLE User AUTO_INCREMENT = 1');
 
-    // 4. Bersihkan fisik folder Uploads secara rekursif
+      await conn.execute('SET FOREIGN_KEY_CHECKS = 1');
+      await conn.commit();
+    } catch (txError) {
+      await conn.rollback();
+      throw txError;
+    } finally {
+      conn.release();
+    }
+
+    // 2. Bersihkan fisik folder Uploads secara rekursif
     try {
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       if (fs.existsSync(uploadDir)) {
-        // Hapus folder dan isinya
         fs.rmSync(uploadDir, { recursive: true, force: true });
-        // Buat kembali folder kosong
         fs.mkdirSync(uploadDir, { recursive: true });
-        // Tambahkan .gitkeep jika perlu (opsional, tapi bagus untuk git)
         fs.writeFileSync(path.join(uploadDir, '.gitkeep'), '');
       }
     } catch (fsError) {
       console.error('Peringatan: Gagal menghapus isi folder uploads secara penuh:', fsError);
     }
 
-    // 4. 📝 Record Audit Log
-    await recordAuditLog({
+    // 3. 📝 Record Audit Log via Logger terpusat
+    recordAuditLog({
       userId: session.userId,
       action: 'RESET_SYSTEM',
       resource: 'System',
@@ -120,7 +112,7 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString(),
         backup_saved_as: path.basename(backupPath)
       },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ 
@@ -128,8 +120,8 @@ export async function POST(request: Request) {
       backup: path.basename(backupPath)
     })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Reset Error:', error)
-    return NextResponse.json({ message: 'Terjadi kesalahan sistem saat mereset data.' }, { status: 500 })
+    return NextResponse.json({ message: 'Terjadi kesalahan sistem saat mereset data: ' + error.message }, { status: 500 })
   }
 }

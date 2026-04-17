@@ -185,7 +185,7 @@ export async function PUT(request: Request) {
       resourceId: 1,
       details: { after: dataToSave },
       departmentId: null, // Settings bersifat global
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(updated)
@@ -196,7 +196,7 @@ export async function PUT(request: Request) {
     console.error("CRITICAL ERROR [PUT /api/settings]:", {
       message: err.message,
       stack: err.stack,
-      code: err.code // Prisma error code (misal: P2002)
+      code: err.code // MySQL Error Code
     });
     
     return NextResponse.json({ 

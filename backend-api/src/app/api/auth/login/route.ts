@@ -41,12 +41,14 @@ export async function POST(request: Request) {
     `, [username]);
 
     if (!user) {
+      console.warn(`[AUTH_FAILURE] Account not found: ${username}`);
       return NextResponse.json({ error: 'Akun tidak ditemukan' }, { status: 401 })
     }
 
     // 2. Cek Password
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
+      console.warn(`[AUTH_FAILURE] Invalid password for user: ${username}`);
       return NextResponse.json({ error: 'Password salah' }, { status: 401 })
     }
 
@@ -80,6 +82,8 @@ export async function POST(request: Request) {
         request.headers.get('x-forwarded-for') || '127.0.0.1'
       ]
     );
+    
+    console.log(`[AUTH_SUCCESS] User logged in: ${user.username} (Role: ${user.role})`);
 
     return NextResponse.json({
       message: 'Login berhasil',

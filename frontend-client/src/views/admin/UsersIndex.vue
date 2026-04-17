@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../lib/axios'
 import { UserPlus, Trash2, Loader2, Edit2, Upload, Download } from 'lucide-vue-next'
+import { downloadFile } from '../../lib/download'
 
 // State Data
 const users = ref<any[]>([])
@@ -9,22 +10,21 @@ const categories = ref<any[]>([]) // DATA BARU: Menyimpan list kategori
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const isImporting = ref(false)
+const importResult = ref<{ success: number, errors: string[] } | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// Pagination
+const totalUsers = ref(0)
+const totalPages = ref(1)
 const currentPage = ref(1)
 const pageSize = ref(10)
-const pageSizeOptions = [10, 20, 30, 40, 50, 75, 100]
+const pageSizeOptions = [10, 20, 50, 100]
 
-const totalPages = computed(() => Math.ceil(users.value.length / pageSize.value) || 1)
-const paginatedUsers = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return users.value.slice(start, start + pageSize.value)
-})
+// Dengan pagination server-side, paginatedUsers kini langsung mengambil dari users.value
+const paginatedUsers = computed(() => users.value)
 
-// Reset ke halaman 1 saat pageSize berubah
-watch(pageSize, () => {
-  currentPage.value = 1
+// Reset ke halaman 1 saat pageSize berubah dan fetch ulang
+watch([pageSize, currentPage], () => {
+  fetchUsers()
 })
 
 // State Form
@@ -41,11 +41,18 @@ const form = ref({
 
 
 
-// 1. Fetch Users (Data Tabel)
+// 1. Fetch Users (Sekarang dengan Pagination Server-Side)
 const fetchUsers = async () => {
   try {
-    const res = await api.get('/admin/users')
-    users.value = res.data
+    const res = await api.get('/admin/users', {
+      params: {
+        page: currentPage.value,
+        limit: pageSize.value
+      }
+    })
+    users.value = res.data.data
+    totalUsers.value = res.data.meta.total
+    totalPages.value = res.data.meta.totalPages
   } catch (err) {
     console.error(err)
     alert('Gagal mengambil data user')
@@ -138,16 +145,24 @@ const handleImport = async (event: Event) => {
   formData.append('file', file)
 
   isImporting.value = true
+  importResult.value = null // Reset hasil sebelumnya
+  
   try {
     const { data } = await api.post('/admin/users/bulk', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    alert(data.message)
-    if (data.errors && data.errors.length > 0) {
-      console.warn('Import partial errors:', data.errors)
+    
+    importResult.value = {
+      success: data.successCount,
+      errors: data.errors || []
     }
-    fetchUsers()
+
+    // Refresh list jika ada yang sukses
+    if (data.successCount > 0) {
+      fetchUsers()
+    }
   } catch (error: any) {
+    console.error(error)
     alert(error.response?.data?.error || 'Gagal mengimpor data user')
   } finally {
     isImporting.value = false
@@ -155,10 +170,12 @@ const handleImport = async (event: Event) => {
   }
 }
 
-const downloadTemplate = () => {
-  const apiBase = import.meta.env.VITE_API_URL || '/api'
-  const token = localStorage.getItem('token')
-  window.open(`${apiBase}/admin/users/template?token=${token}`, '_blank')
+const downloadTemplate = async () => {
+  try {
+    await downloadFile('/admin/users/template', 'template_import_users.xlsx')
+  } catch (error) {
+    alert('Gagal mendownload template.')
+  }
 }
 </script>
 
@@ -188,6 +205,50 @@ const downloadTemplate = () => {
         <button @click="openAddModal" class="w-full sm:w-auto px-5 py-2.5 flex items-center justify-center gap-2 rounded-xl text-sm font-bold transition-all shadow-sm bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
           <UserPlus :size="18" /> <span class="whitespace-nowrap">Tambah User</span>
         </button>
+      </div>
+    </div>
+
+    <!-- Import Results (Premium UI) -->
+    <div v-if="importResult" class="mb-6 p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm transition-all animate-in fade-in slide-in-from-top-4 duration-300">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+          Laporan Hasil Impor Terakhir
+        </h4>
+        <button @click="importResult = null" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors flex items-center gap-1">
+          TUTUP LAPORAN ✕
+        </button>
+      </div>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div class="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest mb-1">Berhasil Diimpor</div>
+            <div class="text-3xl font-black text-emerald-600 dark:text-emerald-500">{{ importResult.success }}</div>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            ✓
+          </div>
+        </div>
+        <div class="bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <div class="text-[10px] text-rose-600 dark:text-rose-400 font-black uppercase tracking-widest mb-1">Gagal / Dilewati</div>
+            <div class="text-3xl font-black text-rose-600 dark:text-rose-500">{{ importResult.errors.length }}</div>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+            ✕
+          </div>
+        </div>
+      </div>
+
+      <div v-if="importResult.errors.length > 0" class="max-h-48 overflow-y-auto space-y-2 mt-4 custom-scrollbar pr-2">
+        <div v-for="(err, idx) in importResult.errors" :key="idx" class="text-xs bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-rose-300/80 p-3 rounded-lg border border-slate-100 dark:border-rose-500/10 flex items-start gap-3">
+          <span class="mt-0.5 text-rose-500">•</span>
+          <span>{{ err }}</span>
+        </div>
+      </div>
+      <div v-else class="text-center py-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center justify-center gap-2">
+        ✨ Selamat! Semua data dalam file berhasil diimpor tanpa kendala.
       </div>
     </div>
 

@@ -44,12 +44,11 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
           JWT_SECRET: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_JWT_SECRET || secrets.STAGING_JWT_SECRET }}
-          PRISMA_GENERATE_SKIP: 'true' # Prevent redundant generation
+          ALLOWED_DOMAINS: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_ALLOWED_DOMAINS || secrets.STAGING_ALLOWED_DOMAINS }}
+          MAINTENANCE_TOKEN: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_MAINTENANCE_TOKEN || secrets.STAGING_MAINTENANCE_TOKEN }}
           NEXT_TELEMETRY_DISABLED: '1'
         run: |
           cd backend-api
-          # Generate precisely for cPanel target
-          npx prisma generate
           npm run build
 
       - name: Prepare Standalone Artifacts
@@ -60,9 +59,15 @@ jobs:
           # Clean node_modules from local metadata path triggers
           find .next/standalone -name "package.json" -exec sed -i 's/\/home\/jr\/sigap\/backend-api/./g' {} + || true
 
-          # BUNDLE PRISMA ENGINES (Clean sweep)
-          mkdir -p .next/standalone/node_modules/.prisma/client
-          cp node_modules/.prisma/client/libquery_engine-* .next/standalone/node_modules/.prisma/client/ || true
+          
+          # [SECURITY] Auto-Cleanup Setup Routes for Production
+          if [ "${{ env.DEPLOY_TARGET }}" = "production" ]; then
+            echo "🚀 Target is Production. Cleaning up setup/maintenance routes..."
+            rm -rf .next/standalone/src/app/api/admin/setup-db || true
+            rm -rf .next/standalone/src/app/api/admin/raw-setup || true
+            rm -rf .next/server/app/api/admin/setup-db || true
+            rm -rf .next/server/app/api/admin/raw-setup || true
+          fi
           
           cp -r .next/standalone/. deploy_ready/
           mkdir -p deploy_ready/.next/static

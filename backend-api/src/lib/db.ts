@@ -20,16 +20,32 @@ export default pool;
 /**
  * Helper untuk menjalankan query dan mengembalikan semua hasil (Array)
  */
-export async function query(sql: string, params: any[] = []) {
-  const [results] = await pool.execute(sql, params);
-  return results;
+export async function query(sql: string, params: any[] = []): Promise<any> {
+  const start = Date.now();
+  try {
+    const [results] = await pool.execute(sql, params);
+    const duration = Date.now() - start;
+    console.log(`[DB_QUERY] ${sql} (${duration}ms)`);
+    return results;
+  } catch (error: any) {
+    console.error(`[DB_ERROR] ${sql} | Error: ${error.message}`);
+    throw error;
+  }
 }
 
 /**
  * Helper untuk menjalankan query dan mengembalikan hasil pertama (Single Object)
  */
 export async function queryOne(sql: string, params: any[] = []) {
-  const [results] = await pool.execute(sql, params);
-  const rows = results as any[];
-  return rows.length > 0 ? rows[0] : null;
+  const start = Date.now();
+  try {
+    const [results] = await pool.execute(sql, params);
+    const duration = Date.now() - start;
+    const rows = results as any[];
+    console.log(`[DB_QUERY_ONE] ${sql} (${duration}ms)`);
+    return rows.length > 0 ? rows[0] : null;
+  } catch (error: any) {
+    console.error(`[DB_ERROR_ONE] ${sql} | Error: ${error.message}`);
+    throw error;
+  }
 }

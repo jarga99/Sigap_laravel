@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       action: 'BACKUP_DATABASE',
       resource: 'System',
       details: { filename },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return new NextResponse(stdout, {

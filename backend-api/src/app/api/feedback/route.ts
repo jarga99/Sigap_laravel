@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       resourceId: feedbackId,
       details: { isAnonymous: !!isAnonymous },
       departmentId: Number(session.departmentId) || null,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ 

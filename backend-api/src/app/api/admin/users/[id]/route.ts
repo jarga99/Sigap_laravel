@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import pool, { queryOne } from '@/lib/db'
+import pool, { queryOne, query } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
@@ -34,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
     const values = Object.values(updateFields);
 
-    await pool.execute(
+    await query(
       `UPDATE User SET ${setClause} WHERE id = ?`,
       [...values, userId]
     );
@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       resourceId: userId,
       details: { after: { id: updatedUser.id, username: updatedUser.username, role: updatedUser.role, departmentId: updatedUser.departmentId } },
       departmentId: updatedUser.departmentId,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'User updated' })
@@ -81,7 +81,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       resourceId: userId,
       details: { before: { id: oldUser.id, username: oldUser.username, role: oldUser.role } },
       departmentId: oldUser.departmentId,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'User deleted' })

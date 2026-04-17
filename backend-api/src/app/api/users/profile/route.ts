@@ -97,7 +97,7 @@ export async function PUT(request: Request) {
         fields: Object.keys(updateData).filter(k => k !== 'password')
       },
       departmentId: Number(updatedUser.departmentId) || null,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({

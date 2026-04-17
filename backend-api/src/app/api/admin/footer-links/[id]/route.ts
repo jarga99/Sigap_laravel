@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 
-// PUT: Perbarui footer link
+// PUT: Perbarui footer link via MySQL Native
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
@@ -24,16 +24,10 @@ export async function PUT(
     const url = formData.get('url') as string
     const type = formData.get('type') as string
     const order = parseInt(formData.get('order') as string) || 0
-    const isActive = formData.get('isActive') === 'true'
+    const isActive = formData.get('isActive') === 'true' ? 1 : 0
     const file = formData.get('logo') as File | null
 
-    const updateData: any = {
-      label,
-      url,
-      type,
-      order,
-      isActive
-    }
+    let logoUrl = formData.get('logoUrl') as string | null
 
     if (file && file.size > 0) {
       const bytes = await file.arrayBuffer()
@@ -50,28 +44,27 @@ export async function PUT(
       const fileName = `FOOTER_${date}_${initials}_${random}${ext}`
       const filePath = path.join(uploadDir, fileName)
       await writeFile(filePath, buffer)
-      updateData.logoUrl = `/uploads/footer/${fileName}`
-    } else {
-      // Jika tidak ada file baru, tapi ada string logoUrl (misal reset atau keep)
-      const existingLogo = formData.get('logoUrl') as string | null
-      if (existingLogo !== undefined) {
-        updateData.logoUrl = existingLogo
-      }
+      logoUrl = `/uploads/footer/${fileName}`
     }
 
-    const updated = await prisma.footerLink.update({
-      where: { id },
-      data: updateData
-    })
+    // Update via MySQL Native
+    await pool.execute(`
+      UPDATE FooterLink 
+      SET label = ?, url = ?, type = ?, logoUrl = ?, \`order\` = ?, isActive = ? 
+      WHERE id = ?
+    `, [label, url, type, logoUrl, order, isActive, id])
 
-    // 📝 Record Audit Log
+    // Get updated data for response
+    const updated = await queryOne('SELECT * FROM FooterLink WHERE id = ?', [id])
+
+    // 📝 Record Audit Log via Logger terpusat
     recordAuditLog({
       userId: session.userId,
       action: 'UPDATE_FOOTER_LINK',
       resource: 'FooterLink',
-      resourceId: updated.id,
+      resourceId: id,
       details: { after: updated },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(updated)
@@ -81,7 +74,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Hapus footer link
+// DELETE: Hapus footer link via MySQL Native
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -93,18 +86,20 @@ export async function DELETE(
     }
 
     const id = parseInt(params.id)
-    const deleted = await prisma.footerLink.delete({
-      where: { id }
-    })
+    
+    // Get before delete for log
+    const beforeDeleted = await queryOne('SELECT * FROM FooterLink WHERE id = ?', [id])
 
-    // 📝 Record Audit Log
+    await pool.execute('DELETE FROM FooterLink WHERE id = ?', [id])
+
+    // 📝 Record Audit Log via Logger terpusat
     recordAuditLog({
       userId: session.userId,
       action: 'DELETE_FOOTER_LINK',
       resource: 'FooterLink',
       resourceId: id,
-      details: { before: deleted },
-      ip: request.headers.get('x-forwarded-for')
+      details: { before: beforeDeleted },
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Tautan berhasil dihapus' })

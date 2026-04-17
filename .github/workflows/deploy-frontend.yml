@@ -44,6 +44,7 @@ jobs:
           cd frontend-client
           npm run build
         env:
+          VITE_API_URL: "${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_VITE_API_BASE_URL || secrets.STAGING_VITE_API_BASE_URL }}/api"
           VITE_API_BASE_URL: ${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_VITE_API_BASE_URL || secrets.STAGING_VITE_API_BASE_URL }}
 
       - name: Deploy to cPanel via FTP

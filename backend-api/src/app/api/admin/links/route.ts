@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       resourceId: insertId,
       details: { after: newLink },
       departmentId: Number(category_id),
-      ip: request.headers.get('x-forwarded-for') || '127.0.0.1'
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1'
     })
 
     return NextResponse.json(newLink)

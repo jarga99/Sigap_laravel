@@ -51,7 +51,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       resourceId: id,
       details: { after: updatedCategory },
       departmentId: id,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Category updated', data: updatedCategory })
@@ -82,7 +82,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       resourceId: id,
       details: { before: oldCategory },
       departmentId: id,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Category deleted' })

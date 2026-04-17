@@ -6,20 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "seed": "prisma db seed"
+    "serve": "node .next/standalone/server.js",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "@types/node": "^20.19.33",
     "axios": "^1.13.5",
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.22.0",
     "next": "15.1.0",
-    "prisma": "^5.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.34.5",
@@ -29,12 +26,8 @@
     "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
-  "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/qrcode": "^1.5.6",

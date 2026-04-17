@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 
-// GET: Ambil semua footer links untuk admin
+// GET: Ambil semua footer links untuk admin via MySQL Native
 export async function GET() {
   try {
     const session = await getSession()
@@ -14,9 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const links = await prisma.footerLink.findMany({
-      orderBy: { order: 'asc' }
-    })
+    const links = await query('SELECT * FROM FooterLink ORDER BY `order` ASC')
     return NextResponse.json(links)
   } catch (error) {
     console.error('[FOOTER_LINKS_GET_ERROR]', error)
@@ -33,8 +31,8 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData()
-    const label = formData.get('label') as string
-    const url = formData.get('url') as string
+    const label = (formData.get('label') as string) || ''
+    const url = (formData.get('url') as string) || ''
     const type = (formData.get('type') as string) || 'TEXT'
     const order = parseInt(formData.get('order') as string) || 0
     const file = formData.get('logo') as File | null
@@ -60,28 +58,25 @@ export async function POST(request: Request) {
       logoUrl = `/uploads/footer/${fileName}`
     }
 
-    const newLink = await prisma.footerLink.create({
-      data: {
-        label,
-        url,
-        type,
-        logoUrl,
-        order,
-        isActive: true
-      }
-    })
+    // Insert via MySQL Native
+    const [result]: any = await pool.execute(`
+      INSERT INTO FooterLink (label, url, type, logoUrl, \`order\`, isActive)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [label, url, type, logoUrl, order, 1])
 
-    // 📝 Record Audit Log
+    const insertId = result.insertId
+
+    // 📝 Record Audit Log via Logger terpusat
     recordAuditLog({
       userId: session.userId,
       action: 'CREATE_FOOTER_LINK',
       resource: 'FooterLink',
-      resourceId: newLink.id,
-      details: { after: newLink },
-      ip: request.headers.get('x-forwarded-for')
+      resourceId: insertId,
+      details: { label, url, type, logoUrl, order },
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
-    return NextResponse.json(newLink)
+    return NextResponse.json({ id: insertId, label, url, type, logoUrl, order, isActive: 1 })
   } catch (error) {
     console.error('[FOOTER_LINKS_POST_ERROR]', error)
     return NextResponse.json({ error: 'Gagal menambah tautan' }, { status: 500 })

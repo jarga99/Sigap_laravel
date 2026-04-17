@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import pool, { queryOne } from '@/lib/db'
+import pool, { queryOne, query } from '@/lib/db'
 
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
@@ -131,7 +131,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
     const values = Object.values(updateFields);
 
-    await pool.execute(
+    await query(
       `UPDATE Link SET ${setClause} WHERE id = ?`,
       [...values, linkId]
     );
@@ -146,7 +146,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       resourceId: linkId,
       details: { after: updatedLink },
       departmentId: updatedLink.category_id,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(updatedLink)
@@ -175,7 +175,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ message: 'Akses Ditolak. Anda hanya bisa menghapus link dari departemen Anda sendiri.' }, { status: 403 })
     }
 
-    await pool.execute('DELETE FROM Link WHERE id = ?', [linkId]);
+    await query('DELETE FROM Link WHERE id = ?', [linkId]);
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -185,7 +185,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       resourceId: linkId,
       details: { before: targetLink },
       departmentId: targetLink.category_id,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Deleted' })

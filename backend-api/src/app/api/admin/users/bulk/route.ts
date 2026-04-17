@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
-import * as bcrypt from 'bcryptjs'
+import bcrypt from 'bcryptjs'
 import * as XLSX from 'xlsx'
 
 export async function POST(request: Request) {
@@ -31,63 +31,70 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File kosong atau tidak memiliki data' }, { status: 400 })
     }
 
-    const createdUsers = []
-    const errors = []
+    // --- LOGIC OPTIMIZATION START ---
+    
+    // A. Pre-fetch semua username yang ada untuk validasi cepat di memori
+    const existingUsers = await pool.query('SELECT username FROM User')
+    const existingSet = new Set((existingUsers[0] as any[]).map(u => u.username))
 
+    const validRows: any[] = []
+    const errors: string[] = []
+
+    // B. Filter & Validasi Data di Memori (Sangat Cepat)
     for (let i = 0; i < data.length; i++) {
       const row = data[i]
-      
       const username = row.username?.toString().trim()
       const password = row.password?.toString().trim()
       const fullName = row.fullName?.toString().trim() || username
       const departmentId = row.departmentId ? Number(row.departmentId) : null
+      const roleInput = row.role?.toString().toUpperCase().trim()
+      const role = ['ADMIN_EVENT', 'EMPLOYEE'].includes(roleInput) ? roleInput : 'EMPLOYEE'
 
-      // Validasi Dasar
       if (!username || !password) {
         errors.push(`Baris ${i + 2}: Username/Password kosong`)
         continue
       }
-
-      if (username.length < 3) {
-        errors.push(`Baris ${i + 2} (${username}): Username minimal 3 karakter`)
+      if (existingSet.has(username)) {
+        errors.push(`Baris ${i + 2} (${username}): Username sudah digunakan`)
         continue
       }
 
-      if (password.length < 6) {
-        errors.push(`Baris ${i + 2} (${username}): Password minimal 6 karakter`)
-        continue
-      }
-
-      // Validasi Dasar (Role tidak lagi divalidasi karena dipaksa EMPLOYEE)
-
-      try {
-        // Cek duplikasi
-        const existing = await prisma.user.findUnique({ where: { username } })
-        if (existing) {
-          errors.push(`Baris ${i + 2} (${username}): Username sudah digunakan`)
-          continue
-        }
-
-        // Hash Password
-        const hashedPassword = await bcrypt.hash(password, 10)
-        
-        const roleInput = row.role?.toString().toUpperCase().trim()
-        const role = ['ADMIN_EVENT', 'EMPLOYEE'].includes(roleInput) ? roleInput : 'EMPLOYEE'
-
-        const newUser = await prisma.user.create({
-          data: {
-            username,
-            password: hashedPassword,
-            fullName,
-            role: role,
-            departmentId,
-          }
-        })
-        createdUsers.push(newUser)
-      } catch (err: any) {
-        errors.push(`Baris ${i + 2} (${username}): ${err.message || 'Gagal diimpor'}`)
-      }
+      validRows.push({ username, password, fullName, role, departmentId })
     }
+
+    if (validRows.length === 0) {
+      return NextResponse.json({ 
+        message: 'Tidak ada data baru yang bisa diimpor.',
+        errorCount: errors.length,
+        errors 
+      }, { status: 400 })
+    }
+
+    // C. Parallel Hashing (Memanfaatkan ketersediaan Core CPU)
+    // Gunakan p-limit jika data ribuan, untuk ratusan Promise.all sudah cukup
+    const processedRows = await Promise.all(validRows.map(async (row) => {
+      const hashedPassword = await bcrypt.hash(row.password, 10)
+      const now = new Date()
+      return [
+        row.username, 
+        hashedPassword, 
+        row.fullName, 
+        row.role, 
+        row.departmentId, 
+        now, 
+        now
+      ]
+    }))
+
+    // D. Batch Insert (1 Query untuk Semua)
+    const [result]: any = await pool.query(`
+      INSERT INTO User (username, password, fullName, role, departmentId, createdAt, updatedAt) 
+      VALUES ?
+    `, [processedRows]);
+
+    const createdCount = result.affectedRows || 0
+
+    // --- LOGIC OPTIMIZATION END ---
 
     // 📝 Record Audit Log
     recordAuditLog({
@@ -95,16 +102,16 @@ export async function POST(request: Request) {
       action: 'BULK_IMPORT_USERS',
       resource: 'User',
       details: { 
-        successCount: createdUsers.length, 
+        successCount: createdCount, 
         errorCount: errors.length,
-        errors: errors.slice(0, 5) 
+        errors: errors.slice(0, 10) 
       },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ 
-      message: `${createdUsers.length} user berhasil dimasukkan.`,
-      successCount: createdUsers.length,
+      message: `${createdCount} user berhasil diimpor.`,
+      successCount: createdCount,
       errorCount: errors.length,
       errors: errors
     })

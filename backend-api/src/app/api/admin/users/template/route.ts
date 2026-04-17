@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { query } from '@/lib/db'
 import * as XLSX from 'xlsx'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('token')
-    const session = await getSession(token)
+    const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ message: 'Unauthorized. Admin only.' }, { status: 401 })
     }
 
-    // 1. Ambil data kategori aktual (untuk departmentId)
-    const categories = await prisma.category.findMany({
-      select: { id: true, name: true }
-    })
+    // 1. Ambil data kategori aktual (untuk departmentId) via MySQL Native
+    const categories = await query('SELECT id, name FROM Category ORDER BY name ASC')
 
     // 2. Buat Sheet 1: Template Data User
     const templateData = [
@@ -36,7 +34,10 @@ export async function GET(request: Request) {
       ['departmentId', 'ID Kategori/Departemen (Lihat tabel di bawah)', 'Angka (1, 2, dst)'],
       [],
       ['* Catatan: Semua user baru otomatis mendapatkan role EMPLOYEE demi keamanan.'],
-      ...categories.map(c => [c.id, c.name]),
+      [],
+      ['DAFTAR ID KATEGORI (DEPARTMENT ID) VALID:'],
+      ['ID', 'NAMA KATEGORI'],
+      ...categories.map((c: any) => [c.id, c.name]),
     ]
     const wsGuide = XLSX.utils.aoa_to_sheet(guideData)
 
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
 
     const response = new NextResponse(buffer)
     response.headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response.headers.set('Content-Disposition', 'attachment; filename=template_import_users.xlsx')
+    response.headers.set('Content-Disposition', 'attachment; filename="template_import_users.xlsx"')
 
     return response
   } catch (error) {

@@ -7,7 +7,7 @@ export async function recordAuditLog(data: {
   resourceId?: string | number;
   details?: any;
   departmentId?: number | null;
-  ip?: string | null;
+  ipAddress?: string | null;
 }) {
   try {
     await pool.execute(
@@ -19,7 +19,7 @@ export async function recordAuditLog(data: {
         data.resourceId ? String(data.resourceId) : null,
         data.details ? JSON.stringify(data.details) : null,
         data.departmentId ? Number(data.departmentId) : null,
-        data.ip || null
+        data.ipAddress || null
       ]
     );
   } catch (error) {

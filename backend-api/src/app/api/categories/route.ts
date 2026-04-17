@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { query } from '@/lib/db'
 import translate from 'translate'
 
 // Konfigurasi engine penerjemah ke Google
@@ -7,9 +7,7 @@ translate.engine = 'google'
 
 export async function GET() {
   try {
-    const categories = await prisma.category.findMany({
-      orderBy: { id: 'asc' }
-    })
+    const categories = await query('SELECT * FROM Category ORDER BY id ASC')
     return NextResponse.json(categories)
   } catch (error) {
     console.error("[API_CATEGORIES_GET]", error)
@@ -36,17 +34,19 @@ export async function POST(request: Request) {
       // Jika error internet/API translate, kita biarkan name_en null atau fallback ke bahasa aslinya.
     }
 
-    // Simpan ke database
-    const newCategory = await prisma.category.create({
-      data: {
-        name: body.name,
-        name_en: name_en // Hasil terjemahan mesin!
-      }
-    })
+    // Simpan ke database via MySQL Native
+    const [result]: any = await pool.execute(`
+      INSERT INTO Category (name, name_en)
+      VALUES (?, ?)
+    `, [body.name, name_en])
 
-    return NextResponse.json(newCategory)
-  } catch (error) {
+    return NextResponse.json({
+      id: result.insertId,
+      name: body.name,
+      name_en: name_en
+    })
+  } catch (error: any) {
     console.error("[API_CATEGORIES_POST]", error)
-    return NextResponse.json({ error: 'Gagal menyimpan kategori' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal menyimpan kategori: ' + error.message }, { status: 500 })
   }
 }

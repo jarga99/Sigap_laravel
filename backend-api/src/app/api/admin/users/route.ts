@@ -13,19 +13,29 @@ const createUserSchema = z.object({
   departmentId: z.union([z.string(), z.number()]).optional().transform((val) => val ? Number(val) : null), 
 })
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSession()
     if (!session || session.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized. Admin only.' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const skip = (page - 1) * limit
+
     const users = await query(`
       SELECT u.*, c.name as dept_name 
       FROM User u
       LEFT JOIN Category c ON u.departmentId = c.id
       ORDER BY u.createdAt DESC
+      LIMIT ${limit} OFFSET ${skip}
     `);
+
+    // Hitung total untuk metadata pagination
+    const countRes: any = await query('SELECT COUNT(*) as count FROM User')
+    const total = countRes[0]?.count || 0
 
     // Mapping data agar kompatibel dengan Frontend Vue lama
     const formattedUsers = (users as any[]).map(user => ({
@@ -39,7 +49,15 @@ export async function GET() {
       created_at: user.createdAt 
     }))
 
-    return NextResponse.json(formattedUsers)
+    return NextResponse.json({
+      data: formattedUsers,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     console.error("GET Users Error:", error)
     return NextResponse.json({ error: 'Gagal mengambil data' }, { status: 500 })
@@ -89,7 +107,7 @@ export async function POST(request: Request) {
       resourceId: insertId,
       details: { after: { id: insertId, username: username, role: role || 'EMPLOYEE', departmentId: departmentId || null } },
       departmentId: departmentId || null,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({

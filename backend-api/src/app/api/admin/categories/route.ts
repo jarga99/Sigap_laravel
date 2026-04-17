@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       resourceId: insertId,
       details: { after: newCategory },
       departmentId: insertId,
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(newCategory, { status: 201 })

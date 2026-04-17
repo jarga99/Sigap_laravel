@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  // 📝 LOG AKTIVITAS API
+  console.log(`[API_REQUEST] ${request.method} ${request.nextUrl.pathname}`);
+
   // Ambil origin dari request (misal: https://sigapv1.uptblkpasuruan.com)
   const origin = request.headers.get('origin');
   

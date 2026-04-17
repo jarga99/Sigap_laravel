@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { recordAuditLog } from '@/lib/logger'
 
@@ -16,78 +16,80 @@ export async function GET(request: Request) {
       action: 'EXPORT_AUDIT_LOGS',
       resource: 'AuditLog',
       details: { timestamp: new Date().toISOString() },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     const { searchParams } = new URL(request.url)
-    let whereClause: any = {}
+    
+    // --- ACCESS CONTROL & FILTER LOGIC (MySQL Native) ---
+    let whereClause = 'WHERE 1=1'
+    let params: any[] = []
 
-    // --- ACCESS CONTROL LOGIC ---
     if (session.role === 'EMPLOYEE') {
       const userDeptId = session.departmentId ? Number(session.departmentId) : -1
-      whereClause = {
-        OR: [
-          { userId: session.userId },
-          { departmentId: userDeptId }
-        ]
-      }
+      whereClause += ' AND (a.userId = ? OR a.departmentId = ?)'
+      params.push(session.userId, userDeptId)
     }
 
     const action = searchParams.get('action')
-    if (action && action !== 'all') whereClause.action = action
+    if (action && action !== 'all') {
+      whereClause += ' AND a.action = ?'
+      params.push(action)
+    }
 
-    // --- TIME FILTERING ---
+    // --- TIME FILTERING (MySQL Native) ---
     const year = searchParams.get('year')
     const month = searchParams.get('month')
     const day = searchParams.get('day')
     const dayEnd = searchParams.get('dayEnd')
 
     if (year) {
-      const y = parseInt(year)
-      let start: Date
-      let end: Date
-
-      if (day && month) {
-        const m = parseInt(month) - 1
-        const d = parseInt(day)
-        const dEnd = dayEnd ? parseInt(dayEnd) : d
+      whereClause += ' AND YEAR(a.createdAt) = ?'
+      params.push(parseInt(year))
+      
+      if (month) {
+        whereClause += ' AND MONTH(a.createdAt) = ?'
+        params.push(parseInt(month))
         
-        start = new Date(y, m, d)
-        end = new Date(y, m, dEnd + 1)
-      } else if (month) {
-        const m = parseInt(month) - 1
-        start = new Date(y, m, 1)
-        end = new Date(y, m + 1, 1)
-      } else {
-        start = new Date(y, 0, 1)
-        end = new Date(y + 1, 0, 1)
-      }
-
-      whereClause.createdAt = {
-        gte: start,
-        lt: end
+        if (day) {
+          const d = parseInt(day)
+          if (dayEnd) {
+            whereClause += ' AND DAY(a.createdAt) BETWEEN ? AND ?'
+            params.push(d, parseInt(dayEnd))
+          } else {
+            whereClause += ' AND DAY(a.createdAt) = ?'
+            params.push(d)
+          }
+        }
       }
     }
 
-    // Fetch all logs without pagination for export
-    const logs = await prisma.auditLog.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            fullName: true,
-            username: true,
-            role: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 1000 // Limit to 1000 for safety, but usually enough for most exports
-    })
+    // Fetch all logs without pagination for export via MySQL Native JOIN
+    const logs = await query(`
+      SELECT a.*, 
+             u.fullName as user_fullName, 
+             u.username as user_username, 
+             u.role as user_role
+      FROM AuditLog a
+      LEFT JOIN User u ON a.userId = u.id
+      ${whereClause}
+      ORDER BY a.createdAt DESC
+      LIMIT 1000
+    `, params)
 
-    return NextResponse.json(logs)
-  } catch (error) {
+    // Format output agar kompatibel dengan frontend
+    const formattedLogs = logs.map((log: any) => ({
+      ...log,
+      user: log.userId ? {
+        fullName: log.user_fullName,
+        username: log.user_username,
+        role: log.user_role
+      } : null
+    }))
+
+    return NextResponse.json(formattedLogs)
+  } catch (error: any) {
     console.error('[API_AUDIT_LOGS_EXPORT_GET]', error)
-    return NextResponse.json({ message: 'Gagal memexport log' }, { status: 500 })
+    return NextResponse.json({ message: 'Gagal memexport log: ' + error.message }, { status: 500 })
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { query } from '@/lib/db'
 import * as XLSX from 'xlsx'
 
 export async function GET(request: Request) {
@@ -10,15 +10,12 @@ export async function GET(request: Request) {
     const session = await getSession(token)
     if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
 
-    // 1. Ambil data kategori aktual & Filter berdasarkan Role
-    let categories = []
+    // 1. Ambil data kategori aktual & Filter berdasarkan Role via MySQL Native
+    let categories: any[] = []
     if (session.role === 'ADMIN') {
-      categories = await prisma.category.findMany({ select: { id: true, name: true } })
+      categories = await query('SELECT id, name FROM Category ORDER BY name ASC')
     } else if (session.role === 'EMPLOYEE' && session.departmentId) {
-      categories = await prisma.category.findMany({ 
-        where: { id: Number(session.departmentId) },
-        select: { id: true, name: true } 
-      })
+      categories = await query('SELECT id, name FROM Category WHERE id = ?', [session.departmentId])
     }
     
     // 2. Buat Sheet 1: Template Data
@@ -32,7 +29,7 @@ export async function GET(request: Request) {
     // 🔒 FREEZE HEADER (Baris Pertama)
     wsTemplate['!view'] = [{ state: 'frozen', ySplit: 1 }]
 
-    // 3. Buat Sheet 2: Panduan & Referensi (Terminology Fix)
+    // 3. Buat Sheet 2: Panduan & Referensi
     const guideData = [
       ['PANDUAN PENGISIAN IMPORT MASSAL'],
       [],
@@ -55,7 +52,7 @@ export async function GET(request: Request) {
       ['KATEGORI', 'Hanya tampil untuk pegawai di kategori tersebut'],
     ]
     const wsGuide = XLSX.utils.aoa_to_sheet(guideData)
-    wsGuide['!view'] = [{ state: 'frozen', ySplit: 3 }] // Freeze header panduan
+    wsGuide['!view'] = [{ state: 'frozen', ySplit: 3 }]
 
     // 4. Gabungkan ke Workbook
     const wb = XLSX.utils.book_new()
@@ -67,7 +64,7 @@ export async function GET(request: Request) {
 
     const response = new NextResponse(buffer)
     response.headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response.headers.set('Content-Disposition', 'attachment; filename=template_import_links.xlsx')
+    response.headers.set('Content-Disposition', 'attachment; filename="template_import_links.xlsx"')
 
     return response
   } catch (error) {

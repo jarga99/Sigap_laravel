@@ -6,6 +6,7 @@ import {
   Calendar, User, Globe, Activity, X, ChevronLeft, ChevronRight,
   Download, FileText, FileSpreadsheet, FileJson, Printer
 } from 'lucide-vue-next'
+import { downloadFile } from '../../lib/download'
 
 const logs = ref<any[]>([])
 const isLoading = ref(true)
@@ -78,7 +79,7 @@ const fetchData = async () => {
   try {
     const params = new URLSearchParams({
       page: page.value.toString(),
-      limit: limit.toString(),
+      limit: limit.value.toString(),
       action: filterAction.value,
       resource: filterResource.value,
       year: filterYear.value,
@@ -264,7 +265,7 @@ const exportAsTxt = (data: any[]) => {
     content += `------------------------------------------------------------\n`
   })
 
-  downloadBlob(content, 'AuditLogs.txt', 'text/plain')
+  downloadFile(content, 'AuditLogs.txt', 'text/plain')
 }
 
 const exportAsExcel = (data: any[]) => {
@@ -291,18 +292,10 @@ const exportAsExcel = (data: any[]) => {
     csvContent += row.map(escapeCsv).join(';') + '\n'
   })
 
-  downloadBlob('\ufeff' + csvContent, 'AuditLogs.csv', 'text/csv;charset=utf-8;')
+  downloadFile('\ufeff' + csvContent, 'AuditLogs.csv', 'text/csv;charset=utf-8;')
 }
 
-const downloadBlob = (content: string, fileName: string, type: string) => {
-  const blob = new Blob([content], { type })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  a.click()
-  window.URL.revokeObjectURL(url)
-}
+
 </script>
 
 <template>
@@ -450,11 +443,11 @@ const downloadBlob = (content: string, fileName: string, type: string) => {
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-2">
                       <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs">
-                        {{ log.user.fullName?.charAt(0) || log.user.username.charAt(0) }}
+                        {{ log.user?.fullName?.charAt(0) || log.user?.username.charAt(0) || 'S' }}
                       </div>
                       <div>
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ log.user.fullName || log.user.username }}</div>
-                        <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-tighter">{{ log.user.role }}</div>
+                        <div class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ log.user?.fullName || log.user?.username || 'System' }}</div>
+                        <div class="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-tighter">{{ log.user?.role || 'SYSTEM_ACTION' }}</div>
                       </div>
                     </div>
                   </td>
@@ -567,7 +560,7 @@ const downloadBlob = (content: string, fileName: string, type: string) => {
               </div>
               <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
                 <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Resource</label>
-                <span class="text-sm font-medium">{{ selectedLog.resource }} #{{ selectedLog.resourceId }}</span>
+                <span class="text-sm font-medium">{{ selectedLog?.resource }} #{{ selectedLog?.resourceId }}</span>
               </div>
             </div>
 

@@ -151,7 +151,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       resource: 'Event',
       resourceId: eventId.toString(),
       details: { before: oldEvent, after: updateFields },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     });
 
     const finalEvent = await queryOne('SELECT * FROM \`Event\` WHERE id = ?', [eventId]);
@@ -192,7 +192,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       resource: 'Event',
       resourceId: eventId.toString(),
       details: { before: oldEvent },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json({ message: 'Event berhasil dihapus' })

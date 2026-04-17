@@ -54,7 +54,13 @@ export async function reportUnauthorized(host: string, url: string) {
 
 export function isAuthorized(host: string): boolean {
   if (!host) return false;
+  
+  // Clean host (remove port for comparison if needed, but let's keep it for now as per current spec)
+  const cleanHost = host.toLowerCase().trim();
   const authorized = getAuthorizedDomains();
-  // Check if host matches or ends with any authorized domain
-  return authorized.some(domain => host.includes(domain));
+  
+  return authorized.some(domain => {
+    const d = domain.toLowerCase().trim();
+    return cleanHost === d || cleanHost.endsWith('.' + d);
+  });
 }

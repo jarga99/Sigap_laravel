@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       resource: 'Event',
       resourceId: insertId.toString(),
       details: { after: newEvent },
-      ip: request.headers.get('x-forwarded-for')
+      ipAddress: request.headers.get('x-forwarded-for')
     })
 
     return NextResponse.json(newEvent, { status: 201 })

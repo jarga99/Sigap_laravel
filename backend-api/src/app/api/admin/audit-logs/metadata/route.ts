@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
 export async function GET() {
@@ -9,49 +9,47 @@ export async function GET() {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
     }
 
-    // --- ACCESS CONTROL LOGIC (Mirroring main list route) ---
-    let whereClause: any = {}
+    // --- ACCESS CONTROL LOGIC (MySQL Native) ---
+    let whereClause = ''
+    let params: any[] = []
+
     if (session.role === 'EMPLOYEE') {
-      whereClause.userId = session.userId
+      whereClause = 'WHERE userId = ?'
+      params = [session.userId]
     } else if (session.role === 'ADMIN_EVENT') {
       const userDeptId = session.departmentId ? Number(session.departmentId) : -1
-      whereClause = {
-        OR: [
-          { userId: session.userId },
-          { departmentId: userDeptId }
-        ]
-      }
+      whereClause = 'WHERE userId = ? OR departmentId = ?'
+      params = [session.userId, userDeptId]
     }
 
-    // Ambil Action unik yang HANYA ada di data milik user
-    const actions = await prisma.auditLog.groupBy({
-      where: whereClause,
-      by: ['action'],
-      _count: { _all: true }
-    })
+    // 1. Ambil Action unik via MySQL Native
+    const actions = await query(`
+      SELECT DISTINCT action 
+      FROM AuditLog 
+      ${whereClause}
+      ORDER BY action ASC
+    `, params)
 
-    // Ambil Resource unik yang HANYA ada di data milik user
-    const resources = await prisma.auditLog.groupBy({
-      where: whereClause,
-      by: ['resource'],
-      _count: { _all: true }
-    })
+    // 2. Ambil Resource unik via MySQL Native
+    const resources = await query(`
+      SELECT DISTINCT resource 
+      FROM AuditLog 
+      ${whereClause}
+      ORDER BY resource ASC
+    `, params)
 
-    // Ambil Tahun unik berdasarkan data milik user
-    const recentLogs = await prisma.auditLog.findMany({
-      where: whereClause,
-      select: { createdAt: true },
-      orderBy: { createdAt: 'desc' },
-      take: 2000 
-    })
+    // 3. Ambil Tahun unik via MySQL Native (Lebih hemat memori daripada tarik ribuan baris)
+    const yearResults = await query(`
+      SELECT DISTINCT YEAR(createdAt) as year 
+      FROM AuditLog 
+      ${whereClause}
+      ORDER BY year DESC
+    `, params)
     
-    const years = Array.from(new Set(recentLogs.map(l => new Date(l.createdAt).getFullYear())))
-      .sort((a, b) => b - a)
-
     return NextResponse.json({
-      actions: actions.map(a => a.action),
-      resources: resources.map(r => r.resource),
-      years: years
+      actions: actions.map((a: any) => a.action),
+      resources: resources.map((r: any) => r.resource),
+      years: yearResults.map((y: any) => y.year)
     })
   } catch (error: any) {
     console.error('[API_AUDIT_LOGS_METADATA_GET]', error)

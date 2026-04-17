@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import translate from 'translate'
 
 translate.engine = 'google'
@@ -25,22 +25,24 @@ export async function PUT(
       console.error("Gagal menerjemahkan:", translateError)
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: { id: categoryId },
-      data: {
-        name: body.name,
-        name_en: name_en
-      }
-    })
+    // Update via MySQL Native
+    await pool.execute(`
+      UPDATE Category 
+      SET name = ?, name_en = ? 
+      WHERE id = ?
+    `, [body.name, name_en, categoryId])
 
-    return NextResponse.json(updatedCategory)
-  } catch (error) {
+    // Get updated data for response
+    const updated = await queryOne('SELECT * FROM Category WHERE id = ?', [categoryId])
+
+    return NextResponse.json(updated)
+  } catch (error: any) {
     console.error("[API_CATEGORIES_PUT]", error)
-    return NextResponse.json({ error: 'Gagal memperbarui kategori' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal memperbarui kategori: ' + error.message }, { status: 500 })
   }
 }
 
-// DELETE: Hapus Kategori dengan Restriksi
+// DELETE: Hapus Kategori dengan Restriksi via MySQL Native
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -49,10 +51,9 @@ export async function DELETE(
     const { id } = await params
     const categoryId = Number(id)
 
-    // 1. CEK RESTRIKSI: Hitung jumlah link yang menggunakan kategori ini
-    const linkedCount = await prisma.link.count({
-      where: { category_id: categoryId }
-    })
+    // 1. CEK RESTRIKSI via MySQL Native
+    const countResult: any = await queryOne('SELECT COUNT(*) as linkedCount FROM Link WHERE category_id = ?', [categoryId])
+    const linkedCount = countResult?.linkedCount || 0
 
     // 2. Jika masih ada link, TOLAK penghapusan
     if (linkedCount > 0) {
@@ -62,13 +63,11 @@ export async function DELETE(
     }
 
     // 3. Jika kosong, baru boleh dihapus
-    await prisma.category.delete({
-      where: { id: categoryId }
-    })
+    await pool.execute('DELETE FROM Category WHERE id = ?', [categoryId])
 
     return NextResponse.json({ message: 'Kategori berhasil dihapus' })
-  } catch (error) {
+  } catch (error: any) {
     console.error("[API_CATEGORIES_DELETE]", error)
-    return NextResponse.json({ error: 'Gagal menghapus kategori' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal menghapus kategori: ' + error.message }, { status: 500 })
   }
 }

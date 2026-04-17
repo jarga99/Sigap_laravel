@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import pool, { queryOne } from '@/lib/db'
 import { OAuth2Client } from 'google-auth-library'
 import * as jwt from 'jsonwebtoken'
+import { recordAuditLog } from '@/lib/logger'
 
-// Disarankan untuk menyimpan CLIENT_ID Anda di .env
-// Gunakan Client ID dari .env
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const client = new OAuth2Client(GOOGLE_CLIENT_ID)
 
@@ -18,7 +17,6 @@ export async function POST(request: Request) {
     }
 
     // 1. Verifikasi Token Google
-    // Google Auth Library memverifikasi token yang dikirim dari klien React/Vue
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID,
@@ -31,10 +29,13 @@ export async function POST(request: Request) {
     const googleEmail = payload.email
 
     // 2. Cek apakah email terdaftar di database kita (Didaftarkan oleh Super Admin)
-    const user = await prisma.user.findUnique({
-      where: { email: googleEmail },
-      include: { department: true }
-    })
+    // Gunakan JOIN untuk mengambil data department sekalian
+    const user = await queryOne(`
+      SELECT u.*, d.name as dept_name 
+      FROM User u 
+      LEFT JOIN Department d ON u.departmentId = d.id 
+      WHERE u.email = ?
+    `, [googleEmail])
 
     if (!user) {
       return NextResponse.json(
@@ -46,10 +47,11 @@ export async function POST(request: Request) {
     // 3. Generate Session Token (JWT Internal Sigap)
     const sessionId = crypto.randomUUID()
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { sessionId: sessionId }
-    })
+    // Update session secara atomic via MySQL
+    await pool.execute(
+      'UPDATE User SET sessionId = ? WHERE id = ?',
+      [sessionId, user.id]
+    )
 
     const tokenPayload = {
       userId: user.id,
@@ -62,16 +64,15 @@ export async function POST(request: Request) {
     // Token expires dalam 8 Jam
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '8h' })
 
-    // 5. Catat Log Aktivitas Login Google
-    await prisma.auditLog.create({
-      data: {
-        action: 'LOGIN_SUCCESS',
-        resource: 'User',
-        resourceId: user.id.toString(),
-        details: JSON.stringify({ email: user.email, method: 'GOOGLE' }),
-        userId: user.id,
-        ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1'
-      }
+    // 5. Catat Log Aktivitas Login Google via Logger terpusat
+    recordAuditLog({
+      userId: user.id,
+      action: 'LOGIN_SUCCESS',
+      resource: 'User',
+      resourceId: user.id,
+      details: { email: user.email, method: 'GOOGLE' },
+      departmentId: user.departmentId,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1'
     })
 
     // 6. Return Data Login
@@ -84,8 +85,8 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         image_url: user.image_url,
-        department: user.department 
-          ? { id: user.department.id, name: user.department.name }
+        department: user.departmentId 
+          ? { id: user.departmentId, name: user.dept_name }
           : null
       }
     })
