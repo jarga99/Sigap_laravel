@@ -18,7 +18,9 @@ Sebelum menyuruh Robot Kurir Github memindahkan barang, Anda harus menyiapkan "R
 ### 0.1. Syarat Wajib Server (PHP & Ekstensi)
 Karena menggunakan Laravel modern, server Anda **WAJIB** memenuhi syarat berikut. (Cek di menu `Select PHP Version` pada cPanel):
 - **PHP Version**: Minimal **8.2** (Sangat disarankan memakai versi 8.2 atau 8.3).
-- **Ekstensi Aktif (Tercentang)**: `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `mbstring`, `pdo_mysql`, `tokenizer`, `xml`, `zip`. *(Biasanya ekstensi ini sudah bawaan aktif, namun pastikan `zip` dan `pdo_mysql` dicentang).*
+- **Ekstensi Aktif (Tercentang)**: `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `mbstring`, `pdo_mysql`, `tokenizer`, `xml`, `zip`. 
+> 💡 **TIPS PENTING (Error "pdo_mysql skipped as conflicting")**: 
+> Jika cPanel menolak saat Anda mencentang `pdo_mysql` lalu muncul tulisan *"skipped as conflicting"*, ini artinya fitur versi barunya yaitu **`nd_pdo_mysql`** (bersama `nd_mysqli`) sudah tertancap dan aktif! Abaikan saja errornya, Anda cukup menggunakan `nd_pdo_mysql` dan Laravel akan berjalan dengan sangat sempurna.
 
 ### 0.2. Membuat Subdomain / Menyiapkan Ruangan (Contoh Kasus)
 Katakanlah kampus Anda memiliki domain `kampusku.ac.id`, dan Anda ingin aplikasi ini diakses di `portal-sigap.kampusku.ac.id`.
