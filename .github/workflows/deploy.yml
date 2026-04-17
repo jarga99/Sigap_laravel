@@ -39,16 +39,16 @@ jobs:
       run: php -l app/Models/*.php app/Http/Controllers/*.php
 
     # --- 🚀 DEPLOYMENT TEMPLATE (Uncomment and configure secrets to use) ---
-    # - name: Deploy to Shared Hosting via FTP
-    #   uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-    #   with:
-    #     server: ${{ secrets.FTP_SERVER }}
-    #     username: ${{ secrets.FTP_USERNAME }}
-    #     password: ${{ secrets.FTP_PASSWORD }}
-    #     local-dir: ./
-    #     server-dir: /public_html/subdomain_sigap/
-    #     exclude: |
-    #       **/.git*
-    #       **/node_modules/**
-    #       **/.env
-    #       **/sigap_backup_full_node/**
+    - name: Deploy to Shared Hosting via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./
+        server-dir: /public_html/subdomain_sigap/
+        exclude: |
+          **/.git*
+          **/node_modules/**
+          **/.env
+          **/sigap_backup_full_node/**
