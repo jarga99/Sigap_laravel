@@ -97,7 +97,7 @@ Robot GitHub butuh kunci FTP agar bisa menyelinap masuk ke hosting Anda dan mena
 
 🔑 **Rahasia 1:**
 - Name: `FTP_SERVER`
-- Secret: *Isikan host FTP Anda (Contoh:* `ftp.domain-kampus.ac.id`*)*
+- Secret: *Isikan host FTP Anda (Biasanya cukup alamat domain utama, contoh:* `ftp.domain-kampus.ac.id`*)*
 
 🔑 **Rahasia 2:**
 - Name: `FTP_USERNAME`
@@ -106,6 +106,11 @@ Robot GitHub butuh kunci FTP agar bisa menyelinap masuk ke hosting Anda dan mena
 🔑 **Rahasia 3:**
 - Name: `FTP_PASSWORD`
 - Secret: *Isikan kata sandi dari Akun FTP di atas*
+
+> 💡 **PERTANYAAN UMUM: "Kenapa kuncinya pakai domain utama padahal disasarkan ke subdomain?"**
+> Komputer cPanel (*Jagoan Hosting*) menyatukan gerbang masuk FTP melalui 1 IP Server/Domain utama saja (`ftp.domain-kampus.ac.id`). 
+> Lalu darimana Robot tahu dia harus naruh kode ke Subdomain?
+> **Jawabannya:** Hal tersebut dikendalikan dari dua cara, yaitu **(A)** *Username FTP* yang Anda buat di cPanel bisa dikunci agar *hanya* menyeleksi folder subdomain, ATAU **(B)** Melalui pengaturan `server-dir` di Langkah 2.2 di bawah ini!
 
 ### Langkah 2.2: Cabut Gembok Otak Robot
 Buka file `.github/workflows/deploy.yml` melalui *Code Editor* Anda. 
