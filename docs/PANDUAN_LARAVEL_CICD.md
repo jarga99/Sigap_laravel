@@ -46,6 +46,14 @@ Data aplikasi Anda (Login User, Link, Acara) disimpan di brankas MySQL. Kita har
    - Klik **Add**.
    - Muncul halaman hak akses, sentuh tombol atas sendiri **ALL PRIVILEGES** (Beri Semua Akses ke tukang kunci tersebut). Klik **Make Changes**.
 
+### 0.4. Membuat "Akun Kurir" Khusus Tembusan Github (Akun FTP)
+Jangan gegabah menyerahkan *Username Login* cPanel utama Anda ke orang lain/Github! Buatlah Akun FTP bawahan yang tugasnya cuma mengantar barang ke folder subdomain saja:
+1. Di cPanel, masuk ke menu **FTP Accounts**.
+2. **Log In (Username)**: Ketik misal `robot_sigap` *(Nanti bentuk akhirnya otomatis bergandeng jadi `robot_sigap@kampusku.ac.id`)*. Catat nama utuh ini di Notepad!
+3. **Password**: Ketik sandi yang super kuat. *(Catat lagi sandi ini di Notepad! Ini adalah `FTP_PASSWORD`)*.
+4. **Directory**: Ini letak kekuatannya! Hapus isi otomatisnya, dan ganti HANYA dengan letak folder subdomain di Tahap 0.2 tadi (misal: `/public_html/sigap_portal`).
+5. **Quota**: Unlimited. Klik **Create FTP Account**.
+
 Selesai di Tahap 0! Lanjut menyiapkan pengirimannya.
 
 ---
