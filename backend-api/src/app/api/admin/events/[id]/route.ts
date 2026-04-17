@@ -113,7 +113,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (items && Array.isArray(items)) {
       const incomingIds = items.filter(i => i.id).map(i => i.id);
       if (incomingIds.length > 0) {
-        await connection.execute('DELETE FROM EventItem WHERE eventId = ? AND id NOT IN (?)', [eventId, incomingIds]);
+        // mysql2 prepared statements don't handle IN (?) with arrays automatically for 'execute'.
+        // We use query or build the string.
+        const placeholders = incomingIds.map(() => '?').join(',');
+        await connection.execute(`DELETE FROM EventItem WHERE eventId = ? AND id NOT IN (${placeholders})`, [eventId, ...incomingIds]);
       } else {
         await connection.execute('DELETE FROM EventItem WHERE eventId = ?', [eventId]);
       }

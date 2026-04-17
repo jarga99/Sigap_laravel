@@ -131,6 +131,14 @@ const handleFileUpload = async (eventTarget: Event, type: 'profile' | 'backgroun
 }
 
 const addNewItem = (type: string) => {
+  if (type === 'SOCIAL') {
+    const socialCount = event.value.items.filter((it: any) => it.type === 'SOCIAL').length
+    if (socialCount >= 8) {
+      alert('Maksimal 8 tautan sosial media diperbolehkan.')
+      return
+    }
+  }
+
   const newItem = {
     label: type === 'DIVIDER' ? 'Separator' : 'Tautan Baru',
     url: type === 'DIVIDER' ? '#' : 'https://',
@@ -140,7 +148,7 @@ const addNewItem = (type: string) => {
     iconColor: '#ffffff',
     icon: type === 'BUTTON' ? 'Link' : (type === 'SOCIAL' ? 'Instagram' : 'solid'),
     order: event.value.items.length,
-    layout: 'icon-left',
+    layout: type === 'SOCIAL' ? 'icon-only' : 'icon-left',
     showLabel: true,
     isActive: true
   }
@@ -168,6 +176,30 @@ const openIconSelector = (index: number) => {
 const handleIconSelect = (icon: string) => {
   if (activeItemIndex.value !== null) event.value.items[activeItemIndex.value].icon = icon
 }
+
+// 🛡️ LOGIKA PENGELOMPOKAN SOSMED (Dynamic Grid)
+const groupedItems = computed(() => {
+  const result: any[] = []
+  let currentSocialGroup: any[] = []
+
+  event.value.items.forEach((item: any) => {
+    if (item.type === 'SOCIAL' && item.layout === 'icon-only' && item.isActive) {
+      currentSocialGroup.push(item)
+    } else {
+      if (currentSocialGroup.length > 0) {
+        result.push({ type: 'SOCIAL_GROUP', items: [...currentSocialGroup] })
+        currentSocialGroup = []
+      }
+      result.push(item)
+    }
+  })
+
+  if (currentSocialGroup.length > 0) {
+    result.push({ type: 'SOCIAL_GROUP', items: [...currentSocialGroup] })
+  }
+
+  return result
+})
 
 const handlePreviewClick = (e: MouseEvent, url: string) => {
   if (event.value.status !== 'AKTIF') {
@@ -283,7 +315,7 @@ onMounted(() => {
 
     <main v-else class="editor-main flex flex-row relative h-[calc(100%-60px)] overflow-hidden">
       <!-- 🖥️ SIDEBAR (Desktop: Fixed, Mobile: Bottom-Nav Triggered) -->
-      <aside class="sidebar-container h-full w-[360px] border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 overflow-hidden flex flex-col z-40 transition-transform duration-300"
+      <aside class="sidebar-container h-full w-[480px] border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800 overflow-hidden flex flex-col z-40 transition-transform duration-300"
              :class="{ 'mobile-overlay': selectedPanel && windowWidth < 768, 'mobile-hidden': !selectedPanel && windowWidth < 768 }">
         
         <!-- Sidebar Navigation Tabs -->
@@ -651,7 +683,7 @@ onMounted(() => {
       </aside>
 
       <!-- 🖥️ WORKSPACE (Enlarged Simulator - Bug 11) -->
-      <section class="editor-workspace flex-1 flex flex-col items-center justify-center p-6 sm:p-12 bg-slate-200/30 overflow-hidden relative">
+      <section class="editor-workspace flex-1 flex flex-col items-center justify-center p-2 sm:p-4 bg-slate-200/30 overflow-hidden relative">
         <!-- Enlarged Simulator Design -->
         <div class="simulator-container max-w-[500px] w-full h-full flex flex-col animate-fadein shadow-2xl rounded-[3rem] border-[12px] border-slate-900 overflow-hidden bg-white dark:bg-slate-900 relative">
           
@@ -718,10 +750,28 @@ onMounted(() => {
 
                 <!-- Action Items List -->
                 <div class="flex-1 px-6 space-y-3 pb-20">
-                  <template v-for="it in event.items" :key="it.order">
-                    <div v-if="it.isActive" class="w-full">
+                  <template v-for="(it, idx) in groupedItems" :key="idx">
+                    
+                    <!-- SOCIAL GRID GROUP -->
+                    <div v-if="it.type === 'SOCIAL_GROUP'" class="social-grid-wrapper mb-3">
+                       <div class="flex flex-wrap justify-center gap-4">
+                          <a v-for="(sit, sidx) in it.items" :key="'s'+sidx"
+                             :href="sit.url" target="_blank"
+                             :style="{ 
+                                backgroundColor: sit.color, 
+                                color: sit.textColor,
+                                borderRadius: event.buttonShape === 'square' ? '4px' : (event.buttonShape === 'rounded' ? event.buttonRadius + 'px' : '16px')
+                             }"
+                             @click="handlePreviewClick($event, sit.url)"
+                             class="w-12 h-12 flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-white/10 group">
+                             <component :is="(LucideIcons as any)[sit.icon?.split('|')[0] || 'Instagram']" :size="20" :style="{ color: sit.iconColor }" />
+                          </a>
+                       </div>
+                    </div>
+
+                    <div v-else-if="it.isActive" class="w-full">
                       
-                      <!-- BUTTON TYPE -->
+                      <!-- BUTTON TYPE (Regular) -->
                       <a v-if="it.type === 'BUTTON'" :href="it.url" target="_blank"
                          :style="{ 
                            backgroundColor: it.color, 
@@ -729,40 +779,39 @@ onMounted(() => {
                            borderRadius: event.buttonShape === 'square' ? '4px' : (event.buttonShape === 'rounded' ? event.buttonRadius + 'px' : '16px')
                          }"
                          :class="{ 
-                           'flex-row-reverse': it.layout === 'icon-right', 
+                           'flex-row-reverse': it.layout === 'icon-right' || it.layout === 'icon-edge-right', 
                            'justify-center': it.layout === 'icon-left' || it.layout === 'icon-right',
+                           'justify-start pl-8': it.layout === 'icon-edge-left',
+                           'justify-end pr-8': it.layout === 'icon-edge-right',
                            'preview-locked-sim': event.status !== 'AKTIF'
                          }"
                          @click="handlePreviewClick($event, it.url)"
                          class="flex items-center gap-3 p-4 shadow-lg hover:scale-[1.02] transition-transform duration-200 border border-white/10 group">
                          <component v-if="it.layout !== 'text-only'" :is="(LucideIcons as any)[it.icon || 'Link']" :size="20" :style="{ color: it.iconColor }" />
-                         <span class="text-sm font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout.includes('edge') || it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
-                         <div v-if="it.layout.includes('edge')" class="w-5 h-5 invisible"></div>
+                         <span class="text-sm font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
                       </a>
 
-                      <!-- SOCIAL TYPE (Bug 7, 8, 9) -->
+                      <!-- SOCIAL TYPE (Standard / With Label) -->
                       <a v-else-if="it.type === 'SOCIAL'" :href="it.url" target="_blank"
                          :style="{ 
                             backgroundColor: it.color, 
                             color: it.textColor,
-                            borderRadius: event.buttonShape === 'square' ? '4px' : (event.buttonShape === 'rounded' ? event.buttonRadius + 'px' : '16px'),
-                            width: it.layout === 'icon-only' ? '60px' : '100%',
-                            margin: it.layout === 'icon-only' ? '0 auto' : '0'
+                            borderRadius: event.buttonShape === 'square' ? '4px' : (event.buttonShape === 'rounded' ? event.buttonRadius + 'px' : '16px')
                          }"
                          :class="{ 
                            'flex-row-reverse': it.layout === 'icon-right' || it.layout === 'icon-edge-right', 
-                           'justify-center': it.layout === 'icon-only' || it.layout === 'icon-left' || it.layout === 'icon-right',
-                           'justify-between !px-4': it.layout === 'icon-edge-left' || it.layout === 'icon-edge-right',
+                           'justify-center': it.layout === 'icon-left' || it.layout === 'icon-right',
+                           'justify-start pl-8': it.layout === 'icon-edge-left',
+                           'justify-end pr-8': it.layout === 'icon-edge-right',
                            'preview-locked-sim': event.status !== 'AKTIF'
                          }"
                          @click="handlePreviewClick($event, it.url)"
-                         class="flex items-center gap-3 p-4 shadow-md transition-all hover:scale-[1.02]">
+                         class="flex items-center gap-3 p-4 shadow-md transition-all hover:scale-[1.02] border border-white/10">
                          <component v-if="it.layout !== 'text-only'" :is="(LucideIcons as any)[it.icon?.split('|')[0] || 'Instagram']" :size="20" :style="{ color: it.iconColor }" />
-                         <span v-if="it.layout !== 'icon-only' && it.showLabel" class="text-xs font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout.includes('edge') || it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
-                         <div v-if="it.layout.includes('edge')" class="w-5 h-5 invisible"></div>
+                         <span v-if="it.showLabel" class="text-xs font-black uppercase tracking-tight" :class="{ 'flex-1 text-center': it.layout === 'text-only' || it.layout === 'icon-left' || it.layout === 'icon-right' }">{{ it.label }}</span>
                       </a>
 
-                      <!-- DIVIDER TYPE (Bug 5) -->
+                      <!-- DIVIDER TYPE -->
                       <div v-else-if="it.type === 'DIVIDER'" class="flex items-center gap-4 py-6">
                         <div class="grow opacity-20" :style="{ backgroundColor: it.color, height: it.order + 'px' }"></div>
                         <span v-if="it.label !== 'Separator'" :style="{ color: it.color }" class="text-[10px] font-black uppercase tracking-widest">{{ it.label }}</span>
@@ -770,6 +819,8 @@ onMounted(() => {
                       </div>
 
                     </div>
+                  </template>
+>
                   </template>
 
                   <!-- Simulator Footer Branding (Bug 4 & 10 Fix) -->

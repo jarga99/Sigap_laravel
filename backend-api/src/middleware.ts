@@ -1,8 +1,21 @@
+import { NextResponse, NextRequest } from 'next/server';
 import { isAuthorized } from '@/lib/security';
 
 export function middleware(request: NextRequest) {
   // 📝 LOG AKTIVITAS API
   console.log(`[API_REQUEST] ${request.method} ${request.nextUrl.pathname}`);
+
+  const { pathname } = request.nextUrl;
+
+  // 1. SKIP UNTUK STATIC ASSETS & INTERNAL NEXT.js
+  if (
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/static') || 
+      pathname.includes('.') || // File dengan ekstensi (jpg, png, js, css)
+      pathname === '/favicon.ico'
+  ) {
+      return NextResponse.next();
+  }
 
   // Ambil origin dan host
   const origin = request.headers.get('origin') || '';
