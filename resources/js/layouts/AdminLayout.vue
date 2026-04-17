@@ -137,16 +137,16 @@ onMounted(() => {
           <span v-else class="font-bold text-blue-600">S</span>
         </div>
         <div class="leading-tight hidden lg:block">
-          <div class="font-bold text-slate-800 text-sm uppercase tracking-tight">{{ settings.app_name || 'SIGAP ADMIN' }}</div>
-          <div class="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">{{ settings.instansi_name || 'Portal Layanan' }}</div>
+          <div class="font-bold text-slate-700 text-sm tracking-tight">{{ settings.app_name || 'Sigap Admin' }}</div>
+          <div class="text-[10px] text-slate-400 font-semibold truncate max-w-[150px]">{{ settings.instansi_name || 'Portal layanan' }}</div>
         </div>
       </div>
 
       <!-- Desktop Nav -->
       <div class="hidden md:flex items-center gap-1">
         <router-link v-for="item in navItems" :key="item.to" :to="item.to"
-          class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all"
-          :class="route.path.startsWith(item.to) ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'">
+          class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all"
+          :class="route.path.startsWith(item.to) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'">
           <SIGAPIcons :name="item.icon" :size="18" />
           <span class="hidden xl:inline-block truncate max-w-[120px]">{{ item.label }}</span>
         </router-link>
@@ -164,9 +164,9 @@ onMounted(() => {
               </button>
 
               <div v-if="isNotificationOpen" class="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 z-[100] overflow-hidden animate-fadeup">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                  <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Notifikasi</h4>
-                  <span class="text-[10px] font-bold text-slate-400">{{ notifications.length }} Pesan</span>
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-blue-50/30">
+                  <h4 class="font-bold text-slate-700 text-xs tracking-wider">Notifikasi</h4>
+                  <span class="text-[10px] font-bold text-slate-400">{{ notifications.length }} pesan</span>
                 </div>
                 <div class="max-h-64 overflow-y-auto">
                    <div v-if="notifications.length === 0" class="p-8 text-center text-slate-400 text-xs">Kosong</div>
@@ -188,12 +188,12 @@ onMounted(() => {
         <!-- Profil User -->
         <div class="flex items-center gap-2">
           <div class="hidden sm:block text-right">
-            <div class="font-bold text-xs text-slate-700 leading-none mb-1">{{ user.fullName || user.username }}</div>
-            <div class="text-[9px] text-slate-400 uppercase font-bold tracking-widest">{{ user.role === 'ADMIN' ? 'Administrator' : 'Staff' }}</div>
+            <div class="font-semibold text-xs text-slate-600 leading-none mb-1">{{ user.fullName || user.username }}</div>
+            <div class="text-[9px] text-slate-400 font-semibold tracking-widest">{{ user.role === 'ADMIN' ? 'Administrator' : 'Staff' }}</div>
           </div>
-          <div class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm">
+          <div class="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100 overflow-hidden shadow-sm">
             <img v-if="userPhoto" :src="userPhoto" class="w-full h-full object-cover" />
-            <span v-else class="font-black text-blue-600 text-xs">{{ userInitials }}</span>
+            <span v-else class="font-bold text-indigo-600 text-xs">{{ userInitials }}</span>
           </div>
         </div>
 

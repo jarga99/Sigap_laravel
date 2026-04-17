@@ -32,7 +32,7 @@ const editId = ref<number | null>(null)
 const form = ref({
   username: '',
   password: '',
-  departmentId: '',
+  category_id: '',
   role: 'EMPLOYEE' as 'ADMIN_EVENT' | 'EMPLOYEE'
 })
 
@@ -61,14 +61,14 @@ onMounted(async () => {
 const openAddModal = () => {
   isEditing.value = false
   editId.value = null
-  form.value = { username: '', password: '', departmentId: '', role: 'EMPLOYEE' }
+  form.value = { username: '', password: '', category_id: '', role: 'EMPLOYEE' }
   showModal.value = true
 }
 
 const openEditModal = (user: any) => {
   isEditing.value = true
   editId.value = user.id
-  form.value = { username: user.username, password: '', departmentId: user.departmentId || '', role: user.role || 'EMPLOYEE' }
+  form.value = { username: user.username, password: '', category_id: user.category_id || '', role: user.role || 'EMPLOYEE' }
   showModal.value = true
 }
 
@@ -118,8 +118,8 @@ const downloadTemplate = async () => {
     <!-- Header Section -->
     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Manajemen Pengguna</h1>
-        <p class="text-sm text-slate-500 font-medium">Kelola akses dan hak prerogatif seluruh staf instansi.</p>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Manajemen pengguna</h1>
+        <p class="text-sm text-slate-500 font-medium">Kelola akses dan hak prerogatif seluruh staf instansi anda</p>
       </div>
       
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -172,16 +172,16 @@ const downloadTemplate = async () => {
     </div>
 
     <!-- User Table Container -->
-    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="bg-blue-50/40 rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="text-slate-400 font-bold text-[10px] uppercase tracking-widest border-b border-slate-50">
-              <th class="px-6 py-5">Identitas User</th>
-              <th class="px-6 py-5">Role / Akses</th>
-              <th class="px-6 py-5">Unit Kerja / Kategori</th>
-              <th class="px-6 py-5">Tgl Bergabung</th>
-              <th class="px-6 py-5 text-right">Aksi</th>
+            <tr class="text-slate-400 font-bold text-[10px] border-b border-blue-50">
+              <th class="px-6 py-5 font-bold">Identitas user</th>
+              <th class="px-6 py-5 font-bold">Role / akses</th>
+              <th class="px-6 py-5 font-bold">Unit kerja / kategori</th>
+              <th class="px-6 py-5 font-bold">Tgl bergabung</th>
+              <th class="px-6 py-5 text-right font-bold">Aksi</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
@@ -203,7 +203,7 @@ const downloadTemplate = async () => {
                 </span>
               </td>
               <td class="px-6 py-5">
-                 <span class="text-xs font-bold text-slate-500">{{ user.department?.name || '-' }}</span>
+                 <span class="text-xs font-bold text-slate-500">{{ user.category?.name || '-' }}</span>
               </td>
               <td class="px-6 py-5">
                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ new Date(user.created_at || user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
@@ -273,7 +273,7 @@ const downloadTemplate = async () => {
 
                 <div class="space-y-1.5">
                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Kategori (Unit Kerja)</label>
-                   <select v-model="form.departmentId" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold outline-none">
+                   <select v-model="form.category_id" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold outline-none">
                       <option value="" disabled>-- Pilih Unit Kerja --</option>
                       <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                    </select>

@@ -26,12 +26,14 @@ export const useAuthStore = defineStore('auth', {
         const { token, user } = response.data
         this.token = token
         this.user = user
+        this.isVerified = true
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(user))
         return true
-      } catch (error) {
-        console.error("Login Failed:", error)
-        return false
+      } catch (error: any) {
+        console.error("🔥 [AUTH STORE]: Login Failed dengan payload:", payload);
+        console.error("🔥 [AUTH STORE]: Error Server Detail:", error.response?.data || error.message);
+        throw error;
       }
     },
 
@@ -72,7 +74,8 @@ export const useAuthStore = defineStore('auth', {
         this.isVerified = true
         localStorage.setItem('user', JSON.stringify(this.user))
         return true
-      } catch (error) {
+      } catch (error: any) {
+        console.error("🔥 [AUTH STORE]: syncProfile gagal mengambil data profil dari server!", error.response?.data || error.message);
         this.logout()
         return false
       }

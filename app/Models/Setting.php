@@ -4,7 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Setting extends Model {
+class Setting extends Model
+{
     protected $guarded = [];
-    //
+
+    protected $appends = ['createdAt', 'updatedAt'];
+
+    public function getCreatedAtAttribute()
+    {
+        return $this->attributes['created_at'] ?? $this->attributes['createdAt'] ?? null;
+    }
+
+    public function getUpdatedAtAttribute()
+    {
+        return $this->attributes['updated_at'] ?? $this->attributes['updatedAt'] ?? null;
+    }
 }

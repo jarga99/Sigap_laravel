@@ -1,0 +1,22 @@
+
+> build
+> vite build
+
+vite v6.4.2 building for production...
+transforming...
+✓ 40 modules transformed.
+✗ Build failed in 681ms
+error during build:
+[vite:vue] [plugin vite:vue] resources/js/views/admin/CategoriesIndex.vue (64:3): Element is missing end tag.
+file: /home/jr/sigap/resources/js/views/admin/CategoriesIndex.vue:64:3
+SyntaxError: [plugin vite:vue] resources/js/views/admin/CategoriesIndex.vue (64:3): Element is missing end tag.
+    at createCompilerError (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:1374:17)
+    at emitError (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:2980:5)
+    at Object.onclosetag (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:2377:13)
+    at Tokenizer.stateInClosingTagName (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:799:16)
+    at Tokenizer.parse (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:1157:16)
+    at Object.baseParse (/home/jr/sigap/node_modules/@vue/compiler-core/dist/compiler-core.cjs.prod.js:3012:13)
+    at Object.parse (/home/jr/sigap/node_modules/@vue/compiler-dom/dist/compiler-dom.cjs.prod.js:665:23)
+    at Object.parse$1 [as parse] (/home/jr/sigap/node_modules/@vue/compiler-sfc/dist/compiler-sfc.cjs.js:1824:24)
+    at createDescriptor (file:///home/jr/sigap/node_modules/@vitejs/plugin-vue/dist/index.mjs:71:43)
+    at transformMain (file:///home/jr/sigap/node_modules/@vitejs/plugin-vue/dist/index.mjs:2421:34)

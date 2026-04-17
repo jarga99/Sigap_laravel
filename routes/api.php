@@ -6,7 +6,10 @@ use App\Http\Controllers\ApiGatewayController;
 // Public Routes
 Route::get('/health', function() { return ['status' => 'ok', 'version' => 'Laravel-1.0']; });
 Route::post('/auth/login', [ApiGatewayController::class, 'login']);
+Route::post('/auth/google', [ApiGatewayController::class, 'loginWithGoogle']);
 Route::get('/categories', [ApiGatewayController::class, 'categories']);
+Route::get('/portal/links', [ApiGatewayController::class, 'portalLinks']);
+Route::get('/portal/preview', [ApiGatewayController::class, 'portalPreview']);
 Route::get('/public/events/{slug}', [ApiGatewayController::class, 'publicEventShow']);
 Route::post('/feedback', [ApiGatewayController::class, 'submitFeedback']);
 
@@ -14,7 +17,10 @@ Route::post('/feedback', [ApiGatewayController::class, 'submitFeedback']);
 Route::middleware('jwt.auth')->group(function () {
     // Profil & Auth
     Route::get('/auth/me', [ApiGatewayController::class, 'me']);
+    Route::get('/users/profile', [ApiGatewayController::class, 'me']); // Legacy compatibility untuk Vue
     Route::put('/auth/profile', [ApiGatewayController::class, 'updateProfile']);
+    Route::post('/auth/profile-upload', [ApiGatewayController::class, 'updateProfile']);
+    Route::post('/users/profile', [ApiGatewayController::class, 'updateProfile']); // Legacy multipart support
     Route::post('/auth/logout', [ApiGatewayController::class, 'logout']);
 
     // User Management (Admin Only)
@@ -22,6 +28,11 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/admin/users', [ApiGatewayController::class, 'usersStore']);
     Route::put('/admin/users/{id}', [ApiGatewayController::class, 'usersUpdate']);
     Route::delete('/admin/users/{id}', [ApiGatewayController::class, 'usersDestroy']);
+
+    // Categories Management (Admin Only)
+    Route::post('/admin/categories', [ApiGatewayController::class, 'categoriesStore']);
+    Route::put('/admin/categories/{id}', [ApiGatewayController::class, 'categoriesUpdate']);
+    Route::delete('/admin/categories/{id}', [ApiGatewayController::class, 'categoriesDestroy']);
 
     // Events Management
     Route::get('/admin/events', [ApiGatewayController::class, 'eventsIndex']);
@@ -33,6 +44,37 @@ Route::middleware('jwt.auth')->group(function () {
     // System Settings & Dashboard
     Route::get('/admin/settings', [ApiGatewayController::class, 'getSettings']);
     Route::put('/admin/settings', [ApiGatewayController::class, 'updateSettings']);
+    Route::post('/admin/upload', [ApiGatewayController::class, 'uploadMedia']);
     Route::get('/admin/dashboard', [ApiGatewayController::class, 'dashboardStats']);
     Route::get('/admin/audit-logs', [ApiGatewayController::class, 'auditLogs']);
+
+    // Feedback Management
+    Route::get('/admin/feedback', [ApiGatewayController::class, 'feedbackIndex']);
+    Route::post('/admin/feedback/{id}/reply', [ApiGatewayController::class, 'feedbackReply']);
+    Route::put('/admin/feedback/{id}/read', [ApiGatewayController::class, 'feedbackToggleRead']);
+    Route::delete('/admin/feedback/{id}', [ApiGatewayController::class, 'usersDestroy']); // Generic destroy
+
+    // Notifications
+    Route::get('/notifications', [ApiGatewayController::class, 'notifications']);
+    Route::post('/notifications/read', [ApiGatewayController::class, 'notificationsRead']);
+
+    // Footer Links Management
+    Route::get('/admin/footer-links', [ApiGatewayController::class, 'footerLinksIndex']);
+    Route::post('/admin/footer-links', [ApiGatewayController::class, 'footerLinksStore']);
+    Route::put('/admin/footer-links/{id}', [ApiGatewayController::class, 'footerLinksUpdate']);
+    Route::delete('/admin/footer-links/{id}', [ApiGatewayController::class, 'footerLinksDestroy']);
+
+    // System Utilities
+    Route::get('/admin/system/backup', [ApiGatewayController::class, 'systemBackup']);
+    Route::post('/admin/system/reset', [ApiGatewayController::class, 'systemReset']);
+
+    // AI Features
+    Route::post('/settings/ai/generate-tagline', [ApiGatewayController::class, 'generateAiTagline']);
+
+    // Links Management
+    Route::get('/admin/links', [ApiGatewayController::class, 'linksIndex']);
+    Route::post('/admin/links', [ApiGatewayController::class, 'linksStore']);
+    Route::post('/admin/links/bulk', [ApiGatewayController::class, 'linksBulkImport']);
+    Route::put('/admin/links/{id}', [ApiGatewayController::class, 'linksUpdate']);
+    Route::delete('/admin/links/{id}', [ApiGatewayController::class, 'linksDestroy']);
 });

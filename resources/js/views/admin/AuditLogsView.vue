@@ -49,8 +49,8 @@ const getActionBadge = (action: string) => {
   <div class="space-y-8 animate-fadeup pb-20">
     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Audit Logs</h1>
-        <p class="text-sm text-slate-500 font-medium">Rekaman jejak aktivitas sistem dan perubahan data.</p>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Audit logs</h1>
+        <p class="text-sm text-slate-500 font-medium">Rekaman jejak aktivitas sistem dan perubahan data operasional.</p>
       </div>
       <button @click="fetchLogs" class="p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
          <SIGAPIcons name="RefreshCcw" :size="20" />
@@ -66,16 +66,16 @@ const getActionBadge = (action: string) => {
     </div>
 
     <!-- Logs Table -->
-    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="bg-blue-50/40 rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse text-sm">
           <thead>
-            <tr class="text-slate-400 font-bold text-[10px] uppercase tracking-widest border-b border-slate-50">
-              <th class="px-6 py-5">Waktu</th>
-              <th class="px-6 py-5">Aksi</th>
-              <th class="px-6 py-5">Aktor</th>
-              <th class="px-6 py-5">Entitas / Nilai</th>
-              <th class="px-6 py-5">IP Address</th>
+            <tr class="text-slate-400 font-bold text-[10px] border-b border-blue-50">
+              <th class="px-6 py-5 font-bold">Waktu</th>
+              <th class="px-6 py-5 font-bold">Aksi</th>
+              <th class="px-6 py-5 font-bold">Aktor</th>
+              <th class="px-6 py-5 font-bold">Entitas / nilai</th>
+              <th class="px-6 py-5 font-bold">IP address</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">

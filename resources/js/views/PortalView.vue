@@ -29,6 +29,9 @@ const qrCanvas = ref<HTMLCanvasElement | null>(null)
 const activeLinkTitle = ref('')
 const activeShortUrl = ref('')
 const copiedId = ref<number | null>(null)
+const hoveredCardId = ref<number | null>(null)
+const previewData = reactive<Record<number, any>>({})
+const hoverTimers = reactive<Record<number, any>>({})
 
 const qrOptions = ref({
   color: '#0f172a',
@@ -46,8 +49,32 @@ const getImageUrl = (path: string) => {
 
 const openLink = (link: any) => {
   if (!link) return
-  if (link.slug) window.open(`${API_URL}/s/${link.slug}`, '_blank')
-  else window.open(link.url, '_blank')
+  const redirectionUrl = link.slug ? `/s/${link.slug}` : link.url
+  window.open(redirectionUrl, '_blank')
+}
+
+const onCardHover = (link: any) => {
+  hoveredCardId.value = link.id
+  if (previewData[link.id]) return
+
+  hoverTimers[link.id] = setTimeout(async () => {
+    try {
+      const res = await api.get(`/portal/preview?url=${encodeURIComponent(link.url)}`)
+      if (hoveredCardId.value === link.id) {
+        previewData[link.id] = res.data
+      }
+    } catch (e) {
+      previewData[link.id] = { error: true }
+    }
+  }, 300)
+}
+
+const onCardLeave = (link: any) => {
+  hoveredCardId.value = null
+  if (hoverTimers[link.id]) {
+    clearTimeout(hoverTimers[link.id])
+    delete hoverTimers[link.id]
+  }
 }
 
 const loadData = async () => {
@@ -192,8 +219,31 @@ onMounted(() => {
     </div>
 
     <!-- Main Grid -->
-    <main class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32 relative z-10">
-       <div v-for="link in filteredLinks" :key="link.id" @click="openLink(link)" class="group bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-2 transition-all cursor-pointer flex flex-col items-center text-center">
+     <main class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32 relative z-10">
+       <div 
+         v-for="link in filteredLinks" 
+         :key="link.id" 
+         @click="openLink(link)" 
+         @mouseenter="onCardHover(link)"
+         @mouseleave="onCardLeave(link)"
+         class="group bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-2 transition-all cursor-pointer flex flex-col items-center text-center relative"
+       >
+          <!-- Hover Preview Tooltip -->
+          <Transition name="fade">
+            <div v-if="hoveredCardId === link.id && previewData[link.id] && !previewData[link.id].error" class="absolute bottom-[calc(100%+1rem)] left-1/2 -translate-x-1/2 w-[280px] bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden z-[100] pointer-events-none">
+              <div v-if="previewData[link.id].image" class="aspect-video w-full overflow-hidden">
+                <img :src="previewData[link.id].image" class="w-full h-full object-cover" />
+              </div>
+              <div class="p-6 text-left">
+                <h4 class="font-bold text-slate-800 text-sm mb-1 line-clamp-1">{{ previewData[link.id].title || link.title }}</h4>
+                <p class="text-[10px] text-slate-400 font-medium line-clamp-2">{{ previewData[link.id].description || link.desc }}</p>
+              </div>
+              <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 text-[8px] font-mono text-blue-500 truncate">
+                {{ link.url }}
+              </div>
+            </div>
+          </Transition>
+
           <div class="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition-all transform group-hover:rotate-6 mb-6">
              <SIGAPIcons :name="link.icon || 'Link'" :size="32" />
           </div>
@@ -212,7 +262,7 @@ onMounted(() => {
              <button class="px-6 py-3 bg-slate-50 text-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest group-hover:bg-blue-600 group-hover:text-white transition-all">Buka Layanan</button>
           </div>
        </div>
-    </main>
+     </main>
 
     <!-- Footer -->
     <footer class="bg-white border-t border-slate-100 pt-16 pb-12 relative z-10">

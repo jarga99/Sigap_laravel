@@ -1,24 +1,16 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\ApiGatewayController;
 
-// SIGAP Laravel Backend Status
-Route::get('/', function () {
-    return ['status' => 'SIGAP Laravel Backend is running'];
-});
+// Public Shortlink
+Route::get('/s/{slug}', [ApiGatewayController::class, 'redirectLink']);
 
-// Jalur cepat migrasi lewat web (Hapus setelah selesai)
-Route::get('/migrasi-cepat', function () {
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        return Artisan::output();
-    } catch (\Exception $e) {
-        return $e->getMessage();
-    }
-});
+// Downloads (Move out of JWT for window.open support)
+Route::get('/admin/links/template', [ApiGatewayController::class, 'linksTemplate']);
+Route::get('/admin/links/export', [ApiGatewayController::class, 'linksExport']);
+Route::get('/admin/system/backup', [ApiGatewayController::class, 'systemBackup']);
 
-// Single Page Application (Vue) Fallback Hook
+// Biarkan semua rute lain ditangani oleh Vue Router (Single Page Application)
 Route::get('/{any}', function () {
     return view('app');
 })->where('any', '.*');

@@ -167,12 +167,18 @@ router.beforeEach((to, from, next) => {
     // Perbaikan Bug Login: Jika token ada tapi belum diverifikasi oleh backend (cold start)
     // Verifikasi sekali di awal sebelum mengizinkan masuk ke dashboard
     if (!authStore.isVerified) {
+      console.log("🚦 [ROUTER GUARD]: Memverifikasi token via syncProfile...");
       authStore.syncProfile().then(success => {
         if (success) {
+          console.log("✅ [ROUTER GUARD]: syncProfile Berhasil! Melanjutkan ke", to.fullPath);
           router.push(to.fullPath) // Re-trigger navigation after sync
         } else {
+          console.warn("🛑 [ROUTER GUARD]: syncProfile GAGAL! Kehilangan sesi, kembali ke login.");
           router.push('/login')
         }
+      }).catch(err => {
+         console.error("💥 [ROUTER GUARD]: INTERNAL ERROR FATAL saat memanggil syncProfile:", err);
+         router.push('/login')
       })
       return // Halt current navigation until sync finishes
     }

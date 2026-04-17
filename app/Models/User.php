@@ -17,10 +17,22 @@ class User extends Authenticatable
         'fullName',
         'role',
         'image_url',
-        'departmentId',
+        'category_id',
         'sessionId',
         'is_active',
     ];
+
+    protected $appends = ['createdAt', 'updatedAt'];
+
+    public function getCreatedAtAttribute()
+    {
+        return $this->attributes['created_at'] ?? $this->attributes['createdAt'] ?? null;
+    }
+
+    public function getUpdatedAtAttribute()
+    {
+        return $this->attributes['updated_at'] ?? $this->attributes['updatedAt'] ?? null;
+    }
  
     protected $hidden = [
         'password',
@@ -32,5 +44,10 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
     }
 }

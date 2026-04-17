@@ -18,7 +18,7 @@ return new class extends Migration
                 $table->string('fullName')->default('-');
                 $table->enum('role', ['ADMIN', 'ADMIN_EVENT', 'EMPLOYEE'])->default('EMPLOYEE');
                 $table->string('image_url')->nullable();
-                $table->integer('departmentId')->nullable();
+                $table->integer('category_id')->nullable();
                 $table->string('sessionId')->nullable();
                 $table->boolean('is_active')->default(true);
                 $table->timestamps(3);
@@ -30,7 +30,7 @@ return new class extends Migration
             Schema::create('categories', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
-                $table->string('name_en')->nullable();
+                $table->text('description')->nullable();
                 $table->string('icon')->nullable();
                 $table->timestamps(3);
             });
@@ -41,9 +41,7 @@ return new class extends Migration
             Schema::create('settings', function (Blueprint $table) {
                 $table->id();
                 $table->string('instansi_name');
-                $table->string('instansi_name_en')->nullable();
                 $table->text('instansi_desc')->nullable();
-                $table->text('instansi_desc_en')->nullable();
                 $table->string('logo_url')->nullable();
                 $table->string('bg_url')->nullable();
                 $table->string('custom_domain')->nullable();
@@ -53,7 +51,6 @@ return new class extends Migration
                 $table->string('contact_phone')->nullable();
                 $table->string('footer_copyright')->default('© 2026 Admin Portal');
                 $table->text('footer_text')->nullable();
-                $table->text('footer_text_en')->nullable();
                 $table->string('footer_mode')->default('COMPLEX');
                 $table->timestamps(3);
             });
@@ -128,7 +125,7 @@ return new class extends Migration
                 $table->string('resourceId')->nullable();
                 $table->text('details')->nullable();
                 $table->integer('userId')->nullable();
-                $table->integer('departmentId')->nullable();
+                $table->integer('category_id')->nullable();
                 $table->string('ipAddress')->nullable();
                 $table->text('userAgent')->nullable();
                 $table->timestamps(3);
@@ -143,13 +140,35 @@ return new class extends Migration
                 $table->string('email')->nullable();
                 $table->string('role')->nullable();
                 $table->boolean('is_anonymous')->default(false);
+                $table->string('phone')->nullable();
+                $table->string('subject')->nullable();
                 $table->string('category')->nullable();
                 $table->text('comment');
                 $table->integer('rating')->default(0);
                 $table->string('attachment_url')->nullable();
                 $table->string('attachment_type')->nullable();
-                $table->string('status')->default('PENDING');
+                $table->string('status')->default('PENDING'); // PENDING, DONE
                 $table->boolean('is_read')->default(false);
+                
+                // Reply System
+                $table->text('reply_message')->nullable();
+                $table->string('reply_image_url')->nullable();
+                $table->timestamp('replied_at')->nullable();
+                $table->unsignedBigInteger('replied_by_id')->nullable();
+                
+                $table->timestamps(3);
+            });
+        }
+
+        // 7.5 Notifications Table
+        if (!Schema::hasTable('notifications')) {
+            Schema::create('notifications', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('userId')->nullable();
+                $table->string('type')->default('INFO');
+                $table->string('message');
+                $table->string('link')->nullable();
+                $table->boolean('isRead')->default(false);
                 $table->timestamps(3);
             });
         }
@@ -165,6 +184,18 @@ return new class extends Migration
                 $table->integer('order')->default(0);
                 $table->boolean('isActive')->default(true);
                 $table->timestamps(3);
+            });
+        }
+
+        // 9. Sessions Table (Required for database session driver)
+        if (!Schema::hasTable('sessions')) {
+            Schema::create('sessions', function (Blueprint $table) {
+                $table->string('id')->primary();
+                $table->foreignId('user_id')->nullable()->index();
+                $table->string('ip_address', 45)->nullable();
+                $table->text('user_agent')->nullable();
+                $table->longText('payload');
+                $table->integer('last_activity')->index();
             });
         }
     }
