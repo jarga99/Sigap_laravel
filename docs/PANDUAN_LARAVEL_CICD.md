@@ -121,7 +121,7 @@ Robot GitHub butuh kunci FTP agar bisa menyelinap masuk ke hosting Anda dan mena
 > **Jawabannya:** Hal tersebut dikendalikan dari dua cara, yaitu **(A)** *Username FTP* yang Anda buat di cPanel bisa dikunci agar *hanya* menyeleksi folder subdomain, ATAU **(B)** Melalui pengaturan `server-dir` di Langkah 2.2 di bawah ini!
 
 ### Langkah 2.2: Cabut Gembok Otak Robot
-Buka file `.github/workflows/deploy.yml` melalui *Code Editor* Anda. 
+Buka file `.github/workflows/deploy.yml` melalui **Code Editor lokal di komputer Anda** (tempat Anda membuka *project* ini sekarang). 
 Geser ke baris ke-40 hingga ke paling bawah. Awalnya Anda akan melihat banyak tanda pagar (`#`) di depannya. Tanda pagar itu artinya "Robot Sedang Tidur".
 **Hapus tanda pagar** di setiap awal katanya agar "bangun", sehingga wujud akhirnya seperti ini:
 
