@@ -6,16 +6,32 @@ import mysql from 'mysql2/promise';
  * Menambahkan KeepAlive untuk mencegah "Connection Lost" saat server idle.
  * Database Connection Pool - SIGAP Stable Version 1.0.1 (MySQL Native)
  */
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000, // 10 detik
-});
+let pool: any = null;
 
-export default pool;
+function getPool() {
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      console.error('[DB_FATAL] DATABASE_URL is not defined in environment variables');
+      throw new Error('Database configuration missing');
+    }
+    
+    pool = mysql.createPool({
+      uri: process.env.DATABASE_URL,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+    });
+  }
+  return pool;
+}
+
+export default { 
+  execute: async (sql: string, params: any[] = []) => {
+    return getPool().execute(sql, params);
+  }
+};
 
 /**
  * Helper untuk menjalankan query dan mengembalikan semua hasil (Array)
