@@ -13,8 +13,16 @@ export function middleware(request: NextRequest) {
 
   // 🛡️ SECURITY CHECK: Validasi Host (Backend) & Origin (Frontend)
   // Menangani pemisahan domain Backend dan Frontend secara aman
-  const originHost = origin ? new URL(origin).host : '';
+  let originHost = '';
+  try {
+    if (origin) {
+      originHost = new URL(origin).host;
+    }
+  } catch (e) {
+    console.log(`[SECURITY_WARN] Malformed Origin: ${origin}`);
+  }
   
+  // Jika ada origin, wajib validasi
   if (origin && !isAuthorized(originHost)) {
      console.log(`[SECURITY_ALERT] Blocked Unauthorized Origin: ${origin}`);
      return new NextResponse(JSON.stringify({ error: 'Unauthorized Origin' }), {

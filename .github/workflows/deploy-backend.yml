@@ -76,7 +76,10 @@ jobs:
           
           # Final sanity check: remove absolute path references if any
           # Menggunakan variable REMOTE_DIR agar fleksibel antara Staging dan Production
+          # Fallback ke path yang ditemukan: /home/uptblkpa/... jika secret kosong
           REMOTE_DIR=${{ env.DEPLOY_TARGET == 'production' && secrets.PROD_REMOTE_BACKEND_DIR || secrets.STAGING_REMOTE_BACKEND_DIR }}
+          if [ -z "$REMOTE_DIR" ]; then REMOTE_DIR="/home/uptblkpa/apiv1-sigap.uptblkpasuruan.com"; fi
+          
           grep -rl "/home/jr/sigap" deploy_ready | xargs sed -i "s|/home/jr/sigap|$REMOTE_DIR|g" || true
 
       - name: Create Restart Trigger File

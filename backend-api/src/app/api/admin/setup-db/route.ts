@@ -227,7 +227,10 @@ export async function GET(request: Request) {
     console.error('[DATABASE_SETUP_ERROR]', error)
     return NextResponse.json({ 
       status: 'error',
-      message: 'Failed to setup database: ' + error.message,
+      build_engine: 'SIGAP-MYSQL-NATIVE-V1.0',
+      message: 'Failed to setup database: ' + (error.message || 'Unknown Error'),
+      details: error.stack || ''
     }, { status: 500 })
   }
 }
+

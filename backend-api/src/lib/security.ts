@@ -10,9 +10,10 @@ export function getAuthorizedDomains(): string[] {
   
   // 1. Ambil dari Whitelist Tersembunyi (Hardcoded Fallback)
   try {
-    const hidden = Buffer.from(WHITELIST_B64, 'base64').toString().split('|');
+    // Gunakan atob untuk kompatibilitas Next.js Middleware (Edge Runtime)
+    const hidden = atob(WHITELIST_B64).split('|');
     domains.push(...hidden);
-  } catch {
+  } catch (e) {
     domains.push('localhost:3000');
   }
 
