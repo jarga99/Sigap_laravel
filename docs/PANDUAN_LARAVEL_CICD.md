@@ -126,15 +126,17 @@ Geser ke baris ke-40 hingga ke paling bawah. Awalnya Anda akan melihat banyak ta
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./
-        server-dir: /public_html/sigap/
+        server-dir: /nama_folder_subdomain/
         exclude: |
           **/.git*
           **/node_modules/**
           **/.env
           **/sigap_backup_full_node/**
 ```
-> **INFORMASI PENTING UTAMA:** 
-> Pastikan variabel `server-dir:` di atas Anda ubah nilainya supaya tidak menyasar. Jika file diletakkan di dalam folder `public_html/sigap-app`, maka isilah dengan `/public_html/sigap-app/`. Jika diletakkan di root, ganti jadi `/`.
+> **INFORMASI PENTING TENTANG "SERVER-DIR":** 
+> * Ini adalah kunci keakuratan penembakan FTP! Jika saat Anda membuat Subdomain di Tahap 0 cPanel menaruh foldernya di luar `public_html` (misal namanya `/subdomain_sigap/`), maka Anda cukup mengisi `server-dir: /subdomain_sigap/`. 
+> * Jika Anda meletakkannya di dalam `public_html`, isilah `/public_html/nama_foldernya/`.
+> * *TIPS PRO:* Jika Akun FTP (*Username*) yang Anda gunakan di *Secrets* sudah dikunci oleh cPanel mentok spesifik hanya bisa akses masuk ke folder subdomain itu saja, maka cukup isi `server-dir: /` (garis miring satu).
 
 Setelah menghapus pagarnya, kirim *Update* ini lagi ke Github:
 ```bash
@@ -165,9 +167,9 @@ Walaupun kode sudah tersiram rapi oleh sang Robot Kurir secara berkelanjutan, se
 
 **Langkah Terakhir Anda di cPanel:**
 1. Masuk cPanel Anda, buka menu fitur **Terminal**.
-2. Masuk ke ruang folder baru tempat Robot baru mentransfer datanya.
+2. Masuk ke ruang folder baru tempat Robot baru mentransfer datanya. (Ganti `nama_folder_subdomain` dengan jalur Anda):
 ```bash
-cd /home/usercpanel/public_html/nama_folder_domain_anda
+cd /home/usercpanel/nama_folder_subdomain
 ```
 3. Lipat Gandakan File Konfigurasi Rahasia:
 ```bash
