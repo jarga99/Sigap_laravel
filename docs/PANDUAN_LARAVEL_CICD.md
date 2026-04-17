@@ -12,6 +12,42 @@ CI/CD adalah "Kurir Cerdas". Misal Anda sedang memodifikasi warna/logo aplikasi 
 
 ---
 
+## 🏗️ TAHAP 0: PERSIAPAN LAHAN SERVER (SEBELUM PINDAH RUMAH)
+Sebelum menyuruh Robot Kurir Github memindahkan barang, Anda harus menyiapkan "Rumah Baru" (cPanel Server) terlebih dahulu!
+
+### 0.1. Syarat Wajib Server (PHP & Ekstensi)
+Karena menggunakan Laravel modern, server Anda **WAJIB** memenuhi syarat berikut. (Cek di menu `Select PHP Version` pada cPanel):
+- **PHP Version**: Minimal **8.2** (Sangat disarankan memakai versi 8.2 atau 8.3).
+- **Ekstensi Aktif (Tercentang)**: `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `mbstring`, `pdo_mysql`, `tokenizer`, `xml`, `zip`. *(Biasanya ekstensi ini sudah bawaan aktif, namun pastikan `zip` dan `pdo_mysql` dicentang).*
+
+### 0.2. Membuat Subdomain / Menyiapkan Ruangan (Contoh Kasus)
+Katakanlah kampus Anda memiliki domain `kampusku.ac.id`, dan Anda ingin aplikasi ini diakses di `portal-sigap.kampusku.ac.id`.
+1. Masuk ke cPanel > Cari menu **Subdomains** (Atau **Domains** di cPanel versi baru).
+2. Klik **Create a New Subdomain**.
+3. **Subdomain**: Isi dengan `portal-sigap`.
+4. **Document Root**: *Ini yang paling penting!* Jangan biarkan letaknya menumpuk di tempat umum. Ketik jalurnya menunjuk dalam satu folder yang terisolasi, misalnya: `public_html/sigap_portal`. *(Nanti di Tahap 5, folder ini wajib kita ubah jalurnya jadi ada `/public` di belakangnya)*.
+5. Klik **Create**.
+
+### 0.3. Membangun "Brankas Data" (MySQL Database)
+Data aplikasi Anda (Login User, Link, Acara) disimpan di brankas MySQL. Kita harus membuatnya dari nol.
+1. Di cPanel, cari menu **MySQL® Databases** (Jangan yang phpMyAdmin!).
+2. **Create New Database**:
+   - Ketik nama, misal `sigapdb`. 
+   - *(Note: cPanel otomatis menambahkan awalan akun Anda, sehingga nama asli databasenya mungkin menjadi `usercpanel_sigapdb`). Jangan lupa catat ini di Notepad!*
+3. **Add New User** (Membuat tukang kunci khusus agar Laravel bisa masuk):
+   - **Username**: Ketik misalnya `admin_sigap` *(Lagi-lagi akan menjadi `usercpanel_admin_sigap`)*.
+   - **Password**: Gunakan Password Generator bawaan cPanel (Kopi dan simpan baik-baik di Notepad!). Klik **Create User**.
+4. **Menghubungkan Brankas dan Tukang Kunci (Add User to Database)**:
+   - *Paling sering dilupakan anak magang!* Geser ke bagian bawah halaman ("Add User To Database").
+   - Pilih `User`: `usercpanel_admin_sigap`
+   - Pilih `Database`: `usercpanel_sigapdb`
+   - Klik **Add**.
+   - Muncul halaman hak akses, sentuh tombol atas sendiri **ALL PRIVILEGES** (Beri Semua Akses ke tukang kunci tersebut). Klik **Make Changes**.
+
+Selesai di Tahap 0! Lanjut menyiapkan pengirimannya.
+
+---
+
 ## 🛠️ TAHAP 1: MENGGUDANGKAN KODE KE GITHUB BARU
 ### Langkah 1.1: Buat Gudang Super Kosong di GitHub
 1. Buka [Github.com](https://github.com/), pastikan Anda sudah *login*.
@@ -180,4 +216,28 @@ Lalu simpan! Website SIGAP Anda akan langsung otomatis mengarah ke pintu gerbang
 
 🚀 Selesai dan Aman! Selamat menikmati SIGAP Versi Laravel dengan infrastruktur Deployment *Continuous Delivery*! Kapanpun Anda ingin mengubah sebuah koma pada *code editor*, perubahan akan mendistribusi sempurna ke pengguna ujung (End-User)!.
 
-🚀 Selesai dan Aman! Selamat menikmati SIGAP Versi Laravel dengan infrastruktur Deployment *Continuous Delivery*! Kapanpun Anda ingin mengubah sebuah koma pada *code editor*, perubahan akan mendistribusi sempurna ke pengguna ujung (End-User)!.
+---
+
+## 🕵️‍♂️ TAHAP 6: PENGECEKAN MANUAL SETELAH DEPLOY (Post-Deployment Audit)
+Ibarat Anda pindahan rumah, Anda wajib cek apakah air keran nyala dan kunci jendela mengunci rapat. 
+Silakan buka URL aplikasi/subdomain Anda (`https://portal-sigap.kampusku.ac.id`) di browser pribadi Anda. Jalankan poin-poin cek manual ini:
+
+### 1. Pengecekan Login & Celah Terkunci (Authentication Check)
+- Coba login menggunakan akun `admin` (kata sandinya bawaan `admin123`). 
+- **Verifikasi**: Jika halaman tidak nge-*blank* dan berhasil masuk ke *Dashboard*, maka koneksi Database MySQL (Tahap 0.3) berarti **BERHASIL**.
+
+### 2. Uji Coba Kinerja Upload / Penyimpanan Berkas (*Storage Link*)
+- Masuk ke menu **Pengaturan Sistem** -> Coba **Ganti Logo Instansi** atau masuk ke menu ubah Gambar Profil.
+- *Upload* sebuah gambar.
+- **Verifikasi**: Jika logo instansi berhasil diperbarui dan gambarnya **TAMPIL/MUNCUL**, berarti jalur pipanisasi perintah `php artisan storage:link` (Tahap 4) **SUKSES**. Jika muncul ikon rusak (`Broken Image`), segera eksekusi ulang perintah *storage:link* di terminal cPanel!
+
+### 3. Pemeriksaan Nyawa Artificial Intelligence (AI)
+- Coba modifikasi salah satu tombol/link secara asal, dan pancing tombol generator kata ajaib/Tagline. Atau coba fitur *Smart Insights* di *Dashboard*.
+- **Verifikasi**: Jika pesannya terbalas dengan bahasa robot super natural, maka injeksi variabel `GEMINI_API_KEY` (dan Groq) di file `.env` **BERHASIL** dibaca server.
+
+### 4. Pengecekan SSL / Keamanan Koneksi
+1. Pastikan logo gembok SSL Anda berwarna abu-abu normal di pojok kiri browser.
+2. Jika ada coretan "*Not Secure*", Anda cukup ke menu cPanel Anda > Cari fitur **SSL/TLS Status** > Klik **Run AutoSSL**. CPanel akan mengurus persuratan gembok sertifikat ini secara otomatis (Dalam hitungan jam).
+
+---
+🎉 **Selamat!! Keseluruhan infrastruktur platform Anda siap dioperasikan tanpa cacat!**
