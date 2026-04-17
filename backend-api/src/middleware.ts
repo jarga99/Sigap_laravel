@@ -1,19 +1,30 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { isAuthorized } from '@/lib/security';
 
 export function middleware(request: NextRequest) {
   // 📝 LOG AKTIVITAS API
   console.log(`[API_REQUEST] ${request.method} ${request.nextUrl.pathname}`);
 
-  // Ambil origin dari request (misal: https://sigapv1.uptblkpasuruan.com)
-  const origin = request.headers.get('origin');
+  // Ambil origin dan host
+  const origin = request.headers.get('origin') || '';
+  const host = request.headers.get('host') || '';
   
   // Siapkan response
   const response = NextResponse.next();
 
-  // Jika ada origin (berarti request dari browser/frontend)
+  // 🛡️ SECURITY CHECK: Validasi Host (Backend) & Origin (Frontend)
+  // Menangani pemisahan domain Backend dan Frontend secara aman
+  const originHost = origin ? new URL(origin).host : '';
+  
+  if (origin && !isAuthorized(originHost)) {
+     console.log(`[SECURITY_ALERT] Blocked Unauthorized Origin: ${origin}`);
+     return new NextResponse(JSON.stringify({ error: 'Unauthorized Origin' }), {
+       status: 403,
+       headers: { 'Content-Type': 'application/json' }
+     });
+  }
+
+  // Jika aman, set header CORS
   if (origin) {
-    // Sederhana: Kita izinkan origin tersebut
     response.headers.set('Access-Control-Allow-Origin', origin);
   }
 
