@@ -11,13 +11,22 @@ const emit = defineEmits(['close', 'select'])
 
 const searchQuery = ref('')
 const icons = [
-  'Link', 'ExternalLink', 'Globe', 'Mail', 'Phone', 'MapPin', 'FileText', 'User', 
-  'Home', 'Star', 'Heart', 'Share2', 'Camera', 'Image', 'ShoppingCart',
-  'CreditCard', 'Briefcase', 'BookOpen', 'GraduationCap', 'Coffee', 'Utensils',
-  'Zap', 'Award', 'Bell', 'Calendar', 'Download', 'Cloud', 'Lock', 'Shield',
-  'Settings', 'Info', 'HelpCircle', 'MessageCircle', 'MessageSquare', 'Send', 
-  'Smartphone', 'Tent', 'Plane', 'Truck', 'Gift', 'Clock', 'Search', 'Archive', 'Activity', 'Book', 'Video', 'FolderOpen',
-  'Whatsapp', 'Tiktok'
+  // Tautan & Media Sosial
+  'Link', 'ExternalLink', 'Globe', 'Mail', 'Phone', 'MapPin', 'FileText', 'User', 'Users', 'UserCircle',
+  'Whatsapp', 'Tiktok', 'Instagram', 'Facebook', 'Twitter', 'Linkedin', 'Youtube', 'Github',
+  
+  // Navigasi & Aksi
+  'Home', 'Search', 'Plus', 'Download', 'Upload', 'Save', 'Trash2', 'Edit2', 'Copy', 'RefreshCcw',
+  'ChevronRight', 'ChevronDown', 'Maximize', 'X', 'Check', 'CheckCircle', 'AlertCircle', 'Info', 'HelpCircle',
+  
+  // Konten & Multimedia
+  'FolderOpen', 'Archive', 'Book', 'BookOpen', 'FileSpreadsheet', 'Image', 'Video', 'Camera', 'MessageSquare', 'MessageCircle', 'Send', 'Quote',
+  
+  // Bisnis & Status
+  'Briefcase', 'Building', 'Activity', 'Shield', 'Lock', 'Zap', 'Sparkles', 'Star', 'Heart', 'Award', 'Bell', 'Clock', 'Calendar',
+  
+  // Sistem
+  'LayoutDashboard', 'Settings', 'LogOut', 'LogIn', 'Sun', 'Moon', 'Inbox'
 ]
 
 const filteredIcons = computed(() => {

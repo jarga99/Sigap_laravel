@@ -58,9 +58,13 @@ const saveCategory = async () => {
 }
 
 const deleteCategory = async (id: number) => {
-  if (!confirm('Hapus kategori ini? Tautan di dalamnya mungkin terpengaruh.')) return
-  try { await api.delete(`/admin/categories/${id}`); fetchCategories() }
-  catch (err) { alert('Gagal menghapus kategori') }
+  if (!confirm('Hapus kategori ini? Hanya kategori kosong (tanpa tautan & pegawai) yang dapat dihapus.')) return
+  try { 
+      await api.delete(`/admin/categories/${id}`); 
+      fetchCategories();
+  } catch (err: any) { 
+      alert(err.response?.data?.error || 'Gagal menghapus kategori'); 
+  }
 }
 
 const handleIconSelect = (icon: string) => {
@@ -72,18 +76,14 @@ onMounted(fetchCategories)
 
 <template>
   <div class="space-y-10 animate-fadeup pb-20">
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-      <div class="space-y-2">
-        <h1 class="text-4xl font-bold text-slate-800 tracking-tight">Kategori Layanan</h1>
-        <p class="text-sm text-slate-400 font-semibold flex items-center gap-2">
-           <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-           Pengelompokan unit kerja dan jenis layanan portal anda
-        </p>
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Kategori Layanan</h1>
+        <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Pengelompokan unit kerja dan jenis layanan portal.</p>
       </div>
-      <button @click="openCreateModal" class="group relative px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-blue-500/20 overflow-hidden">
-        <div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-        <SIGAPIcons name="Plus" :size="20" class="relative z-10" /> 
-        <span class="relative z-10 text-sm">Tambah Kategori Baru</span>
+      <button @click="openCreateModal" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center gap-3">
+        <SIGAPIcons name="Plus" :size="20" /> 
+        Tambah Kategori
       </button>
     </div>
 
@@ -94,47 +94,60 @@ onMounted(fetchCategories)
       
       <!-- Actual Data -->
       <template v-else>
-         <div v-for="cat in categories" :key="cat.id" class="group bg-white p-8 rounded-[2.5rem] border border-blue-50 hover:border-blue-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 relative flex flex-col justify-between h-[300px]">
-            <!-- Hover Actions -->
-            <div class="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-               <button @click="openEditModal(cat)" class="p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm">
+         <div v-for="cat in categories" :key="cat.id" class="group bg-white p-8 rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 relative flex flex-col justify-between h-[320px] overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-110 transition-transform pointer-events-none"></div>
+            
+            <!-- Actions (Always Visible) -->
+            <div class="absolute top-6 right-6 flex gap-2 opacity-100 z-20">
+               <button @click.stop.prevent="openEditModal(cat)" class="w-10 h-10 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white rounded-xl transition-all shadow-lg border border-amber-100 flex items-center justify-center">
                   <SIGAPIcons name="Edit2" :size="16" />
                </button>
-               <button @click="deleteCategory(cat.id)" class="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all shadow-sm">
+               <button @click.stop.prevent="deleteCategory(cat.id)" class="w-10 h-10 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-lg border border-red-100 flex items-center justify-center">
                   <SIGAPIcons name="Trash2" :size="16" />
                </button>
             </div>
 
-            <div>
+            <div class="relative z-10">
                <!-- Icon Display -->
-               <div class="w-16 h-16 bg-blue-50/50 text-blue-600 rounded-[1.5rem] flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-inner">
+               <div class="w-16 h-16 bg-slate-50 text-slate-400 rounded-[1.5rem] flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white border-2 border-white shadow-sm transition-all duration-500">
                   <SIGAPIcons :name="cat.icon || 'FolderOpen'" :size="32" />
                </div>
                
-               <h3 class="font-bold text-slate-800 text-xl mb-2 group-hover:text-blue-700 transition-colors">{{ cat.name }}</h3>
-               <p class="text-slate-400 text-sm font-medium line-clamp-2 leading-relaxed">
+               <h3 class="font-black text-slate-800 text-xl mb-2 group-hover:text-blue-600 transition-colors tracking-tight">{{ cat.name }}</h3>
+               <p class="text-slate-400 text-[11px] font-bold uppercase tracking-widest line-clamp-2 leading-relaxed opacity-100">
                   {{ cat.description || 'Tidak ada deskripsi untuk unit kerja ini.' }}
                </p>
             </div>
             
-            <div class="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-               <div class="px-4 py-1.5 bg-slate-50 rounded-full">
-                  <span class="text-[10px] font-black uppercase text-slate-500 tracking-wider">{{ cat.links_count ?? 0 }} Tautan</span>
+            <div class="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between relative z-10">
+               <div class="px-5 py-2 bg-slate-50 rounded-xl border border-white shadow-sm">
+                  <span class="text-[10px] font-black uppercase text-slate-500 tracking-widest">{{ cat.links_count ?? 0 }} Tautan</span>
                </div>
-               <div class="flex -space-x-3">
-                  <div v-for="i in 3" :key="i" class="w-8 h-8 rounded-full border-2 border-white bg-blue-50 flex items-center justify-center overflow-hidden">
-                     <span class="text-[8px] font-bold text-blue-300">USER</span>
+               <div class="flex -space-x-3" v-if="cat.users && cat.users.length > 0">
+                  <div v-for="(user, idx) in cat.users" :key="user.id" class="w-9 h-9 rounded-xl border-2 border-white bg-slate-100 flex items-center justify-center overflow-hidden shadow-sm group-hover:scale-110 transition-transform" :style="`transition-delay: ${idx*50}ms`" :title="user.username">
+                     <img v-if="user.image_url" :src="`/storage/${user.image_url}`" class="w-full h-full object-cover" />
+                     <SIGAPIcons v-else name="User" :size="14" class="text-slate-400" />
+                  </div>
+                  <!-- Show remainder if any -->
+                  <div v-if="cat.users_count > 3" class="w-9 h-9 rounded-xl border-2 border-white bg-slate-200 flex items-center justify-center overflow-hidden shadow-sm z-10">
+                     <span class="text-[10px] font-bold text-slate-500">+{{ cat.users_count - 3 }}</span>
+                  </div>
+               </div>
+               <div class="flex -space-x-3" v-else>
+                  <div class="w-9 h-9 rounded-xl border-2 border-white bg-slate-50/50 flex items-center justify-center overflow-hidden shadow-sm">
+                     <SIGAPIcons name="UserMinus" :size="14" class="text-slate-200" />
                   </div>
                </div>
             </div>
          </div>
 
-         <!-- Add New Card (Forgotten Feature) -->
-         <button @click="openCreateModal" class="group h-[300px] bg-blue-50/30 border-4 border-dashed border-blue-100 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 hover:bg-blue-50 hover:border-blue-300 transition-all duration-500">
-            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center text-blue-400 shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-90">
-               <SIGAPIcons name="Plus" :size="24" />
+         <!-- Add New Card -->
+         <button @click="openCreateModal" class="group h-[320px] bg-slate-100/30 border-4 border-dashed border-white rounded-[2.5rem] flex flex-col items-center justify-center gap-5 hover:bg-white hover:border-blue-200 hover:shadow-2xl transition-all duration-500 shadow-sm relative overflow-hidden">
+            <div class="absolute inset-0 bg-blue-50/20 transition-opacity"></div>
+            <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-500 shadow-xl border border-slate-50 transition-all duration-500 group-hover:scale-110 group-hover:rotate-90 relative z-10">
+               <SIGAPIcons name="Plus" :size="28" />
             </div>
-            <span class="text-sm font-black text-blue-400 uppercase tracking-widest">Buat Unit Baru</span>
+            <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-blue-500 transition-colors relative z-10">Daftarkan Unit Baru</span>
          </button>
       </template>
 
@@ -158,12 +171,12 @@ onMounted(fetchCategories)
                    <div class="flex gap-6 items-center">
                      <!-- Clickable Icon Selector -->
                      <div 
-                       class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center cursor-pointer hover:ring-4 hover:ring-blue-100 transition-all group relative shadow-inner overflow-hidden" 
+                       class="w-20 h-20 bg-blue-50 text-[#4f86e8] rounded-2xl flex items-center justify-center cursor-pointer hover:ring-4 hover:ring-blue-100 transition-all group relative shadow-inner overflow-hidden" 
                        @click="showIconPicker = true"
                      >
                         <SIGAPIcons :name="form.icon" :size="40" />
-                        <div class="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 flex items-center justify-center transition-all">
-                           <SIGAPIcons name="Edit2" :size="16" class="opacity-0 group-hover:opacity-100 text-blue-600" />
+                        <div class="absolute inset-0 bg-[#4f86e8]/10 flex flex-col items-center justify-center text-[#4f86e8] gap-2">
+                           <SIGAPIcons name="Edit2" :size="16" />
                         </div>
                      </div>
                      <div>
@@ -182,18 +195,18 @@ onMounted(fetchCategories)
                    <label class="text-[10px] uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
                        <SIGAPIcons name="Hash" :size="10" /> Nama Kategori / Unit
                    </label>
-                   <input v-model="form.name" required placeholder="Contoh: Bidang Teknologi Informatika" class="w-full bg-slate-50 rounded-2xl p-5 text-lg font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all placeholder:text-slate-300" />
+                   <input v-model="form.name" required placeholder="Contoh: Bidang Teknologi Informatika" class="w-full bg-[#f4f8ff] rounded-2xl p-5 text-lg font-bold border-2 border-transparent focus:border-blue-300 focus:bg-white outline-none transition-all placeholder:text-slate-300" />
                 </div>
 
                 <div class="space-y-3 font-bold group">
                    <label class="text-[10px] uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
                        <SIGAPIcons name="AlignLeft" :size="10" /> Deskripsi Singkat
                    </label>
-                   <textarea v-model="form.description" rows="4" placeholder="Jelaskan mengenai departemen atau layanan ini..." class="w-full bg-slate-50 rounded-2xl p-5 text-sm font-semibold border-2 border-transparent focus:border-blue-500 focus:bg-white outline-none transition-all resize-none placeholder:text-slate-300"></textarea>
+                   <textarea v-model="form.description" rows="4" placeholder="Jelaskan mengenai departemen atau layanan ini..." class="w-full bg-[#f4f8ff] rounded-2xl p-5 text-sm font-semibold border-2 border-transparent focus:border-blue-300 focus:bg-white outline-none transition-all resize-none placeholder:text-slate-300"></textarea>
                 </div>
 
                 <div class="flex gap-4 pt-6">
-                   <button type="submit" :disabled="isSaving" class="flex-1 py-5 bg-blue-600 text-white rounded-[1.5rem] font-bold text-sm tracking-wide shadow-xl shadow-blue-500/20 hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                   <button type="submit" :disabled="isSaving" class="flex-1 py-5 bg-emerald-600 text-white rounded-[1.5rem] font-bold text-sm tracking-wide shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all flex items-center justify-center gap-3">
                       <span v-if="!isSaving">{{ isEditing ? 'Simpan Perubahan' : 'Daftarkan Unit Sekarang' }}</span>
                       <span v-else class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                    </button>

@@ -1,13 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { API_BASE_URL } from '../lib/config'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import SIGAPIcons from '../components/SIGAPIcons.vue'
 import api from '@/lib/axios'
-import QRCode from 'qrcode'
-
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -45,7 +43,6 @@ const navItems = computed(() => {
     { label: 'Links', to: '/admin/links', icon: 'Link' },
     { label: 'Sigap Events', to: '/admin/events', icon: 'Sparkles' },
     { label: 'Kategori', to: '/admin/categories', icon: 'Layers' },
-    { label: 'Logs Aktivitas', to: '/admin/audit-logs', icon: 'ClipboardList' },
     { label: 'Users', to: '/admin/users', icon: 'Users', onlyAdmin: true },
     { label: 'Profil', to: '/admin/profile', icon: 'UserCircle' },
     { label: 'Pengaturan', to: '/admin/settings', icon: 'Settings', onlyAdmin: true },
@@ -54,11 +51,11 @@ const navItems = computed(() => {
 
   return allItems.filter(item => {
     if (userRole === 'EMPLOYEE') {
-      const employeeMenus = ['/admin/dashboard', '/admin/links', '/admin/events', '/admin/categories', '/admin/audit-logs', '/admin/profile', '/admin/feedback']
+      const employeeMenus = ['/admin/dashboard', '/admin/links', '/admin/events', '/admin/categories', '/admin/profile', '/admin/feedback']
       return employeeMenus.some(path => item.to === path || item.to.startsWith(path))
     }
     if (userRole === 'ADMIN_EVENT') {
-      const adminEventMenus = ['/admin/dashboard', '/admin/events', '/admin/audit-logs', '/admin/profile', '/admin/feedback']
+      const adminEventMenus = ['/admin/dashboard', '/admin/events', '/admin/profile', '/admin/feedback']
       return adminEventMenus.some(path => item.to === path || item.to.startsWith(path))
     }
     if (item.onlyAdmin) return userRole === 'ADMIN'
@@ -93,33 +90,109 @@ const handleLogout = () => {
   router.replace('/login')
 }
 
-// QR Code Logic Simplified
-const isQrModalOpen = ref(false)
-const qrCanvas = ref(null)
-const activeSlug = ref('')
-const qrTargetUrl = computed(() => {
-  const base = window.location.origin
-  return activeSlug.value ? `${base}/e/${activeSlug.value}` : `${base}/`
+// --- 💬 FLOATING FEEDBACK LOGIC ---
+const isFeedbackModalOpen = ref(false)
+const isSubmittingFeedback = ref(false)
+const feedbackForm = ref({
+  comment: '',
+  is_anonymous: false,
+  file: null,
+  previewUrl: ''
 })
 
-const generateQR = async () => {
-  isQrModalOpen.value = true
-  setTimeout(async () => {
-    if (qrCanvas.value) {
-      await QRCode.toCanvas(qrCanvas.value, qrTargetUrl.value, { width: 250, margin: 2 })
+const handleFeedbackFile = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  feedbackForm.value.file = file
+  feedbackForm.value.previewUrl = URL.createObjectURL(file)
+}
+
+const submitFeedback = async () => {
+  if (!feedbackForm.value.comment.trim()) return
+  
+  isSubmittingFeedback.value = true
+  try {
+    const fd = new FormData()
+    fd.append('comment', feedbackForm.value.comment)
+    fd.append('is_anonymous', feedbackForm.value.is_anonymous ? '1' : '0')
+    if (feedbackForm.value.file) {
+      fd.append('file', feedbackForm.value.file)
     }
-  }, 100)
+
+    const res = await api.post('/feedback', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    if (res.data.status === 'success') {
+      alert('Terima kasih! Saran anda telah kami terima.')
+      isFeedbackModalOpen.value = false
+      feedbackForm.value = { comment: '', is_anonymous: false, file: null, previewUrl: '' }
+    }
+  } catch (err) {
+    alert('Gagal mengirim saran. Silakan coba lagi.')
+  } finally {
+    isSubmittingFeedback.value = false
+  }
 }
 
-const downloadQr = () => {
-  const link = document.createElement('a')
-  link.href = qrCanvas.value.toDataURL('image/png')
-  link.download = `QR-Event-${activeSlug.value || 'Portal'}.png`
-  link.click()
+// --- 🖱️ DRAGGABLE LOGIC ---
+const dragPosition = ref({ x: 0, y: 0 })
+const isDragging = ref(false)
+let startX = 0
+let startY = 0
+let hasMoved = false
+
+const startDrag = (e) => {
+  isDragging.value = true
+  hasMoved = false
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  startX = clientX - dragPosition.value.x
+  startY = clientY - dragPosition.value.y
+  
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+  window.addEventListener('touchmove', onDrag)
+  window.addEventListener('touchend', stopDrag)
 }
 
-import { provide } from 'vue'
-provide('setActiveSlug', (slug) => { activeSlug.value = slug })
+const onDrag = (e) => {
+  if (!isDragging.value) return
+  hasMoved = true
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  dragPosition.value = {
+    x: clientX - startX,
+    y: clientY - startY
+  }
+}
+
+const stopDrag = () => {
+  isDragging.value = false
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+  window.removeEventListener('touchmove', onDrag)
+  window.removeEventListener('touchend', stopDrag)
+}
+
+const handleFeedbackClick = () => {
+  if (!hasMoved) {
+    isFeedbackModalOpen.value = true
+  }
+}
+
+const goToNotification = async (notif) => {
+  isNotificationOpen.value = false
+  try {
+    // Mark as read specifically
+    await api.put(`/notifications/${notif.id}/read`)
+    fetchNotifications() // Reload list immediately so next unread pops in (FIFO)
+    
+    if (notif.link) {
+      router.push(notif.link)
+    }
+  } catch (err) { console.error(err) }
+}
 
 onMounted(() => {
   fetchNotifications()
@@ -128,26 +201,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex flex-col font-sans overflow-x-hidden text-slate-900">
+  <div class="min-h-screen bg-[#eff2f6] flex flex-col font-sans overflow-x-hidden text-slate-800">
     <!-- Navbar Header -->
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 px-4 h-16 flex items-center justify-between shadow-sm">
+    <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 px-4 h-16 flex items-center justify-between shadow-xl shadow-slate-900/10 transition-all">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-200 overflow-hidden">
-          <img v-if="settings.logo_url" :src="settings.logo_url.startsWith('http') ? settings.logo_url : API_URL + settings.logo_url" class="w-full h-full object-contain p-1" />
-          <span v-else class="font-bold text-blue-600">S</span>
+        <div class="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center shadow-lg border border-slate-700 overflow-hidden group hover:border-blue-500 transition-all">
+          <img v-if="settings.logo_url" :src="settings.logo_url.startsWith('http') ? settings.logo_url : API_URL + settings.logo_url" class="w-full h-full object-contain p-2" />
+          <span v-else class="font-black text-blue-400 text-xl">S</span>
         </div>
         <div class="leading-tight hidden lg:block">
-          <div class="font-bold text-slate-700 text-sm tracking-tight">{{ settings.app_name || 'Sigap Admin' }}</div>
-          <div class="text-[10px] text-slate-400 font-semibold truncate max-w-[150px]">{{ settings.instansi_name || 'Portal layanan' }}</div>
+          <div class="font-black text-white text-sm tracking-tight">{{ settings.app_name || 'Sigap Admin' }}</div>
+          <div class="text-[10px] text-slate-500 font-bold tracking-widest uppercase opacity-80">{{ settings.instansi_name || 'Portal layanan' }}</div>
         </div>
       </div>
 
       <!-- Desktop Nav -->
       <div class="hidden md:flex items-center gap-1">
         <router-link v-for="item in navItems" :key="item.to" :to="item.to"
-          class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold transition-all"
-          :class="route.path.startsWith(item.to) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'">
-          <SIGAPIcons :name="item.icon" :size="18" />
+          class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all"
+          :class="route.path.startsWith(item.to) ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+          <SIGAPIcons :name="item.icon" :size="16" />
           <span class="hidden xl:inline-block truncate max-w-[120px]">{{ item.label }}</span>
         </router-link>
       </div>
@@ -156,71 +229,76 @@ onMounted(() => {
         <div class="flex items-center gap-1">
            <!-- Notifications -->
            <div class="relative">
-              <button @click="toggleNotifications" class="p-2 rounded-full text-slate-600 hover:bg-slate-100 relative">
+              <button @click="toggleNotifications" class="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white relative transition-all">
                 <SIGAPIcons name="Bell" :size="20" />
-                <span v-if="unreadCount > 0" class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                <span v-if="unreadCount > 0" class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-slate-900">
                   {{ unreadCount > 9 ? '9+' : unreadCount }}
                 </span>
               </button>
 
-              <div v-if="isNotificationOpen" class="absolute right-0 mt-3 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 z-[100] overflow-hidden animate-fadeup">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-blue-50/30">
-                  <h4 class="font-bold text-slate-700 text-xs tracking-wider">Notifikasi</h4>
-                  <span class="text-[10px] font-bold text-slate-400">{{ notifications.length }} pesan</span>
+              <div v-if="isNotificationOpen" class="absolute right-0 mt-3 w-72 bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 z-[100] overflow-hidden animate-fadeup">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
+                  <h4 class="font-black text-slate-200 text-[10px] tracking-widest uppercase">Notifikasi</h4>
+                  <span class="text-[10px] font-bold text-slate-500">{{ notifications.length }} pesan</span>
                 </div>
                 <div class="max-h-64 overflow-y-auto">
-                   <div v-if="notifications.length === 0" class="p-8 text-center text-slate-400 text-xs">Kosong</div>
-                   <div v-else v-for="notif in notifications" :key="notif.id" class="p-3 border-b border-slate-50 hover:bg-slate-50 text-xs">
-                      <p :class="!notif.isRead ? 'font-bold text-slate-800' : 'text-slate-500'">{{ notif.message }}</p>
-                      <span class="text-[9px] text-slate-300 mt-1 block">{{ new Date(notif.createdAt).toLocaleDateString() }}</span>
+                   <div v-if="notifications.length === 0" class="p-8 text-center text-slate-600 text-xs font-bold uppercase tracking-widest">Kosong</div>
+                   <div v-else v-for="notif in notifications" :key="notif.id" 
+                      @click="goToNotification(notif)"
+                      class="p-4 border-b border-slate-800 hover:bg-slate-800 transition-colors text-xs cursor-pointer group/notif">
+                      <p :class="!notif.isRead ? 'font-black text-white group-hover/notif:text-blue-400' : 'text-slate-400 font-medium group-hover/notif:text-slate-200'">{{ notif.message }}</p>
+                      <span class="text-[9px] text-slate-600 font-bold mt-1.5 block group-hover/notif:text-slate-500">{{ new Date(notif.createdAt).toLocaleDateString() }}</span>
                    </div>
+                </div>
+                <div @click="router.push('/admin/notifications'); isNotificationOpen = false" class="p-3 bg-slate-800/80 hover:bg-slate-700 text-center cursor-pointer transition-all">
+                   <span class="text-[10px] font-black uppercase tracking-widest text-[#4f86e8] hover:text-blue-300">Lihat Semua Notifikasi</span>
                 </div>
               </div>
            </div>
 
-           <a href="/" target="_blank" title="Lihat Portal" class="p-2 rounded-full text-slate-600 hover:bg-slate-100">
+           <a href="/" target="_blank" title="Lihat Portal" class="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
              <SIGAPIcons name="ExternalLink" :size="20" />
            </a>
         </div>
 
-        <div class="h-8 w-px bg-slate-100 hidden sm:block"></div>
+        <div class="h-8 w-px bg-slate-800 hidden sm:block"></div>
 
         <!-- Profil User -->
         <div class="flex items-center gap-2">
-          <div class="hidden sm:block text-right">
-            <div class="font-semibold text-xs text-slate-600 leading-none mb-1">{{ user.fullName || user.username }}</div>
-            <div class="text-[9px] text-slate-400 font-semibold tracking-widest">{{ user.role === 'ADMIN' ? 'Administrator' : 'Staff' }}</div>
+          <div class="hidden sm:block text-right leading-tight max-w-[150px]">
+            <div class="font-black text-xs text-white truncate">{{ user.fullName || user.username }}</div>
+            <div class="text-[9px] text-slate-500 font-black tracking-widest uppercase truncate">{{ user.role === 'ADMIN' ? 'Administrator' : 'Staff' }}</div>
           </div>
-          <div class="w-9 h-9 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100 overflow-hidden shadow-sm">
+          <div class="w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700 overflow-hidden shadow-lg">
             <img v-if="userPhoto" :src="userPhoto" class="w-full h-full object-cover" />
-            <span v-else class="font-bold text-indigo-600 text-xs">{{ userInitials }}</span>
+            <span v-else class="font-black text-blue-400 text-xs">{{ userInitials }}</span>
           </div>
         </div>
 
-        <button @click="handleLogout" class="p-2 text-red-500 hover:bg-red-50 rounded-full transition">
+        <button @click="handleLogout" class="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all">
           <SIGAPIcons name="LogOut" :size="20" />
         </button>
 
-        <button @click="isMobileOpen = !isMobileOpen" class="md:hidden p-1 text-slate-600">
+        <button @click="isMobileOpen = !isMobileOpen" class="md:hidden p-1 text-slate-400">
            <SIGAPIcons :name="isMobileOpen ? 'X' : 'Menu'" :size="24" />
         </button>
       </div>
     </nav>
 
     <!-- Mobile Menu -->
-    <div v-if="isMobileOpen" class="md:hidden bg-white border-b border-slate-200 animate-fadedown">
+    <div v-if="isMobileOpen" class="md:hidden bg-slate-900 border-b border-slate-800 animate-fadedown">
       <div class="p-3 space-y-1">
         <router-link v-for="item in navItems" :key="item.to" :to="item.to" @click="isMobileOpen = false"
-          class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-700 font-bold"
-          active-class="bg-blue-50 text-blue-700">
-          <SIGAPIcons :name="item.icon" :size="20" />
+          class="flex items-center gap-3 px-6 py-4 rounded-2xl text-slate-400 font-black uppercase tracking-widest text-[10px] transition-all"
+          active-class="bg-blue-600 text-white shadow-lg shadow-blue-500/20">
+          <SIGAPIcons :name="item.icon" :size="18" />
           {{ item.label }}
         </router-link>
       </div>
     </div>
 
     <!-- Main Content -->
-    <main class="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+    <main class="flex-1 p-4 md:p-6 lg:px-8 w-full">
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
@@ -229,35 +307,84 @@ onMounted(() => {
     </main>
 
     <!-- Footer -->
-    <footer class="py-10 bg-white border-t border-slate-100 text-center text-[11px] text-slate-400">
-      <p class="font-bold mb-1">{{ settings.app_name }} &copy; 2026 Administrator</p>
-      <p class="opacity-70 tracking-tight">System designed for ultra-fast performance by wiradika.jr</p>
+    <footer class="py-16 bg-slate-900 border-t border-slate-800 text-center text-[11px] text-slate-500">
+      <p class="font-black mb-1 text-slate-300 tracking-tight">{{ settings.app_name }} &copy; 2026 Administrator Portal</p>
+      <p class="opacity-100 font-bold text-slate-500 uppercase tracking-widest text-[9px]">System designed for ultimate performance by wiradika.jr</p>
     </footer>
 
-    <!-- QR Modal (Simplified) -->
-    <div v-if="isQrModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isQrModalOpen = false"></div>
-      <div class="relative bg-white p-8 rounded-3xl shadow-2xl text-center max-w-sm w-full animate-fadeup border border-white">
-        <h3 class="font-bold text-slate-800 mb-6 flex items-center justify-center gap-2">
-           <SIGAPIcons name="Link" :size="20" class="text-emerald-500" /> Bagikan Akses
-        </h3>
-        <div class="bg-slate-50 p-4 rounded-2xl inline-block mb-6 shadow-inner border border-slate-100">
-           <canvas ref="qrCanvas" class="mx-auto rounded-lg"></canvas>
-        </div>
-        <p class="text-[10px] text-slate-400 mb-6 font-mono break-all">{{ qrTargetUrl }}</p>
-        <div class="flex gap-3">
-           <button @click="downloadQr" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-emerald-200 transition-all">Unduh QR</button>
-           <button @click="isQrModalOpen = false" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl font-bold text-xs transition-all">Tutup</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Floating QR Trigger (Only on Event Routes) -->
-    <button v-if="route.name === 'admin-event-editor'" 
-      @click="generateQR"
-      class="fixed bottom-8 right-8 w-14 h-14 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-xl hover:shadow-emerald-200 hover:-translate-y-1 transition-all z-40">
-      <SIGAPIcons name="Link" :size="24" />
+    <!-- 🚀 FLOATING FEEDBACK BUTTON (Visible for non-admin global managers) -->
+    <button v-if="user.role !== 'ADMIN'" 
+       @mousedown="startDrag"
+       @touchstart="startDrag"
+       @click="handleFeedbackClick"
+       :style="{ transform: `translate(${dragPosition.x}px, ${dragPosition.y}px)`, cursor: isDragging ? 'grabbing' : 'grab' }"
+       class="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-2xl shadow-blue-500/40 flex items-center justify-center transition-transform duration-75 z-[90] group select-none">
+       <SIGAPIcons name="MessageSquare" :size="28" class="group-hover:rotate-12 transition-transform" />
     </button>
+
+    <!-- 💬 FEEDBACK MODAL -->
+    <Teleport to="body">
+       <div v-if="isFeedbackModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isFeedbackModalOpen = false"></div>
+          <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-fadeup border border-slate-100">
+             <div class="p-8 border-b border-slate-50 flex justify-between items-center bg-[#f4f8ff]/50">
+                <div>
+                   <h3 class="font-black text-slate-800 text-xl tracking-tighter uppercase">Kirim Saran</h3>
+                   <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Sampaikan masukan anda kepada administrator</p>
+                </div>
+                <button @click="isFeedbackModalOpen = false" class="p-2 text-slate-300 hover:text-slate-500 transition-all">
+                   <SIGAPIcons name="X" :size="24" />
+                </button>
+             </div>
+
+             <div class="p-8 space-y-6">
+                <div class="space-y-3">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pesan / Masukan</label>
+                   <textarea v-model="feedbackForm.comment" rows="5" placeholder="Tuliskan saran, keluhan, atau ide fitur baru..." 
+                             class="w-full bg-[#f4f8ff] border-2 border-transparent focus:border-blue-300 focus:bg-white rounded-2xl p-5 text-sm font-bold outline-none transition-all resize-none"></textarea>
+                </div>
+
+                <div class="space-y-3">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lampiran Gambar (Opsional)</label>
+                   
+                   <div v-if="feedbackForm.previewUrl" class="relative w-full aspect-video bg-blue-50 rounded-2xl overflow-hidden border-2 border-blue-100 group shadow-md">
+                      <img :src="feedbackForm.previewUrl" class="w-full h-full object-cover" />
+                      <button @click="feedbackForm.file = null; feedbackForm.previewUrl = ''" class="absolute top-3 right-3 bg-red-500 text-white p-2 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all active:scale-95">
+                         <SIGAPIcons name="Trash2" :size="16" />
+                      </button>
+                   </div>
+                   
+                   <div v-else class="relative h-24 w-full border-2 border-dashed border-slate-200 rounded-2xl hover:border-blue-400 transition-all group overflow-hidden bg-slate-50 flex items-center justify-center">
+                      <input type="file" @change="handleFeedbackFile" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                      <div class="flex flex-col items-center gap-1 text-slate-400 group-hover:text-blue-500">
+                         <SIGAPIcons name="Image" :size="24" />
+                         <span class="text-[9px] font-black uppercase tracking-widest">Pilih Gambar</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div class="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2 border-white shadow-sm">
+                   <div>
+                      <p class="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Kirim sebagai Anonim</p>
+                      <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Sembunyikan nama anda</p>
+                   </div>
+                   <button @click="feedbackForm.is_anonymous = !feedbackForm.is_anonymous"
+                      :class="feedbackForm.is_anonymous ? 'bg-blue-600' : 'bg-slate-300'"
+                      class="w-12 h-6 rounded-full relative transition-all duration-300 shadow-inner">
+                      <div :class="feedbackForm.is_anonymous ? 'translate-x-6' : 'translate-x-1'" 
+                           class="absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-lg"></div>
+                   </button>
+                </div>
+
+                <button @click="submitFeedback" :disabled="!feedbackForm.comment.trim() || isSubmittingFeedback" 
+                        class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-bold text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-3">
+                   <span v-if="!isSubmittingFeedback">Kirim Sekarang</span>
+                   <span v-else class="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
+                </button>
+             </div>
+          </div>
+       </div>
+    </Teleport>
   </div>
 </template>
 

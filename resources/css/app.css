@@ -1,20 +1,66 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
 
 @theme {
-    --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 @layer base {
-    input::placeholder,
-    textarea::placeholder {
-        font-weight: 300 !important;
-        opacity: 0.6;
-    }
+  body {
+    @apply font-sans antialiased bg-slate-50 text-slate-800;
+  }
+}
+
+@layer components {
+  /* Premium Soft Labels - Increased Contrast */
+  .label-soft {
+    @apply text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-1 mb-2 block leading-none opacity-80;
+  }
+
+  /* Premium Soft Inputs - Increased Contrast */
+  .input-soft {
+    @apply w-full bg-slate-100/60 border-2 border-slate-100/10 rounded-2xl p-4 text-sm font-bold outline-none transition-all focus:bg-white focus:border-blue-500 focus:shadow-2xl focus:shadow-blue-100 placeholder:text-slate-400 text-slate-700;
+  }
+
+  /* Select specific styling - Modern Native */
+  select.input-soft {
+    @apply pr-10 cursor-pointer appearance-none bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+    background-size: 1.2rem;
+    background-position: right 1rem center;
+  }
+
+  /* Textarea specific styling */
+  textarea.input-soft {
+    @apply leading-relaxed;
+  }
+
+  /* Custom Scrollbar for Modals */
+  .scrollbar-soft::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .scrollbar-soft::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+  }
+}
+
+@layer utilities {
+  .animate-pop {
+    animation: pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .animate-fadeup {
+    animation: fadeup 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes fadeup {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }

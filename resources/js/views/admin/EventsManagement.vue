@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, inject } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
 
-const setActiveSlug = inject('setActiveSlug') as (slug: string) => void
 const router = useRouter()
 const events = ref<any[]>([])
 const isLoading = ref(true)
@@ -61,7 +60,10 @@ const submitNewEvent = async () => {
   try {
     const res = await api.post('/admin/events', { title: newEventTitle.value })
     router.push(`/admin/events/edit/${res.data.id}`)
-  } catch (err: any) { alert(err.response?.data?.error || 'Gagal membuat event') }
+  } catch (err: any) { 
+    const msg = err.response?.data?.details || err.response?.data?.error || 'Gagal membuat event'
+    alert(msg) 
+  }
   finally { isCreating.value = false; showCreateModal.value = false }
 }
 
@@ -73,7 +75,6 @@ const deleteEvent = async (id: number) => {
 
 onMounted(() => {
   fetchEvents()
-  setActiveSlug('')
 })
 </script>
 
@@ -85,7 +86,7 @@ onMounted(() => {
         <h1 class="text-3xl font-black text-slate-800 tracking-tight">Sigap Event Links</h1>
         <p class="text-sm text-slate-500 font-medium">Kelola halaman landing page (Taplink style) untuk event Anda.</p>
       </div>
-      <button @click="openCreateModal" class="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest">
+      <button @click="openCreateModal" class="w-full sm:w-auto px-6 py-3 bg-[#4f86e8] hover:bg-[#3b75d4] text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest">
         <SIGAPIcons name="Plus" :size="18" /> 
         <span>Buat Event Baru</span>
       </button>
@@ -98,27 +99,27 @@ onMounted(() => {
          { id: 'inactive', label: 'Tidak Aktif', color: 'rose' },
          { id: 'archive', label: 'Arsip', color: 'slate' }
        ]" :key="tab.id" @click="activeTab = tab.id"
-       :class="activeTab === tab.id ? `bg-slate-800 text-white` : `bg-white text-slate-500 hover:bg-slate-50 border border-slate-100`"
+       :class="activeTab === tab.id ? `bg-slate-800 text-white` : `bg-white text-slate-500 hover:bg-[#f4f8ff] border border-slate-100`"
        class="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm">
          {{ tab.label }}
        </button>
     </div>
 
     <!-- Toolbar -->
-    <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col lg:flex-row gap-4">
+    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col lg:flex-row gap-4">
       <div class="relative flex-1">
         <SIGAPIcons name="Search" :size="18" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input v-model="searchQuery" type="text" placeholder="Cari event berdasarkan judul atau slug..." class="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+        <input v-model="searchQuery" type="text" placeholder="Cari event berdasarkan judul atau slug..." class="w-full bg-[#f4f8ff] border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:border-blue-300 transition-all" />
       </div>
       <div class="flex gap-2">
-         <select v-model="pageSize" class="bg-slate-50 border-none rounded-2xl px-4 py-3 text-xs font-bold text-slate-500 outline-none">
+         <select v-model="pageSize" class="bg-[#f4f8ff] border-none rounded-2xl px-4 py-3 text-xs font-bold text-slate-500 outline-none">
            <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Per Hal</option>
          </select>
       </div>
     </div>
 
     <!-- Content Table -->
-    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -132,12 +133,12 @@ onMounted(() => {
           </thead>
           <tbody class="divide-y divide-slate-50">
             <tr v-if="isLoading" v-for="i in 3" :key="i" class="animate-pulse">
-               <td colspan="5" class="px-6 py-8"><div class="h-4 bg-slate-50 rounded-full w-full"></div></td>
+               <td colspan="5" class="px-6 py-8"><div class="h-4 bg-[#f4f8ff] rounded-full w-full"></div></td>
             </tr>
-            <tr v-else v-for="event in paginatedEvents" :key="event.id" class="group hover:bg-slate-50/50 transition-all">
+            <tr v-else v-for="event in paginatedEvents" :key="event.id" class="group hover:bg-[#f4f8ff]/50 transition-all">
               <td class="px-6 py-5">
                 <div class="flex items-center gap-4">
-                  <div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all font-black text-xs">
+                  <div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center group-hover:bg-[#4f86e8] group-hover:text-white transition-all font-black text-xs">
                     EV
                   </div>
                   <div>
@@ -149,7 +150,7 @@ onMounted(() => {
               <td class="px-6 py-5 text-center">
                  <span :class="{
                    'bg-emerald-50 text-emerald-600 border-emerald-100': event.status === 'AKTIF',
-                   'bg-slate-50 text-slate-400 border-slate-100': event.status !== 'AKTIF',
+                   'bg-[#f4f8ff] text-slate-400 border-slate-100': event.status !== 'AKTIF',
                  }" class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter border">
                    {{ event.status }}
                  </span>
@@ -164,14 +165,14 @@ onMounted(() => {
                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ new Date(event.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
               </td>
               <td class="px-6 py-5 text-right">
-                <div class="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <a :href="'/e/' + event.slug" target="_blank" class="p-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition-all">
+                <div class="flex justify-end gap-2 border-l border-slate-100 pl-4">
+                   <a :href="'/e/' + event.slug" target="_blank" class="p-2.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100/50">
                       <SIGAPIcons name="ExternalLink" :size="16" />
                    </a>
-                   <button @click="router.push('/admin/events/edit/' + event.id)" class="p-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-amber-500 hover:text-white transition-all">
+                   <button @click="router.push('/admin/events/edit/' + event.id)" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-all shadow-sm border border-amber-100/50">
                       <SIGAPIcons name="Settings" :size="16" />
                    </button>
-                   <button @click="deleteEvent(event.id)" class="p-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-500 hover:text-white transition-all">
+                   <button @click="deleteEvent(event.id)" class="p-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100/50">
                       <SIGAPIcons name="Trash2" :size="16" />
                    </button>
                 </div>
@@ -192,19 +193,22 @@ onMounted(() => {
     <Teleport to="body">
        <div v-if="showCreateModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showCreateModal = false"></div>
-          <div class="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-fadeup p-8 text-center">
-             <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fadeup p-8 text-center">
+             <div class="w-16 h-16 bg-blue-50 text-[#4f86e8] rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <SIGAPIcons name="Plus" :size="32" />
              </div>
              <h3 class="font-black text-slate-800 text-xl tracking-tight mb-2">Buat Event Baru</h3>
              <p class="text-xs text-slate-400 font-medium mb-8 uppercase tracking-widest leading-relaxed">Berikan judul untuk landing page portofolio baru Anda.</p>
              
-             <div class="space-y-6">
-                <input v-model="newEventTitle" type="text" required placeholder="Contoh: Pameran Teknologi 2026" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-center text-sm font-bold border-2 border-transparent focus:border-blue-500 transition-all outline-none" @keyup.enter="submitNewEvent" />
+             <div class="space-y-8">
+                <div>
+                   <label class="label-soft text-center mb-3">Judul Event / Halaman</label>
+                   <input v-model="newEventTitle" type="text" required placeholder="Pameran Teknologi 2026" class="input-soft text-center !p-6 !text-lg" @keyup.enter="submitNewEvent" />
+                </div>
 
-                <div class="flex gap-3">
+                <div class="flex gap-4">
                    <button type="button" @click="showCreateModal = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Batal</button>
-                   <button @click="submitNewEvent" :disabled="isCreating || !newEventTitle" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                   <button @click="submitNewEvent" :disabled="isCreating || !newEventTitle" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95">
                       <span v-if="!isCreating">Buat Sekarang</span>
                       <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                    </button>

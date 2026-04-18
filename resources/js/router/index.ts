@@ -22,7 +22,6 @@ const SettingsView = () => import('../views/admin/SettingsView.vue')
 // TAMBAHAN BARU (Supaya tidak error "No match found")
 const UsersIndex = () => import('../views/admin/UsersIndex.vue')
 const AdminProfileView = () => import('../views/admin/ProfileView.vue')
-const AuditLogsView = () => import('../views/admin/AuditLogsView.vue')
 const FeedbackView = () => import('../views/admin/FeedbackView.vue')
 
 const router = createRouter({
@@ -109,16 +108,16 @@ const router = createRouter({
           meta: { title: 'Pengaturan Sistem' }
         },
         {
-          path: 'audit-logs',
-          name: 'admin-audit-logs',
-          component: AuditLogsView,
-          meta: { title: 'Audit Logs' }
-        },
-        {
           path: 'feedback',
           name: 'admin-feedback',
           component: FeedbackView,
           meta: { title: 'Kotak Saran' }
+        },
+        {
+          path: 'notifications',
+          name: 'admin-notifications',
+          component: () => import('../views/admin/NotificationsView.vue'),
+          meta: { title: 'Riwayat Notifikasi' }
         }
       ]
     },

@@ -116,28 +116,28 @@ const downloadTemplate = async () => {
 <template>
   <div class="space-y-8 animate-fadeup pb-20">
     <!-- Header Section -->
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
       <div>
-        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Manajemen pengguna</h1>
-        <p class="text-sm text-slate-500 font-medium">Kelola akses dan hak prerogatif seluruh staf instansi anda</p>
+        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Manajemen Pengguna</h1>
+        <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-1">Kelola akses dan hak prerogatif seluruh staf instansi.</p>
       </div>
       
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-        <div class="flex gap-2 w-full sm:w-auto">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+        <div class="flex gap-2.5 w-full sm:w-auto">
           <input type="file" ref="fileInput" @change="handleImport" accept=".csv, .xlsx" style="display: none;" />
-          <button @click="triggerImport" :disabled="isImporting" class="flex-1 sm:flex-none px-5 py-3 flex items-center justify-center gap-2 rounded-2xl text-xs font-bold transition-all shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 uppercase tracking-widest">
+          <button @click="triggerImport" :disabled="isImporting" class="flex-1 sm:flex-none px-6 py-4 flex items-center justify-center gap-3 rounded-2xl text-[10px] font-black transition-all shadow-xl shadow-slate-200/50 bg-white border-2 border-slate-50 text-indigo-600 hover:bg-slate-50 hover:border-blue-100 uppercase tracking-widest active:scale-95">
             <SIGAPIcons v-if="!isImporting" name="Upload" :size="18" />
             <span v-else class="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></span>
             <span>Impor</span>
           </button>
           
-          <button @click="downloadTemplate" class="flex-1 sm:flex-none px-5 py-3 flex items-center justify-center gap-2 rounded-2xl text-xs font-bold transition-all shadow-sm bg-emerald-50 text-emerald-700 hover:bg-emerald-100 uppercase tracking-widest">
+          <button @click="downloadTemplate" class="flex-1 sm:flex-none px-6 py-4 flex items-center justify-center gap-3 rounded-2xl text-[10px] font-black transition-all shadow-xl shadow-slate-200/50 bg-white border-2 border-slate-50 text-emerald-600 hover:bg-slate-50 hover:border-emerald-100 uppercase tracking-widest active:scale-95">
             <SIGAPIcons name="Download" :size="18" />
             <span>Template</span>
           </button>
         </div>
 
-        <button @click="openAddModal" class="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest">
+        <button @click="openAddModal" class="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-3">
           <SIGAPIcons name="Plus" :size="18" /> 
           <span>Tambah User</span>
         </button>
@@ -145,7 +145,7 @@ const downloadTemplate = async () => {
     </div>
 
     <!-- Import Results Report -->
-    <div v-if="importResult" class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-fadeup">
+    <div v-if="importResult" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm animate-fadeup">
       <div class="flex items-center justify-between mb-6">
         <h4 class="font-black text-slate-800 text-sm uppercase tracking-tighter">Hasil Impor Terakhir</h4>
         <button @click="importResult = null" class="text-[10px] font-black text-slate-400 hover:text-slate-600">TUTUP ✕</button>
@@ -172,57 +172,60 @@ const downloadTemplate = async () => {
     </div>
 
     <!-- User Table Container -->
-    <div class="bg-blue-50/40 rounded-3xl border border-blue-100 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 overflow-hidden relative z-10">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="text-slate-400 font-bold text-[10px] border-b border-blue-50">
-              <th class="px-6 py-5 font-bold">Identitas user</th>
-              <th class="px-6 py-5 font-bold">Role / akses</th>
-              <th class="px-6 py-5 font-bold">Unit kerja / kategori</th>
-              <th class="px-6 py-5 font-bold">Tgl bergabung</th>
-              <th class="px-6 py-5 text-right font-bold">Aksi</th>
+            <tr class="bg-slate-50/80 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-100">
+              <th class="px-8 py-6 font-black">Identitas user</th>
+              <th class="px-6 py-6 font-black">Role / akses</th>
+              <th class="px-6 py-6 font-black">Unit kerja / kategori</th>
+              <th class="px-6 py-6 font-black">Tgl bergabung</th>
+              <th class="px-8 py-6 text-right font-black">Aksi</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-50">
+          <tbody class="divide-y divide-slate-100">
             <tr v-if="isLoading" v-for="i in 3" :key="i" class="animate-pulse">
-               <td colspan="5" class="px-6 py-8"><div class="h-4 bg-slate-50 rounded-full w-full"></div></td>
+               <td colspan="5" class="px-8 py-8"><div class="h-4 bg-slate-50 rounded-full w-full"></div></td>
             </tr>
-            <tr v-else v-for="user in paginatedUsers" :key="user.id" class="group hover:bg-slate-50/50 transition-all">
-              <td class="px-6 py-5">
-                <div class="flex items-center gap-4">
-                  <div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all">
+            <tr v-else v-for="user in paginatedUsers" :key="user.id" class="group hover:bg-blue-50/40 transition-all duration-300">
+              <td class="px-8 py-6">
+                <div class="flex items-center gap-5">
+                  <div class="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center font-black text-sm group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-6 group-hover:scale-110 border-2 border-white shadow-sm transition-all duration-500">
                     {{ user.username.charAt(0).toUpperCase() }}
                   </div>
-                  <span class="font-bold text-slate-700 text-sm">{{ user.username }}</span>
+                  <span class="font-black text-slate-800 text-sm group-hover:text-blue-600 transition-colors">{{ user.username }}</span>
                 </div>
               </td>
               <td class="px-6 py-5">
-                <span :class="user.role === 'ADMIN' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'" class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm border border-black/5">
+                <span :class="user.role === 'ADMIN' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-500 border-slate-200'" 
+                      class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border-2 border-white">
                    {{ user.role === 'ADMIN' ? 'Administrator' : (user.role === 'ADMIN_EVENT' ? 'Admin Event' : 'Pegawai') }}
                 </span>
               </td>
               <td class="px-6 py-5">
-                 <span class="text-xs font-bold text-slate-500">{{ user.category?.name || '-' }}</span>
+                 <span class="text-[11px] font-black text-slate-500 uppercase tracking-tighter bg-slate-50 px-3 py-1 rounded-lg border border-white shadow-sm">{{ user.category?.name || '-' }}</span>
               </td>
               <td class="px-6 py-5">
-                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ new Date(user.created_at || user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
+                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] opacity-70">{{ new Date(user.created_at || user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
               </td>
-              <td class="px-6 py-5 text-right">
-                <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button @click="openEditModal(user)" class="p-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-amber-500 hover:text-white transition-all">
+              <td class="px-8 py-6 text-right">
+                <div class="flex justify-end gap-2 border-l border-slate-100 pl-4">
+                   <button @click="openEditModal(user)" class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white transition-all shadow-sm border border-amber-100 flex items-center justify-center">
                       <SIGAPIcons name="Edit2" :size="16" />
                    </button>
-                   <button @click="deleteUser(user.id)" class="p-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-red-500 hover:text-white transition-all">
+                   <button @click="deleteUser(user.id)" class="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 flex items-center justify-center">
                       <SIGAPIcons name="Trash2" :size="16" />
                    </button>
                 </div>
               </td>
             </tr>
             <tr v-if="!isLoading && users.length === 0">
-               <td colspan="5" class="px-6 py-20 text-center">
-                  <SIGAPIcons name="Inbox" :size="48" class="mx-auto text-slate-200 mb-4" />
-                  <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum ada data user</p>
+               <td colspan="5" class="px-8 py-24 text-center">
+                  <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                    <SIGAPIcons name="Inbox" :size="48" class="text-slate-200" />
+                  </div>
+                  <p class="text-[11px] font-black text-slate-300 uppercase tracking-[0.3em]">Belum ada data user</p>
                </td>
             </tr>
           </tbody>
@@ -230,18 +233,18 @@ const downloadTemplate = async () => {
       </div>
       
       <!-- Table Footer / Pagination -->
-      <div class="p-4 bg-slate-50/30 border-t border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
-         <div class="flex items-center gap-3">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tampilkan</span>
-            <select v-model="pageSize" class="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-black outline-none">
-               <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
+      <div class="px-8 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
+         <div class="flex items-center gap-4">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Baris:</span>
+            <select v-model="pageSize" class="bg-white border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black outline-none shadow-sm cursor-pointer">
+               <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }}</option>
             </select>
          </div>
-         <div class="flex items-center gap-6">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hal {{ currentPage }} dari {{ totalPages }}</span>
-            <div class="flex gap-1.5">
-               <button @click="currentPage--" :disabled="currentPage === 1" class="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-xs font-black disabled:opacity-30 hover:bg-slate-50 transition-all">&lsaquo;</button>
-               <button @click="currentPage++" :disabled="currentPage >= totalPages" class="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-xs font-black disabled:opacity-30 hover:bg-slate-50 transition-all">&rsaquo;</button>
+         <div class="flex items-center gap-4">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hal {{ currentPage }} / {{ totalPages }}</span>
+            <div class="flex gap-2">
+               <button @click="currentPage--" :disabled="currentPage === 1" class="w-11 h-11 flex items-center justify-center bg-white border-2 border-slate-100 rounded-xl text-xs font-black disabled:opacity-30 hover:border-blue-200 transition-all shadow-lg shadow-slate-200/50 active:scale-90">&lsaquo;</button>
+               <button @click="currentPage++" :disabled="currentPage >= totalPages" class="w-11 h-11 flex items-center justify-center bg-white border-2 border-slate-100 rounded-xl text-xs font-black disabled:opacity-30 hover:border-blue-200 transition-all shadow-lg shadow-slate-200/50 active:scale-90">&rsaquo;</button>
             </div>
          </div>
       </div>
@@ -251,8 +254,8 @@ const downloadTemplate = async () => {
     <Teleport to="body">
        <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showModal = false"></div>
-          <div class="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-fadeup">
-             <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+          <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fadeup">
+             <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-[#f4f8ff]/50">
                 <h3 class="font-black text-slate-800 text-sm uppercase tracking-tighter">{{ isEditing ? 'Edit Akun Pengguna' : 'Buat Akun Baru' }}</h3>
                 <button @click="showModal = false" class="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all">
                    <SIGAPIcons name="X" :size="20" />
@@ -262,35 +265,37 @@ const downloadTemplate = async () => {
              <form @submit.prevent="handleSaveUser" class="p-6 space-y-5">
                 <div class="space-y-1.5">
                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Username</label>
-                   <input v-model="form.username" type="text" required placeholder="pake_underscore" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 transition-all outline-none" />
+                   <input v-model="form.username" type="text" required placeholder="pake_underscore" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
                 </div>
 
                 <div class="space-y-1.5">
                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Password</label>
-                   <input v-model="form.password" type="password" :required="!isEditing" placeholder="••••••••" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 transition-all outline-none" />
+                   <input v-model="form.password" type="password" :required="!isEditing" placeholder="••••••••" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
                    <p v-if="isEditing" class="text-[9px] text-slate-400 font-bold">* Kosongkan jika tidak ingin diubah</p>
                 </div>
 
                 <div class="space-y-1.5">
-                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Kategori (Unit Kerja)</label>
-                   <select v-model="form.category_id" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold outline-none">
+                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Hak Akses / Role</label>
+                   <select v-model="form.role" required class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold outline-none">
+                      <option value="EMPLOYEE">Pegawai (Default)</option>
+                      <option value="ADMIN_EVENT">Admin Event / Portofolio</option>
+                   </select>
+                </div>
+
+                <div class="space-y-1.5" :class="{ 'opacity-50': form.role === 'ADMIN_EVENT' }">
+                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                      <span>Kategori (Unit Kerja)</span>
+                      <span v-if="form.role === 'ADMIN_EVENT'" class="text-[9px] text-blue-500 normal-case font-bold tracking-normal italic">Terkunci untuk Admin Event</span>
+                   </label>
+                   <select v-model="form.category_id" :required="form.role !== 'ADMIN_EVENT'" :disabled="form.role === 'ADMIN_EVENT'" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold outline-none disabled:cursor-not-allowed">
                       <option value="" disabled>-- Pilih Unit Kerja --</option>
                       <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                    </select>
                 </div>
 
-                <div class="space-y-1.5">
-                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Hak Akses / Role</label>
-                   <select v-model="form.role" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold outline-none">
-                      <option value="EMPLOYEE">Pegawai (Default)</option>
-                      <option value="ADMIN_EVENT">Admin Event / Portofolio</option>
-                      <option value="ADMIN">Administrator Pusat</option>
-                   </select>
-                </div>
-
                 <div class="flex gap-3 pt-4">
                    <button type="button" @click="showModal = false" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Batal</button>
-                   <button type="submit" :disabled="isSubmitting" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                   <button type="submit" :disabled="isSubmitting" class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
                       <span v-if="!isSubmitting">Simpan User</span>
                       <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                    </button>

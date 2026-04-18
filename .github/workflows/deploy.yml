@@ -7,11 +7,13 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
-  build-and-test:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for change detection
 
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
@@ -23,23 +25,28 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
 
     - name: Install Composer Dependencies
-      run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+      run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader
 
-    - name: Install NPM Dependencies & Build
+    - name: Install NPM Dependencies & Build Assets
       run: |
-        npm install
+        npm ci
         npm run build
 
-    - name: Directory Permissions
-      run: chmod -R 777 storage bootstrap/cache
+    - name: Set Directory Permissions
+      run: chmod -R 755 storage bootstrap/cache
 
-    - name: Run PHP Checks
+    - name: Run PHP Syntax Check
       run: php -l app/Models/*.php app/Http/Controllers/*.php
 
-    # --- 🚀 DEPLOYMENT TEMPLATE (Uncomment and configure secrets to use) ---
-    - name: Deploy to Shared Hosting via FTP
+    # ─────────────────────────────────────────────────────────────────────
+    # DEPLOYMENT: Only uploads files that have changed since last deploy.
+    # Server-specific configs (.env, .htaccess, storage/) are EXCLUDED
+    # to prevent overwriting production configurations.
+    # ─────────────────────────────────────────────────────────────────────
+    - name: Deploy Changed Files to Server via FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
@@ -47,8 +54,21 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./
         server-dir: /
+        # Hanya upload file yang berubah (FTP-Deploy sudah tracking otomatis
+        # via .ftp-deploy-sync-state.json yang disimpan di server)
         exclude: |
-          **/.git*
+          **/.git/**
+          **/.github/**
           **/node_modules/**
           **/.env
+          **/.env.*
           **/sigap_backup_full_node/**
+          **/backups/**
+          **/storage/app/public/**
+          **/storage/logs/**
+          **/storage/framework/cache/**
+          **/storage/framework/sessions/**
+          **/storage/framework/views/**
+          **/bootstrap/cache/**
+          **/tests/**
+          **/.htaccess

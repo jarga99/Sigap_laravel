@@ -30,6 +30,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::delete('/admin/users/{id}', [ApiGatewayController::class, 'usersDestroy']);
 
     // Categories Management (Admin Only)
+    Route::get('/admin/categories', [ApiGatewayController::class, 'categories']);
     Route::post('/admin/categories', [ApiGatewayController::class, 'categoriesStore']);
     Route::put('/admin/categories/{id}', [ApiGatewayController::class, 'categoriesUpdate']);
     Route::delete('/admin/categories/{id}', [ApiGatewayController::class, 'categoriesDestroy']);
@@ -43,10 +44,10 @@ Route::middleware('jwt.auth')->group(function () {
 
     // System Settings & Dashboard
     Route::get('/admin/settings', [ApiGatewayController::class, 'getSettings']);
-    Route::put('/admin/settings', [ApiGatewayController::class, 'updateSettings']);
+    Route::post('/admin/settings', [ApiGatewayController::class, 'updateSettings']);
     Route::post('/admin/upload', [ApiGatewayController::class, 'uploadMedia']);
     Route::get('/admin/dashboard', [ApiGatewayController::class, 'dashboardStats']);
-    Route::get('/admin/audit-logs', [ApiGatewayController::class, 'auditLogs']);
+    Route::post('/admin/audit-logs/export', [ApiGatewayController::class, 'exportAuditLogs']);
 
     // Feedback Management
     Route::get('/admin/feedback', [ApiGatewayController::class, 'feedbackIndex']);
@@ -57,6 +58,7 @@ Route::middleware('jwt.auth')->group(function () {
     // Notifications
     Route::get('/notifications', [ApiGatewayController::class, 'notifications']);
     Route::post('/notifications/read', [ApiGatewayController::class, 'notificationsRead']);
+    Route::put('/notifications/{id}/read', [ApiGatewayController::class, 'notificationMarkRead']);
 
     // Footer Links Management
     Route::get('/admin/footer-links', [ApiGatewayController::class, 'footerLinksIndex']);
@@ -67,6 +69,7 @@ Route::middleware('jwt.auth')->group(function () {
     // System Utilities
     Route::get('/admin/system/backup', [ApiGatewayController::class, 'systemBackup']);
     Route::post('/admin/system/reset', [ApiGatewayController::class, 'systemReset']);
+    Route::get('/admin/system/logs-raw', [ApiGatewayController::class, 'systemLogsDownload']);
 
     // AI Features
     Route::post('/settings/ai/generate-tagline', [ApiGatewayController::class, 'generateAiTagline']);

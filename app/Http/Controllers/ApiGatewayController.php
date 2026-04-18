@@ -69,6 +69,7 @@ class ApiGatewayController extends Controller
         $token = $this->jwtService->generateToken([
             'sub' => $user->id,
             'role' => $user->role,
+            'category_id' => $user->category_id,
             'sid' => $newSessionId
         ], 86400); // 24 Jam
 
@@ -182,6 +183,7 @@ class ApiGatewayController extends Controller
         }
 
         $user->update($data);
+        $this->logAction('UPDATE_PROFILE', 'User', $user->id, "Updated profile for user: {$user->username}");
         return response()->json(['status' => 'success', 'user' => $user->load('category')]);
     }
 
@@ -190,7 +192,10 @@ class ApiGatewayController extends Controller
     public function usersIndex(Request $request)
     {
         $limit = $request->input('limit', 10);
-        $users = User::with('category')->orderBy('username')->paginate($limit);
+        $users = User::with('category')
+            ->where('role', '!=', 'SUPER_ADMIN')
+            ->orderBy('username')
+            ->paginate($limit);
         return response()->json([
             'data' => $users->items(),
             'meta' => [
@@ -203,8 +208,12 @@ class ApiGatewayController extends Controller
     public function usersStore(Request $request)
     {
         $data = $request->all();
+        if (isset($data['role']) && $data['role'] === 'SUPER_ADMIN') {
+            return response()->json(['error' => 'Akses ditolak. Tidak dapat membuat Super Admin.'], 403);
+        }
         $data['password'] = Hash::make($data['password'] ?? 'sigap123');
         $user = User::create($data);
+        $this->logAction('CREATE_USER', 'User', $user->id, "Created user: {$user->username} (Role: {$user->role})");
         return response()->json($user);
     }
 
@@ -221,12 +230,14 @@ class ApiGatewayController extends Controller
         }
 
         $user->update($data);
+        $this->logAction('UPDATE_USER', 'User', $user->id, "Updated user: {$user->username}");
         return response()->json($user);
     }
 
     public function usersDestroy($id)
     {
         User::destroy($id);
+        $this->logAction('DELETE_USER', 'User', $id, "Deleted user ID: {$id}");
         return response()->json(['success' => true]);
     }
 
@@ -237,6 +248,8 @@ class ApiGatewayController extends Controller
         $user = $this->currentUser();
         $query = Category::withCount(['links' => function($q) {
             $q->where('is_active', true);
+        }, 'users'])->with(['users' => function($q) {
+            $q->select('id', 'username', 'image_url', 'category_id')->limit(3);
         }])->orderBy('name');
 
         // RBAC: Employees only see their own category
@@ -253,6 +266,7 @@ class ApiGatewayController extends Controller
         if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
 
         $category = Category::create($request->all());
+        $this->logAction('CREATE_CATEGORY', 'Category', $category->id, "Created category: {$category->name}");
         return response()->json($category);
     }
 
@@ -265,7 +279,27 @@ class ApiGatewayController extends Controller
         if (!$category) return response()->json(['error' => 'Not Found'], 404);
 
         $category->update($request->all());
+        $this->logAction('UPDATE_CATEGORY', 'Category', $category->id, "Updated category: {$category->name}");
         return response()->json($category);
+    }
+
+    public function categoriesDestroy($id)
+    {
+        $user = $this->currentUser();
+        if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
+
+        $category = Category::find($id);
+        if (!$category) return response()->json(['error' => 'Not Found'], 404);
+
+        if ($category->links()->exists() || $category->users()->exists()) {
+            return response()->json([
+                'error' => 'Tidak bisa dihapus karena masih ada Tautan atau Pengguna yang terhubung dengan kategori ini.'
+            ], 400);
+        }
+
+        $category->delete();
+        $this->logAction('DELETE_CATEGORY', 'Category', $id, "Deleted category ID: {$id}");
+        return response()->json(['success' => true]);
     }
 
     // --- 📅 EVENTS (ADMIN) ---
@@ -300,21 +334,36 @@ class ApiGatewayController extends Controller
         $user = $this->currentUser();
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
         
-        $data = $request->all();
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:events,slug',
+            'description' => 'nullable|string'
+        ]);
+
         $data['userId'] = $user->id;
         $data['slug'] = $data['slug'] ?? Str::slug($data['title']) . '-' . rand(1000, 9999);
+        
+        // Default values for new event
+        $data['status'] = 'TIDAK_AKTIF';
+        $data['bgType'] = 'color';
+        $data['bgValue'] = '#0f172a';
 
-        $event = Event::create($data);
+        try {
+            $event = Event::create(collect($data)->except(['items'])->all());
 
-        if (isset($data['items'])) {
-            foreach ($data['items'] as $item) {
-                $event->items()->create($item);
+            if ($request->has('items')) {
+                foreach ($request->items as $item) {
+                     // Ensure eventId is set
+                    $item['eventId'] = $event->id;
+                    $event->items()->create($item);
+                }
             }
+
+            $this->logAction('CREATE_EVENT', 'Event', $event->id, "Created event: {$event->title}");
+            return response()->json($event->load('items'));
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Gagal membuat event', 'details' => $e->getMessage()], 500);
         }
-
-        $this->logAction('CREATE_EVENT', 'Event', $event->id, "Created event: {$event->title}");
-
-        return response()->json($event->load('items'));
     }
 
     public function eventsUpdate(Request $request, $id)
@@ -323,21 +372,30 @@ class ApiGatewayController extends Controller
         if (!$event) return response()->json(['error' => 'Not Found'], 404);
 
         $data = $request->all();
-        $event->update($data);
 
-        // Sync Items (Delete and Re-create for simplicity on shared hosting)
-        if (isset($data['items'])) {
-            $event->items()->delete();
-            foreach ($data['items'] as $itemData) {
-                // Ensure id is not passed to create
-                unset($itemData['id']);
-                $event->items()->create($itemData);
+        try {
+            $event->update(collect($data)->except(['items', 'createdAt', 'updatedAt', 'userId'])->all());
+
+            // Sync Items (Delete and Re-create for simplicity on shared hosting)
+            if (isset($data['items'])) {
+                $event->items()->delete();
+                foreach ($data['items'] as $itemData) {
+                    // Filter unnecessary fields before creation to avoid DB errors
+                    $cleanData = collect($itemData)->only([
+                        'label', 'url', 'type', 'color', 'textColor', 
+                        'iconColor', 'icon', 'order', 'layout', 'showLabel', 'isActive',
+                        'dividerStyle', 'dividerCap', 'dividerWidth', 'dividerText', 'dividerThickness'
+                    ])->all();
+                    
+                    $event->items()->create($cleanData);
+                }
             }
+
+            $this->logAction('UPDATE_EVENT', 'Event', $event->id, "Updated event: {$event->title}");
+            return response()->json($event->load('items'));
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Gagal memperbarui event', 'details' => $e->getMessage()], 500);
         }
-
-        $this->logAction('UPDATE_EVENT', 'Event', $event->id, "Updated event: {$event->title}");
-
-        return response()->json($event->load('items'));
     }
 
     public function eventsDestroy($id)
@@ -360,7 +418,7 @@ class ApiGatewayController extends Controller
         $user = $this->currentUser();
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
         
-        $query = Link::with('category');
+        $query = Link::with(['category', 'user']);
         if ($user->role === 'EMPLOYEE' && $user->category_id) {
             $query->where('category_id', $user->category_id);
         }
@@ -379,6 +437,7 @@ class ApiGatewayController extends Controller
         }
 
         $link = Link::create($data);
+        $this->logAction('CREATE_LINK', 'Link', $link->id, "Created link: {$link->title} ({$link->slug})");
         return response()->json($link);
     }
 
@@ -388,6 +447,7 @@ class ApiGatewayController extends Controller
         if (!$link) return response()->json(['error' => 'Not found'], 404);
 
         $link->update($request->all());
+        $this->logAction('UPDATE_LINK', 'Link', $link->id, "Updated link: {$link->title}");
         return response()->json($link);
     }
 
@@ -397,6 +457,7 @@ class ApiGatewayController extends Controller
         if (!$link) return response()->json(['error' => 'Not found'], 404);
         
         $link->delete();
+        $this->logAction('DELETE_LINK', 'Link', $id, "Deleted link ID: {$id}");
         return response()->json(['success' => true]);
     }
 
@@ -427,6 +488,7 @@ class ApiGatewayController extends Controller
         }
         fclose($fh);
 
+        $this->logAction('BULK_IMPORT_LINKS', 'Link', null, "Successfully imported {$count} links from CSV");
         return response()->json(['successCount' => $count]);
     }
 
@@ -522,9 +584,20 @@ class ApiGatewayController extends Controller
                 $url = "https://" . $url;
             }
 
-            // Simple Metadata Extraction using Http client
-            $response = \Illuminate\Support\Facades\Http::timeout(5)->get($url);
-            if (!$response->successful()) throw new \Exception("Could not fetch URL");
+            // Robust Metadata Extraction
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            ])->withoutVerifying()->timeout(7)->get($url);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'title' => '',
+                    'description' => 'Pratinjau tidak tersedia untuk situs ini.',
+                    'image' => null,
+                    'is_fallback' => true
+                ]);
+            }
 
             $html = $response->body();
             
@@ -583,58 +656,49 @@ class ApiGatewayController extends Controller
 
     public function publicEventShow($slug)
     {
-        $event = Event::where('slug', $slug)->where('status', 'AKTIF')->first();
-        if (!$event) return response()->json(['error' => 'Event not found or inactive'], 404);
+        $event = Event::where('slug', $slug)->first(); // We handle status checks on frontend for preview mode if needed
+        if (!$event) return response()->json(['error' => 'Event not found'], 404);
 
-        $items = $event->items()->where('isActive', true)->orderBy('order')->get();
-        
-        // --- 🚀 SOCIAL MEDIA AUTOMATIC GROUPING LOGIC ---
-        // Mirroring the recent UI fix from Node.js:
-        // If type is SOCIAL and layout is ICON_ONLY, group them.
-        
-        $formattedItems = [];
-        $tempSocials = [];
-
-        foreach ($items as $item) {
-            if ($item->type === 'SOCIAL' && $item->layout === 'ICON_ONLY') {
-                $tempSocials[] = $item;
-                // If we reach 4 socials, push them as a group
-                if (count($tempSocials) == 4) {
-                    $formattedItems[] = ['type' => 'SOCIAL_GRID', 'items' => $tempSocials];
-                    $tempSocials = [];
-                }
-            } else {
-                // If we had pending socials, push them first
-                if (!empty($tempSocials)) {
-                    $formattedItems[] = ['type' => 'SOCIAL_GRID', 'items' => $tempSocials];
-                    $tempSocials = [];
-                }
-                $formattedItems[] = $item;
-            }
-        }
-        
-        // Push remaining socials
-        if (!empty($tempSocials)) {
-            $formattedItems[] = ['type' => 'SOCIAL_GRID', 'items' => $tempSocials];
+        if ($event->status !== 'AKTIF') {
+            // Optional: return error if not active, but for "Preview" we might want it.
+            // For now, let's keep status check light or pass it to UI.
         }
 
-        return response()->json([
-            'event' => $event,
-            'items' => $formattedItems
-        ]);
+        return response()->json($event->load(['items' => function($q) {
+            $q->where('isActive', true)->orderBy('order');
+        }]));
     }
 
     // --- 💬 FEEDBACK ---
 
     public function submitFeedback(Request $request)
     {
+        $user = $this->currentUser();
         $data = $request->all();
-        $feedback = Feedback::create($data);
 
+        // Auto-fill and link if logged in
+        if ($user) {
+            $data['user_id'] = $user->id;
+            $data['name'] = $user->fullName ?: $user->username;
+            $data['email'] = $user->email;
+            $data['role'] = $user->role;
+        }
+
+        if ($request->hasFile('file')) {
+            $data['attachment_url'] = $this->imageService->optimize($request->file('file'), 'uploads/feedback', 'FEEDBACK', 1000);
+            $data['attachment_type'] = 'IMAGE';
+            unset($data['file']); // Remove file object from database insertion data
+        }
+
+        $feedback = Feedback::create($data);
+        $senderLabel = $feedback->is_anonymous ? "Anonim" : ($feedback->name ?: "Pengunjung");
+        
+        $this->logAction('SUBMIT_FEEDBACK', 'Feedback', $feedback->id, "New feedback submitted by " . $senderLabel);
+        
         // Notify Admins
         \App\Models\Notification::create([
             'type' => 'FEEDBACK',
-            'message' => "Laporan baru dari " . ($feedback->is_anonymous ? "Anonim" : ($feedback->name ?: "Pengunjung")),
+            'message' => "Laporan baru dari " . $senderLabel,
             'link' => '/admin/feedback'
         ]);
 
@@ -643,7 +707,15 @@ class ApiGatewayController extends Controller
 
     public function feedbackIndex()
     {
-        $feedbacks = Feedback::orderBy('created_at', 'desc')->get();
+        $user = $this->currentUser();
+        $query = Feedback::orderBy('created_at', 'desc');
+
+        // Personalize view for non-admin roles
+        if ($user && $user->role !== 'ADMIN') {
+            $query->where('user_id', $user->id);
+        }
+
+        $feedbacks = $query->get();
         return response()->json($feedbacks);
     }
 
@@ -667,6 +739,7 @@ class ApiGatewayController extends Controller
         $data['is_read'] = true;
 
         $feedback->update($data);
+        $this->logAction('REPLY_FEEDBACK', 'Feedback', $id, "Replied to feedback from: {$feedback->name}");
         return response()->json(['status' => 'success', 'data' => $feedback]);
     }
 
@@ -675,23 +748,45 @@ class ApiGatewayController extends Controller
         $feedback = Feedback::find($id);
         if (!$feedback) return response()->json(['error' => 'Not Found'], 404);
         $feedback->update(['is_read' => !$feedback->is_read]);
+        $this->logAction('TOGGLE_READ_FEEDBACK', 'Feedback', $id, "Changed read status for feedback ID: {$id}");
         return response()->json($feedback);
     }
 
     // --- 🔔 NOTIFICATIONS ---
 
-    public function notifications()
+    public function notifications(Request $request)
     {
         $user = $this->currentUser();
         if (!$user || $user->role !== 'ADMIN') return response()->json(['notifications' => [], 'unreadCount' => 0]);
 
-        $notifs = \App\Models\Notification::orderBy('created_at', 'desc')->limit(20)->get();
-        $unread = \App\Models\Notification::where('isRead', false)->count();
+        $showAll = $request->query('all') === 'true';
+        
+        if ($showAll) {
+            // All history (latest first)
+            $notifs = \App\Models\Notification::orderBy('created_at', 'desc')->paginate(20);
+            return response()->json($notifs);
+        } else {
+            // FIFO Queue (oldest unread first, top 10)
+            $notifs = \App\Models\Notification::where('isRead', false)
+                ->orderBy('created_at', 'asc')
+                ->limit(10)
+                ->get();
+            $unread = \App\Models\Notification::where('isRead', false)->count();
 
-        return response()->json([
-            'notifications' => $notifs,
-            'unreadCount' => $unread
-        ]);
+            return response()->json([
+                'notifications' => $notifs,
+                'unreadCount' => $unread
+            ]);
+        }
+    }
+
+    public function notificationMarkRead($id)
+    {
+        $notif = \App\Models\Notification::find($id);
+        if ($notif) {
+            $notif->update(['isRead' => true]);
+        }
+        return response()->json(['success' => true]);
     }
 
     public function notificationsRead(Request $request)
@@ -725,15 +820,17 @@ class ApiGatewayController extends Controller
             $settings->id = 1;
         }
 
-        $data = $request->all();
+        $data = $request->except(['logo', 'bg', 'id', 'createdAt', 'updatedAt', 'created_at', 'updated_at']);
 
         // --- 🖼️ HANDAL UPLOAD LOGO & BG ---
         if ($request->hasFile('logo')) {
             $data['logo_url'] = $this->imageService->optimize($request->file('logo'), 'uploads/settings', 'LOGO', 800);
+            unset($data['logo']);
         }
 
         if ($request->hasFile('bg')) {
             $data['bg_url'] = $this->imageService->optimize($request->file('bg'), 'uploads/settings', 'BG', 1600);
+            unset($data['bg']);
         }
 
         $settings->fill($data);
@@ -753,10 +850,15 @@ class ApiGatewayController extends Controller
 
     public function footerLinksStore(Request $request)
     {
-        $data = $request->all();
+        $data = $request->except(['logo', 'id', 'createdAt', 'updatedAt', 'created_at', 'updated_at']);
         
         if ($request->hasFile('logo')) {
             $data['logoUrl'] = $this->imageService->optimize($request->file('logo'), 'uploads/footer', 'FOOTER', 400);
+            unset($data['logo']);
+        }
+
+        if (isset($data['isActive'])) {
+            $data['isActive'] = filter_var($data['isActive'], FILTER_VALIDATE_BOOLEAN);
         }
 
         $link = \App\Models\FooterLink::create($data);
@@ -769,10 +871,11 @@ class ApiGatewayController extends Controller
         $link = \App\Models\FooterLink::find($id);
         if (!$link) return response()->json(['error' => 'Not Found'], 404);
 
-        $data = $request->all();
+        $data = $request->except(['logo', 'id', 'createdAt', 'updatedAt', 'created_at', 'updated_at', '_method']);
 
         if ($request->hasFile('logo')) {
             $data['logoUrl'] = $this->imageService->optimize($request->file('logo'), 'uploads/footer', 'FOOTER', 400);
+            unset($data['logo']);
         }
 
         // Handle isActive boolean from FormData (often comes as "true"/"false" strings)
@@ -808,29 +911,72 @@ class ApiGatewayController extends Controller
         $user = $this->currentUser();
         if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
 
-        $filename = 'sigap_backup_' . date('Y-m-d_H-i-s') . '.sql';
+        $date = date('Y-m-d_H-i-s');
+        $zipFilename = "sigap_full_backup_{$date}.zip";
+        $sqlFilename = "database_backup_{$date}.sql";
         
+        $backupDir = storage_path('app/backups');
+        if (!file_exists($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+
+        $sqlPath = $backupDir . '/' . $sqlFilename;
+        $zipPath = $backupDir . '/' . $zipFilename;
+
         $dbHost = env('DB_HOST', '127.0.0.1');
         $dbName = env('DB_DATABASE');
         $dbUser = env('DB_USERNAME');
         $dbPass = env('DB_PASSWORD');
 
-        // Simple mysqldump wrapper
-        $command = "mysqldump -h {$dbHost} -u {$dbUser} -p\"{$dbPass}\" {$dbName} --no-tablespaces";
+        // 1. Generate SQL Dump ke file temporary
+        $command = "mysqldump -h {$dbHost} -u {$dbUser} -p\"{$dbPass}\" {$dbName} --no-tablespaces > \"{$sqlPath}\"";
         
         $output = [];
         $returnVar = 0;
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
-            return response()->json(['error' => 'Gagal melakukan backup. Pastikan mysqldump terinstall.'], 500);
+            return response()->json(['error' => 'Gagal melakukan backup database. Pastikan mysqldump terinstall.'], 500);
         }
 
-        $this->logAction('BACKUP_DATABASE', 'System', null, "Exported SQL backup: {$filename}");
+        // 2. Buat ZIP archive
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+            return response()->json(['error' => 'Gagal membuat file ZIP archive.'], 500);
+        }
 
-        return response(implode("\n", $output))
-            ->header('Content-Type', 'application/sql')
-            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        // Tambahkan file SQL ke ZIP
+        $zip->addFile($sqlPath, $sqlFilename);
+
+        // Tambahkan folder uploads ke ZIP
+        $uploadDir = public_path('uploads');
+        if (is_dir($uploadDir)) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($uploadDir, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::LEAVES_ONLY
+            );
+
+            foreach ($files as $name => $file) {
+                if (!$file->isDir()) {
+                    $filePath = $file->getRealPath();
+                    // Buat path relatif di dalam ZIP (uploads/...)
+                    $relativePath = 'uploads/' . substr($filePath, strlen($uploadDir) + 1);
+                    $zip->addFile($filePath, $relativePath);
+                }
+            }
+        }
+
+        $zip->close();
+
+        // Bersihkan file SQL temporary (ZIP tetap ada untuk di-download)
+        if (file_exists($sqlPath)) {
+            unlink($sqlPath);
+        }
+
+        $this->logAction('BACKUP_DATABASE', 'System', null, "Exported Full ZIP backup (SQL + Uploads): {$zipFilename}");
+
+        // Return file sebagai download dan hapus setelah terkirim
+        return response()->download($zipPath, $zipFilename)->deleteFileAfterSend(true);
     }
 
     public function systemReset()
@@ -848,7 +994,7 @@ class ApiGatewayController extends Controller
             $tables = [
                 'event_items', 'events', 'audit_logs', 
                 'click_logs', 'links', 'feedbacks', 'footer_links',
-                'categories', 'settings'
+                'categories', 'settings', 'notifications', 'sessions'
             ];
 
             foreach ($tables as $table) {
@@ -926,11 +1072,83 @@ class ApiGatewayController extends Controller
         ]);
     }
 
-    public function auditLogs()
+    public function exportAuditLogs(Request $request)
     {
-        // Frontend does client-side pagination, so return the collection directly.
-        // Limit to 200 for performance safety on shared hosting.
-        return response()->json(AuditLog::with('user')->orderBy('created_at', 'desc')->limit(200)->get());
+        $user = $this->currentUser();
+        if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
+
+        $startDate = $request->input('startDate');
+        $endDate = $request->input('endDate');
+        $format = $request->input('format', 'csv'); // csv or txt
+
+        $query = \App\Models\AuditLog::with('user')->orderBy('created_at', 'asc');
+
+        if ($startDate) $query->where('created_at', '>=', $startDate . ' 00:00:00');
+        if ($endDate) $query->where('created_at', '<=', $endDate . ' 23:59:59');
+
+        $logs = $query->get();
+
+        if ($format === 'txt') {
+            $content = "LAPORAN AKTIVITAS PENGGUNA - SIGAP\n";
+            $content .= "Periode: " . ($startDate ?: 'Awal') . " s/d " . ($endDate ?: 'Sekarang') . "\n";
+            $content .= str_repeat("-", 80) . "\n\n";
+
+            foreach ($logs as $log) {
+                $time = $log->created_at->format('Y-m-d H:i:s');
+                $actor = $log->user ? ($log->user->fullName ?: $log->user->username) : 'Sistem';
+                $content .= "[$time] $actor: {$log->action} pada {$log->resource} ({$log->resourceId}) - {$log->details}\n";
+            }
+            
+            return response($content)
+                ->header('Content-Type', 'text/plain')
+                ->header('Content-Disposition', 'attachment; filename="Activity_Log_'.date('Ymd').'.txt"');
+        }
+
+        // CSV Format
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=Activity_Report_".date('Ymd').".csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['Waktu', 'Pengguna', 'Aksi', 'Sumber Daya', 'Detail', 'IP Address'];
+
+        $callback = function() use($logs, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns, ';');
+
+            foreach ($logs as $log) {
+                $row = [
+                    'Waktu'  => $log->created_at->format('Y-m-d H:i:s'),
+                    'Pengguna' => $log->user ? ($log->user->fullName ?: $log->user->username) : 'Sistem',
+                    'Aksi'  => $log->action,
+                    'Sumber Daya' => $log->resource,
+                    'Detail' => $log->details,
+                    'IP Address' => $log->ipAddress
+                ];
+
+                fputcsv($file, array_values($row), ';');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function systemLogsDownload()
+    {
+        $user = $this->currentUser();
+        if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
+
+        $path = storage_path('logs/laravel.log');
+        if (!file_exists($path)) {
+            return response()->json(['message' => 'File log tidak ditemukan'], 404);
+        }
+
+        return response()->download($path, 'laravel_system_' . date('Ymd_His') . '.log');
     }
 
     // --- 헬 INTERNAL HELPERS ---
@@ -943,7 +1161,6 @@ class ApiGatewayController extends Controller
             'resource' => $resource,
             'resourceId' => $resourceId,
             'details' => $details,
-            'sid' => $payload['sid'] ?? null,
             'category_id' => $user?->category_id,
             'ipAddress' => request()->ip(),
             'userAgent' => request()->userAgent(),
