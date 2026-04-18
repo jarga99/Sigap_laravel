@@ -24,10 +24,17 @@ const isImporting = ref(false)
 const editId = ref<number | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// QR Code States
+// QR Code States (Restored: Advanced Canvas Engine)
 const showQrModal = ref(false)
 const activeQrLink = ref<any>(null)
 const qrCanvas = ref<HTMLCanvasElement | null>(null)
+const qrOptions = ref({
+  color: '#0f172a',
+  bgColor: '#ffffff',
+  shape: 'square' as 'square' | 'circle',
+  cornerShape: 'square' as 'square' | 'rounded',
+  errorLevel: 'M' as 'L' | 'M' | 'Q' | 'H'
+})
 
 // Auth & Permissions
 const userRole = ref('')
@@ -39,7 +46,7 @@ const checkUserAccess = () => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
       userRole.value = payload.role || 'GUEST'
-      userDeptId.value = payload.category_id || null
+      userDeptId.value = payload.category_id || payload.departmentId || null
     } catch (e) { console.error(e) }
   }
 }
@@ -50,13 +57,15 @@ const canModify = (link: any) => {
   return false
 }
 
-// Form State
+// Form State (Restored: bilingual title_en, desc_en)
 const form = ref({
   title: '',
+  title_en: '',
   url: '',
   slug: '',
   category_id: '' as string | number,
   desc: '',
+  desc_en: '',
   icon: 'Link',
   visibility: 'INTERNAL',
   is_active: true
@@ -67,7 +76,6 @@ const fetchData = async () => {
   try {
     const [resLinks, resCats] = await Promise.all([api.get('/admin/links'), api.get('/categories')])
     links.value = resLinks.data
-    // For regular users, only show their category in the dropdown
     if (userRole.value === 'EMPLOYEE' && userDeptId.value) {
       categories.value = resCats.data.filter((c: any) => Number(c.id) === Number(userDeptId.value))
     } else {
@@ -87,7 +95,7 @@ watch(() => form.value.title, (newVal) => {
 const openModalCreate = () => {
   isEditing.value = false
   editId.value = null
-  form.value = { title: '', url: '', slug: '', category_id: '', desc: '', icon: 'Link', visibility: 'INTERNAL', is_active: true }
+  form.value = { title: '', title_en: '', url: '', slug: '', category_id: '', desc: '', desc_en: '', icon: 'Link', visibility: 'INTERNAL', is_active: true }
   showModal.value = true
 }
 
@@ -96,10 +104,12 @@ const openModalEdit = (link: any) => {
   editId.value = link.id
   form.value = { 
     title: link.title, 
+    title_en: link.title_en || '',
     url: link.url, 
     slug: link.slug || '', 
     category_id: link.category_id, 
     desc: link.desc || '', 
+    desc_en: link.desc_en || '',
     icon: link.icon || 'Link', 
     visibility: link.visibility || 'INTERNAL', 
     is_active: !!link.is_active 
@@ -134,6 +144,31 @@ const copyToClipboard = (slug: string, id: number) => {
   setTimeout(() => copiedId.value = null, 2000)
 }
 
+// --- OPEN GRAPH PREVIEW (Restored) ---
+const urlPreviewData = ref<any>(null)
+const isLoadingPreview = ref(false)
+let urlTimeout: number
+
+watch(() => form.value.url, (newUrl) => {
+  if (!newUrl || !newUrl.startsWith('http')) {
+    urlPreviewData.value = null
+    return
+  }
+  clearTimeout(urlTimeout)
+  urlTimeout = window.setTimeout(async () => {
+    isLoadingPreview.value = true
+    try {
+      const res = await api.get(`/portal/preview?url=${encodeURIComponent(newUrl)}`)
+      urlPreviewData.value = res.data
+    } catch(e) {
+      urlPreviewData.value = { error: true }
+    } finally {
+      isLoadingPreview.value = false
+    }
+  }, 800)
+})
+
+// --- BULK IMPORT ---
 const triggerImport = () => fileInput.value?.click()
 
 const handleImport = async (e: any) => {
@@ -144,12 +179,13 @@ const handleImport = async (e: any) => {
   fd.append('file', file)
   try {
     const res = await api.post('/admin/links/bulk', fd)
-    alert(`Berhasil mengimpor ${res.data.successCount} tautan baru!`)
+    alert(res.data.message || `Berhasil mengimpor ${res.data.successCount || 0} tautan baru!`)
     fetchData()
   } catch (err) { alert('Gagal mengimpor file.') }
   finally { isImporting.value = false; if (fileInput.value) fileInput.value.value = '' }
 }
 
+// --- QR CODE ENGINE (Restored: Advanced Canvas with custom shapes/colors) ---
 const openQrModal = (link: any) => {
   activeQrLink.value = link
   showQrModal.value = true
@@ -158,47 +194,177 @@ const openQrModal = (link: any) => {
 
 const generateQr = async () => {
   if (!activeQrLink.value || !qrCanvas.value) return
+  const fullUrl = `${window.location.origin}/s/${activeQrLink.value.slug}`
+  const canvas = qrCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
   try {
-    const fullUrl = `${window.location.origin}/s/${activeQrLink.value.slug}`
-    await QRCode.toCanvas(qrCanvas.value, fullUrl, { width: 300, margin: 2 })
-  } catch (e) { console.error(e) }
+    const qrData = QRCode.create(fullUrl, { errorCorrectionLevel: qrOptions.value.errorLevel as any })
+    const { modules } = qrData
+    const moduleCount = modules.size
+    const margin = 4
+    const size = 400
+    const cellSize = size / (moduleCount + margin * 2)
+
+    canvas.width = size
+    canvas.height = size
+
+    ctx.fillStyle = qrOptions.value.bgColor
+    ctx.fillRect(0, 0, size, size)
+    ctx.fillStyle = qrOptions.value.color
+
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (modules.get(row, col)) {
+          const x = (col + margin) * cellSize
+          const y = (row + margin) * cellSize
+          const isTopLeft = row < 7 && col < 7
+          const isTopRight = row < 7 && col >= moduleCount - 7
+          const isBottomLeft = row >= moduleCount - 7 && col < 7
+
+          if ((isTopLeft || isTopRight || isBottomLeft) && qrOptions.value.cornerShape === 'rounded') {
+            ctx.beginPath()
+            ctx.roundRect(x, y, cellSize, cellSize, cellSize * 0.2)
+            ctx.fill()
+          } else if (qrOptions.value.shape === 'circle') {
+            ctx.beginPath()
+            ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize * 0.45, 0, Math.PI * 2)
+            ctx.fill()
+          } else {
+            ctx.fillRect(x, y, cellSize, cellSize)
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(err)
+  }
 }
 
 const downloadQr = () => {
-  if (!qrCanvas.value) return
+  if (!qrCanvas.value || !activeQrLink.value) return
   const a = document.createElement('a')
   a.download = `QR-${activeQrLink.value.slug}.png`
-  a.href = qrCanvas.value.toDataURL()
+  a.href = qrCanvas.value.toDataURL('image/png')
   a.click()
 }
+
+watch(qrOptions, generateQr, { deep: true })
 
 const handleIconSelect = (icon: string) => {
   form.value.icon = icon
 }
 
-const exportCsv = () => {
-  window.open('/admin/links/export', '_blank')
+// --- EXPORT CSV (Restored: Client-side with institution header) ---
+const showExportMenu = ref(false)
+
+const formatIndonesianDate = (dateStr: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+  const months = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ]
+  return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
 }
 
-const downloadTemplate = () => {
-  window.open('/admin/links/template', '_blank')
+const escapeCsv = (val: any) => {
+  if (val === null || val === undefined) return ''
+  const str = String(val).replace(/"/g, '""')
+  return `"${str}"`
 }
 
-// Table logic
+const handleExportExcel = () => {
+  const instansi = 'SIGAP Portal'
+  const periode = filterMonth.value === 'all' ? 'Semua Waktu' : `Periode ${filterMonth.value}/${filterYear.value}`
+
+  let csvContent = `LAPORAN REKAPITULASI TAUTAN LAYANAN - ${instansi}\n`
+  csvContent += `Periode: ${periode}\n\n`
+
+  const headers = ['No', 'Nama Layanan', 'Kategori', 'Visibilitas', 'Status', 'Tanggal Daftar', 'Engagement (Klik)']
+  csvContent += headers.map(escapeCsv).join(';') + '\n'
+
+  processedLinks.value.forEach((link, index) => {
+    const row = [
+      index + 1,
+      link.title,
+      (link.category?.name || '-'),
+      link.visibility === 'INTERNAL' ? 'Internal' : 'Khusus Kategori',
+      link.is_active ? 'Tayang' : 'Draft',
+      formatIndonesianDate(link.created_at || link.createdAt),
+      link.clicks || 0
+    ]
+    csvContent += row.map(escapeCsv).join(';') + '\n'
+  })
+
+  const fileName = `Rekap_Links_${new Date().toISOString().split('T')[0]}.csv`
+  downloadFile('\ufeff' + csvContent, fileName, 'text/csv;charset=utf-8;')
+}
+
+const handlePrintPDF = () => {
+  window.print()
+}
+
+const downloadTemplate = async () => {
+  try {
+    await downloadFile('/admin/links/template', 'template_import_links.xlsx')
+  } catch (error) {
+    alert('Gagal mendownload template.')
+  }
+}
+
+// --- FILTER & SORT (Restored: Advanced multi-column sorting) ---
+const filterMonth = ref('all')
+const filterYear = ref('all')
+const sortBy = ref('newest')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const pageSizeOptions = [10, 25, 50, 100]
+
+const yearsList = computed(() => {
+  const current = new Date().getFullYear()
+  return [current - 2, current - 1, current, current + 1]
+})
+
+watch(pageSize, () => { currentPage.value = 1 })
 
 const processedLinks = computed(() => {
   let result = [...links.value]
+
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter(l => 
-      l.title.toLowerCase().includes(q) || 
-      l.slug?.toLowerCase().includes(q) ||
-      l.category?.name?.toLowerCase().includes(q)
+    result = result.filter(l =>
+      (l.title && l.title.toLowerCase().includes(q)) ||
+      (l.slug && l.slug.toLowerCase().includes(q)) ||
+      (l.category?.name && l.category.name.toLowerCase().includes(q))
     )
   }
-  return result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  result = result.filter(l => {
+    const dateField = l.created_at || l.createdAt
+    if (!dateField) return true
+    const date = new Date(dateField)
+    const mMatch = filterMonth.value === 'all' || (date.getMonth() + 1).toString() === filterMonth.value.toString()
+    const yMatch = filterYear.value === 'all' || date.getFullYear().toString() === filterYear.value.toString()
+    return mMatch && yMatch
+  })
+
+  if (sortBy.value === 'a-z') {
+    result.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+  } else if (sortBy.value === 'z-a') {
+    result.sort((a, b) => (b.title || '').localeCompare(a.title || ''))
+  } else if (sortBy.value === 'category-asc') {
+    result.sort((a, b) => (a.category?.name || '').localeCompare(b.category?.name || ''))
+  } else if (sortBy.value === 'clicks-desc') {
+    result.sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
+  } else {
+    const key = links.value[0]?.created_at ? 'created_at' : 'createdAt'
+    result.sort((a, b) => new Date(b[key] || 0).getTime() - new Date(a[key] || 0).getTime())
+  }
+
+  return result
 })
 
 const paginatedLinks = computed(() => {
@@ -207,6 +373,8 @@ const paginatedLinks = computed(() => {
 })
 
 const totalPages = computed(() => Math.ceil(processedLinks.value.length / pageSize.value) || 1)
+
+watch([searchQuery, filterMonth, filterYear, sortBy], () => { currentPage.value = 1 })
 
 onMounted(() => {
   checkUserAccess()
@@ -236,31 +404,78 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Toolbar -->
+    <!-- Toolbar (Restored: Advanced filters, sort, export menu) -->
     <div class="bg-white/50 p-2 rounded-[2rem] border border-blue-50 shadow-inner flex flex-col lg:flex-row gap-4 items-center">
       <div class="relative flex-1 group">
         <SIGAPIcons name="Search" :size="20" class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
-        <input v-model="searchQuery" type="text" placeholder="Cari layanan, slug, atau kategory portal..." class="w-full bg-white border-none rounded-[1.5rem] py-4 pl-16 pr-6 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" />
+        <input v-model="searchQuery" type="text" placeholder="Cari layanan, slug, atau kategori..." class="w-full bg-white border-none rounded-[1.5rem] py-4 pl-16 pr-6 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" />
       </div>
-      <div class="flex gap-3 px-2">
-         <input type="file" ref="fileInput" hidden @change="handleImport" accept=".csv" />
-         <button @click="triggerImport" :disabled="isImporting" class="px-6 py-3 bg-white border border-blue-100 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center gap-3 shadow-sm">
+      <div class="flex gap-2 px-2 flex-wrap">
+         <!-- Period Filters -->
+         <select v-model="filterMonth" class="bg-white border border-slate-100 rounded-xl px-4 py-3 text-[10px] font-black uppercase text-slate-500 outline-none shadow-sm">
+           <option value="all">Semua Bulan</option>
+           <option v-for="m in 12" :key="m" :value="m.toString()">
+             {{ ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][m-1] }}
+           </option>
+         </select>
+         <select v-model="filterYear" class="bg-white border border-slate-100 rounded-xl px-4 py-3 text-[10px] font-black uppercase text-slate-500 outline-none shadow-sm">
+           <option value="all">Tahun</option>
+           <option v-for="y in yearsList" :key="y" :value="y.toString()">{{ y }}</option>
+         </select>
+
+         <!-- Sort -->
+         <select v-model="sortBy" class="bg-white border border-slate-100 rounded-xl px-4 py-3 text-[10px] font-black uppercase text-slate-500 outline-none shadow-sm">
+           <option value="newest">Terbaru</option>
+           <option value="a-z">A → Z</option>
+           <option value="z-a">Z → A</option>
+           <option value="category-asc">Kategori</option>
+           <option value="clicks-desc">Terpopuler</option>
+         </select>
+
+         <input type="file" ref="fileInput" hidden @change="handleImport" accept=".csv,.xlsx" />
+         <button @click="triggerImport" :disabled="isImporting" class="px-5 py-3 bg-white border border-blue-100 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all flex items-center gap-2 shadow-sm">
            <SIGAPIcons v-if="!isImporting" name="Upload" :size="16" />
            <span v-else class="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></span>
-           {{ isImporting ? 'Mengimpor...' : 'Impor Bulk' }}
+           {{ isImporting ? 'Importing...' : 'Import' }}
          </button>
-         <select v-model="pageSize" class="bg-white border border-slate-100 rounded-xl px-6 py-3 text-[10px] font-black uppercase text-slate-500 outline-none shadow-sm focus:ring-2 focus:ring-blue-100">
-           <option :value="10">10 Baris</option>
-           <option :value="25">25 Baris</option>
-           <option :value="50">50 Baris</option>
+         <button @click="downloadTemplate" class="px-5 py-3 bg-white border border-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
+           <SIGAPIcons name="FileText" :size="16" /> Template
+         </button>
+
+         <!-- Export Dropdown -->
+         <div class="relative">
+           <button @click="showExportMenu = !showExportMenu" class="px-5 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center gap-2 shadow-lg shadow-slate-200">
+             <SIGAPIcons name="Download" :size="16" /> Export
+             <SIGAPIcons name="ChevronDown" :size="12" />
+           </button>
+           <div v-if="showExportMenu" class="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-pop">
+             <button @click="handleExportExcel(); showExportMenu = false" class="w-full px-5 py-4 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 flex items-center gap-3 transition-colors">
+               <SIGAPIcons name="FileSpreadsheet" :size="16" class="text-emerald-600" />
+               <div>
+                 <p class="font-black">Data Excel (.csv)</p>
+                 <span class="text-[10px] text-slate-400">Format data mentah</span>
+               </div>
+             </button>
+             <button @click="handlePrintPDF(); showExportMenu = false" class="w-full px-5 py-4 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 flex items-center gap-3 transition-colors border-t border-slate-50">
+               <SIGAPIcons name="Printer" :size="16" class="text-red-500" />
+               <div>
+                 <p class="font-black">Dokumen PDF</p>
+                 <span class="text-[10px] text-slate-400">Siap untuk dicetak</span>
+               </div>
+             </button>
+           </div>
+         </div>
+
+         <select v-model="pageSize" class="bg-white border border-slate-100 rounded-xl px-4 py-3 text-[10px] font-black uppercase text-slate-500 outline-none shadow-sm">
+           <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Baris</option>
          </select>
-         <button @click="downloadTemplate" class="px-6 py-3 bg-white border border-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-3 shadow-sm">
-           <SIGAPIcons name="FileText" :size="16" /> Download Template
-         </button>
-         <button @click="exportCsv" class="px-8 py-3 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center gap-3 shadow-lg shadow-slate-200">
-           <SIGAPIcons name="Download" :size="16" /> Export CSV
-         </button>
       </div>
+    </div>
+
+    <!-- Employee Hint -->
+    <div v-if="userRole === 'EMPLOYEE'" class="flex items-center gap-3 px-6 py-3 bg-amber-50 text-amber-700 rounded-2xl border border-amber-100 text-xs font-bold">
+      <SIGAPIcons name="AlertCircle" :size="16" />
+      <span>Kategori Terkunci: Hanya departemen Anda yang ditampilkan</span>
     </div>
 
     <!-- Table Container -->
@@ -281,6 +496,12 @@ onMounted(() => {
             <tr v-if="isLoading" v-for="i in 3" :key="i" class="animate-pulse">
                <td colspan="6" class="px-8 py-10"><div class="h-4 bg-slate-100 rounded-full w-full"></div></td>
             </tr>
+            <tr v-else-if="paginatedLinks.length === 0">
+               <td colspan="6" class="px-8 py-20 text-center">
+                  <SIGAPIcons name="Inbox" :size="48" class="mx-auto mb-4 opacity-10 text-slate-300" />
+                  <p class="text-xs font-black uppercase text-slate-300 tracking-widest">Data kosong.</p>
+               </td>
+            </tr>
             <tr v-else v-for="(link, idx) in paginatedLinks" :key="link.id" class="group hover:bg-blue-50/20 transition-all duration-300">
               <td class="px-8 py-6 text-center text-xs font-bold text-slate-300">{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
               <td class="px-8 py-6">
@@ -290,6 +511,7 @@ onMounted(() => {
                   </div>
                   <div>
                     <div class="font-bold text-slate-800 text-base leading-tight">{{ link.title }}</div>
+                    <div v-if="link.title_en" class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{{ link.title_en }}</div>
                     <div class="text-[11px] text-blue-500 font-bold tracking-tight opacity-60 mt-1 cursor-pointer flex items-center gap-1 group/slug" @click="copyToClipboard(link.slug, link.id)">
                        {{ baseUrl }}/s/{{ link.slug }}
                        <SIGAPIcons name="Copy" :size="10" class="opacity-0 group-hover/slug:opacity-100" />
@@ -339,23 +561,28 @@ onMounted(() => {
       </div>
       
       <!-- Pagination -->
-      <div class="p-8 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+      <div class="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
          <div class="flex items-center gap-6">
-            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Halaman <span class="text-slate-800">{{ currentPage }}</span> dari <span class="text-slate-800">{{ totalPages }}</span></p>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              Menampilkan <span class="text-slate-800">{{ paginatedLinks.length }}</span> dari <span class="text-slate-800">{{ processedLinks.length }}</span> tautan
+            </p>
          </div>
-         <div class="flex gap-4">
-            <button @click="currentPage--" :disabled="currentPage === 1" class="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-500 disabled:opacity-30 hover:border-blue-400 transition-all active:scale-95 shadow-sm">Prev</button>
-            <button @click="currentPage++" :disabled="currentPage === totalPages" class="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-500 disabled:opacity-30 hover:border-blue-400 transition-all active:scale-95 shadow-sm">Next</button>
+         <div class="flex items-center gap-4">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Hal <span class="text-slate-800">{{ currentPage }}</span> / {{ totalPages }}</span>
+            <div class="flex gap-2">
+              <button @click="currentPage--" :disabled="currentPage === 1" class="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-500 disabled:opacity-30 hover:border-blue-400 transition-all active:scale-95 shadow-sm">Prev</button>
+              <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-500 disabled:opacity-30 hover:border-blue-400 transition-all active:scale-95 shadow-sm">Next</button>
+            </div>
          </div>
       </div>
     </div>
 
-    <!-- Form Modal -->
+    <!-- Form Modal (Restored: bilingual fields + Open Graph preview) -->
     <Teleport to="body">
        <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showModal = false"></div>
-          <div class="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-pop">
-             <div class="p-10 pb-6 border-b border-slate-50 flex items-center justify-between">
+          <div class="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-pop max-h-[90vh] overflow-y-auto">
+             <div class="p-10 pb-6 border-b border-slate-50 flex items-center justify-between sticky top-0 bg-white z-10">
                 <div class="flex gap-6 items-center">
                    <!-- Icon Selector -->
                    <div 
@@ -380,28 +607,55 @@ onMounted(() => {
              <form @submit.prevent="saveLink" class="p-10 pt-8 space-y-6">
                 <div class="grid grid-cols-2 gap-6">
                   <div class="space-y-2">
-                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Nama Layanan</label>
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Nama Layanan (ID) <span class="text-red-400">*</span></label>
                      <input v-model="form.title" type="text" required placeholder="Contoh: E-Presensi" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
                   </div>
                   <div class="space-y-2">
-                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Custom Slug (Opsional)</label>
-                     <input v-model="form.slug" type="text" placeholder="presensi-kita" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Title (EN) 🤖</label>
+                     <input v-model="form.title_en" type="text" placeholder="Auto-Translate kosongkan" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
                   </div>
                 </div>
 
-                <div class="space-y-2">
-                   <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Tautan Tujuan (URL)</label>
-                   <input v-model="form.url" type="url" required placeholder="https://..." class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                <div class="grid grid-cols-2 gap-6">
+                  <div class="space-y-2">
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Tautan Tujuan (URL) <span class="text-red-400">*</span></label>
+                     <input v-model="form.url" type="url" required placeholder="https://..." class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                     
+                     <!-- Open Graph Preview (Restored) -->
+                     <div v-if="isLoadingPreview" class="text-xs text-slate-400 flex items-center gap-2 mt-2">
+                       <span class="w-3 h-3 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"></span>
+                       Memuat preview...
+                     </div>
+                     <div v-else-if="urlPreviewData && !urlPreviewData.error" class="mt-2 border border-slate-100 rounded-xl overflow-hidden flex bg-slate-50 h-16">
+                       <div class="w-16 bg-slate-200 flex-shrink-0">
+                         <img v-if="urlPreviewData.image" :src="urlPreviewData.image" class="w-full h-full object-cover" />
+                       </div>
+                       <div class="p-2 flex-1 min-w-0">
+                         <h5 class="text-[11px] font-bold text-slate-700 truncate">{{ urlPreviewData.title }}</h5>
+                         <p class="text-[10px] text-slate-400 line-clamp-2">{{ urlPreviewData.description }}</p>
+                       </div>
+                     </div>
+                  </div>
+                  <div class="space-y-2">
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Custom Slug (Opsional)</label>
+                     <input v-model="form.slug" type="text" placeholder="e-presensi" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none" />
+                  </div>
                 </div>
 
-                <div class="space-y-2">
-                   <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Deskripsi Layanan (Opsional)</label>
-                   <textarea v-model="form.desc" placeholder="Jelaskan secara singkat kegunaan layanan ini..." rows="3" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none resize-none"></textarea>
+                <div class="grid grid-cols-2 gap-6">
+                  <div class="space-y-2">
+                    <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Deskripsi (ID)</label>
+                    <textarea v-model="form.desc" placeholder="Jelaskan kegunaan layanan..." rows="3" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none resize-none"></textarea>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Description (EN) 🤖</label>
+                    <textarea v-model="form.desc_en" placeholder="Auto-Translate kosongkan" rows="3" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none resize-none"></textarea>
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-6">
                    <div class="space-y-2">
-                      <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Unit / Kategori</label>
+                      <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Unit / Kategori <span class="text-red-400">*</span></label>
                       <select v-model="form.category_id" required class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none appearance-none">
                          <option value="" disabled>Pilih Unit Kerja</option>
                          <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
@@ -410,8 +664,8 @@ onMounted(() => {
                    <div class="space-y-2">
                       <label class="text-[10px] uppercase text-slate-400 tracking-widest font-black ml-1">Hak Akses Layanan</label>
                       <select v-model="form.visibility" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none appearance-none">
-                         <option value="INTERNAL">Seluruh Pegawai (Login)</option>
-                         <option value="KATEGORI">Hanya Kategori Terkait</option>
+                         <option value="INTERNAL">🔒 Seluruh Pegawai (Login)</option>
+                         <option value="DEPARTMENT">🏢 Khusus Kategori</option>
                       </select>
                    </div>
                 </div>
@@ -442,26 +696,62 @@ onMounted(() => {
           </div>
        </div>
 
-       <!-- QR Modal -->
+       <!-- QR Modal (Restored: Advanced with color/shape customization) -->
        <div v-if="showQrModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" @click="showQrModal = false"></div>
-          <div class="relative bg-white w-full max-w-md rounded-[3.5rem] shadow-2xl p-12 text-center animate-pop border border-white">
-             <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
-                <SIGAPIcons name="QrCode" :size="40" />
+          <div class="relative bg-white w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 animate-pop border border-white max-h-[90vh] overflow-y-auto">
+             <div class="text-center mb-8">
+               <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                  <SIGAPIcons name="QrCode" :size="40" />
+               </div>
+               <h3 class="text-2xl font-bold text-slate-800 mb-2">QR Code Layanan</h3>
+               <p class="text-sm text-slate-400 font-medium">Scan barcode di bawah untuk akses langsung</p>
              </div>
-             <h3 class="text-2xl font-bold text-slate-800 mb-2">QR Code Layanan</h3>
-             <p class="text-sm text-slate-400 font-medium mb-10">Scan barcode di bawah untuk akses langsung</p>
              
-             <div class="bg-blue-50/50 p-8 rounded-[2.5rem] inline-block mb-10 shadow-inner border border-blue-100 ring-8 ring-white">
+             <div class="bg-blue-50/50 p-8 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-inner border border-blue-100 ring-8 ring-white">
                 <canvas ref="qrCanvas" class="mx-auto rounded-2xl mix-blend-multiply"></canvas>
              </div>
+
+             <!-- QR Customization Panel (Restored) -->
+             <div class="grid grid-cols-2 gap-4 mb-8 p-6 bg-slate-50 rounded-[2rem]">
+               <div class="space-y-2">
+                 <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest">Warna QR</label>
+                 <div class="flex items-center gap-2">
+                   <input type="color" v-model="qrOptions.color" class="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer" />
+                   <span class="text-[10px] font-mono text-slate-400">{{ qrOptions.color }}</span>
+                 </div>
+               </div>
+               <div class="space-y-2">
+                 <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest">Warna Latar</label>
+                 <div class="flex items-center gap-2">
+                   <input type="color" v-model="qrOptions.bgColor" class="w-10 h-10 rounded-xl border-2 border-slate-200 cursor-pointer" />
+                   <span class="text-[10px] font-mono text-slate-400">{{ qrOptions.bgColor }}</span>
+                 </div>
+               </div>
+               <div class="space-y-2">
+                 <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest">Bentuk Modul</label>
+                 <select v-model="qrOptions.shape" class="w-full bg-white rounded-xl p-3 text-xs font-bold border border-slate-200 outline-none">
+                   <option value="square">■ Kotak</option>
+                   <option value="circle">● Bulat</option>
+                 </select>
+               </div>
+               <div class="space-y-2">
+                 <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest">Sudut Finder</label>
+                 <select v-model="qrOptions.cornerShape" class="w-full bg-white rounded-xl p-3 text-xs font-bold border border-slate-200 outline-none">
+                   <option value="square">Tajam</option>
+                   <option value="rounded">Melengkung</option>
+                 </select>
+               </div>
+             </div>
              
-             <div class="p-4 bg-slate-50 rounded-2xl mb-10 font-mono text-[10px] text-slate-400 break-all select-all">
+             <div class="p-4 bg-slate-50 rounded-2xl mb-8 font-mono text-[10px] text-slate-400 break-all select-all text-center">
                 {{ baseUrl }}/s/{{ activeQrLink?.slug }}
              </div>
 
              <div class="flex gap-4">
-                <button @click="downloadQr" class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95">Unduh QR Code</button>
+                <button @click="downloadQr" class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2">
+                  <SIGAPIcons name="Download" :size="16" /> Unduh QR Code
+                </button>
                 <button @click="showQrModal = false" class="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">Tutup</button>
              </div>
           </div>
@@ -487,5 +777,12 @@ onMounted(() => {
 
 .shadow-inner {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

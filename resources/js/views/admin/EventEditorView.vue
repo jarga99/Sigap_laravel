@@ -5,6 +5,7 @@ import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
 import IconSelectorModal from '../../components/admin/IconSelectorModal.vue'
 import { useAuthStore } from '../../stores/auth'
+import QRCode from 'qrcode'
 
 const authStore = useAuthStore()
 const setActiveSlug = inject('setActiveSlug') as (slug: string) => void
@@ -72,7 +73,19 @@ const fetchEvent = async () => {
   const id = route.params.id
   try {
     const res = await api.get(`/admin/events/${id}`)
-    event.value = res.data
+    const data = res.data
+    // Sanitize data
+    if (data.bgType === 'color' && (!data.bgValue || !data.bgValue.startsWith('#'))) {
+      data.bgValue = '#f8fafc'
+    }
+    if (data.items) {
+      data.items = data.items.map((it: any) => ({
+        ...it,
+        color: (it.color && it.color.startsWith('#')) ? it.color : '#3b82f6',
+        textColor: (it.textColor && it.textColor.startsWith('#')) ? it.textColor : '#ffffff'
+      }))
+    }
+    event.value = data
   } catch (err) {
     alert('Gagal mengambil data event')
     router.push('/admin/events')
@@ -156,6 +169,108 @@ const saveEvent = async () => {
   finally { isSaving.value = false }
 }
 
+// --- ✨ AI SUGGEST (Restored from backup)
+const suggestAI = async (type: 'description' | 'footer') => {
+  if (!event.value.title) {
+    alert('Silakan isi Judul Event terlebih dahulu.')
+    return
+  }
+  isGeneratingAI.value[type] = true
+  try {
+    const res = await api.post('/admin/events/ai-suggest', {
+      title: event.value.title,
+      type: type
+    })
+    if (type === 'description') event.value.description = res.data.suggestion
+    else event.value.footerText = res.data.suggestion
+  } catch (err: any) {
+    alert(err.response?.data?.error || 'Gagal mendapatkan saran AI')
+  } finally {
+    isGeneratingAI.value[type] = false
+  }
+}
+
+// --- 🔗 SHARE LINK (Restored)
+const copyShareLink = () => {
+  const url = `${window.location.origin}/e/${event.value.slug}`
+  navigator.clipboard.writeText(url)
+  alert(`Link Event berhasil disalin ke clipboard:\n\n${url}`)
+}
+
+// --- 🔒 PREVIEW-LOCK (Restored)
+const handlePreviewClick = (e: MouseEvent, url: string) => {
+  if (event.value.status !== 'AKTIF') {
+    e.preventDefault()
+    if (confirm(`Peringatan: Event berstatus ${event.value.status}.\nPublik tidak dapat mengklik link ini.\n\nApakah Anda tetap ingin mengetes?`)) {
+      window.open(url, '_blank')
+    }
+  }
+}
+
+// --- 🎯 QR MODAL (Draggable QR Poster Restored)
+const showQrPoster = ref(false)
+const qrPosterCanvas = ref<HTMLCanvasElement | null>(null)
+const qrPosition = ref({ x: 50, y: 60 })
+const isDragging = ref(false)
+let dragStartX = 0, dragStartY = 0
+
+const openQrPoster = async () => {
+  showQrPoster.value = true
+  setTimeout(drawQrPoster, 100)
+}
+
+const drawQrPoster = async () => {
+  if (!qrPosterCanvas.value) return
+  const canvas = qrPosterCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const url = `${window.location.origin}/e/${event.value.slug}`
+  try {
+    await QRCode.toCanvas(canvas, url, {
+      width: 500,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' }
+    })
+  } catch (e) { console.error(e) }
+}
+
+const startDrag = (e: MouseEvent | TouchEvent) => {
+  isDragging.value = true
+  const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX
+  const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY
+  dragStartX = clientX - qrPosition.value.x
+  dragStartY = clientY - qrPosition.value.y
+}
+
+const onDrag = (e: MouseEvent | TouchEvent) => {
+  if (!isDragging.value) return
+  const clientX = e instanceof MouseEvent ? e.clientX : e.touches[0].clientX
+  const clientY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY
+  qrPosition.value.x = Math.max(0, Math.min(80, clientX - dragStartX))
+  qrPosition.value.y = Math.max(0, Math.min(80, clientY - dragStartY))
+}
+
+const stopDrag = () => { isDragging.value = false }
+
+const downloadQrPoster = () => {
+  if (!qrPosterCanvas.value) return
+  const a = document.createElement('a')
+  a.download = `QR-Poster-${event.value.slug}.png`
+  a.href = qrPosterCanvas.value.toDataURL()
+  a.click()
+}
+
+// --- 📡 WATCH SLUG
+watch(() => event.value.slug, (newSlug) => {
+  if (newSlug) setActiveSlug(newSlug)
+})
+
+watch(() => event.value.title, (newTitle) => {
+  if (newTitle && (!event.value.slug || event.value.slug.trim() === '')) {
+    event.value.slug = newTitle.toLowerCase().trim().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-')
+  }
+})
+
 onMounted(fetchEvent)
 </script>
 
@@ -175,11 +290,19 @@ onMounted(fetchEvent)
                 <p class="text-[10px] font-bold text-slate-400">Penyunting Landing Page</p>
              </div>
           </div>
-          <button @click="saveEvent" :disabled="isSaving" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-blue-700 transition-all">
-             <SIGAPIcons v-if="!isSaving" name="Save" :size="14" />
-             <span v-else class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-             {{ isSaving ? 'Menyimpan' : 'Simpan' }}
-          </button>
+          <div class="flex gap-2">
+             <button @click="copyShareLink" class="p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
+               <SIGAPIcons name="Share2" :size="14" /> Share
+             </button>
+             <button @click="openQrPoster" class="p-2.5 bg-purple-50 text-purple-600 border border-purple-100 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-purple-600 hover:text-white transition-all shadow-sm">
+               <SIGAPIcons name="QrCode" :size="14" /> QR
+             </button>
+             <button @click="saveEvent" :disabled="isSaving" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-100 flex items-center gap-2 hover:bg-blue-700 transition-all">
+                <SIGAPIcons v-if="!isSaving" name="Save" :size="14" />
+                <span v-else class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                {{ isSaving ? 'Menyimpan' : 'Simpan' }}
+             </button>
+          </div>
        </div>
 
        <!-- Nav Tabs -->
@@ -208,6 +331,26 @@ onMounted(fetchEvent)
                       <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">/e/</span>
                       <input v-model="event.slug" class="w-full bg-slate-50 rounded-2xl p-4 pl-10 text-sm font-bold border-2 border-transparent focus:border-blue-500 outline-none transition-all" />
                    </div>
+                </div>
+                <!-- Status Publikasi (Restored) -->
+                <div class="space-y-1.5 font-bold">
+                   <label class="text-[10px] uppercase text-slate-400 tracking-widest">Status Publikasi</label>
+                   <select v-model="event.status" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 outline-none transition-all appearance-none">
+                     <option value="AKTIF">🟢 AKTIF (Publik)</option>
+                     <option value="TIDAK_AKTIF">🔴 TIDAK AKTIF (Draft)</option>
+                     <option value="ARSIP">📦 ARSIP (Hidden)</option>
+                   </select>
+                </div>
+                <!-- AI Suggest Deskripsi (Restored) -->
+                <div class="space-y-1.5 font-bold">
+                   <div class="flex items-center justify-between">
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest">Deskripsi</label>
+                     <button @click="suggestAI('description')" :disabled="isGeneratingAI.description" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-purple-100 transition-all border border-purple-100">
+                       <SIGAPIcons name="Sparkles" :size="12" />
+                       {{ isGeneratingAI.description ? 'AI Generating...' : 'AI Suggest' }}
+                     </button>
+                   </div>
+                   <textarea v-model="event.description" rows="4" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 outline-none transition-all resize-none" placeholder="Deskripsi event..."></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4 pt-2">
                    <div v-for="comp in [{k:'showProfile', l:'Profil'}, {k:'showCover', l:'Sampul'}, {k:'showTitle', l:'Judul'}, {k:'showDescription', l:'Deskripsi'}]" :key="comp.k" class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl">
@@ -324,7 +467,13 @@ onMounted(fetchEvent)
           <div v-if="selectedPanel === 'footer'" class="space-y-6 animate-fadeup">
              <div class="space-y-4">
                 <div class="space-y-1.5 font-bold">
-                   <label class="text-[10px] uppercase text-slate-400 tracking-widest">Teks Penutup</label>
+                   <div class="flex items-center justify-between">
+                     <label class="text-[10px] uppercase text-slate-400 tracking-widest">Teks Penutup</label>
+                     <button @click="suggestAI('footer')" :disabled="isGeneratingAI.footer" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-purple-100 transition-all border border-purple-100">
+                       <SIGAPIcons name="Sparkles" :size="12" />
+                       {{ isGeneratingAI.footer ? 'AI Generating...' : 'AI Suggest' }}
+                     </button>
+                   </div>
                    <textarea v-model="event.footerText" rows="4" class="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-500 outline-none transition-all" placeholder="Pesan akhir untuk audiens..."></textarea>
                 </div>
                 <div class="bg-blue-50 border border-blue-100 p-6 rounded-3xl space-y-4">
@@ -334,7 +483,10 @@ onMounted(fetchEvent)
                         <div :class="event.showSystemBranding ? 'translate-x-5' : 'translate-x-1'" class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all"></div>
                       </button>
                    </div>
-                   <input v-if="event.showSystemBranding" v-model="event.customBranding" class="w-full bg-white rounded-xl p-3 text-xs font-bold border-none outline-none" placeholder="Nama Brand..." />
+                   <div v-if="event.showSystemBranding" class="space-y-2">
+                     <input v-model="event.customBranding" class="w-full bg-white rounded-xl p-3 text-xs font-bold border-none outline-none" placeholder="Nama Brand..." />
+                     <input v-model="event.customPoweredBy" class="w-full bg-white rounded-xl p-3 text-xs font-bold border-none outline-none" placeholder="Powered By..." />
+                   </div>
                 </div>
              </div>
           </div>
@@ -359,6 +511,11 @@ onMounted(fetchEvent)
        <!-- Phone Frame Simulator -->
        <div class="w-[360px] h-[720px] bg-slate-900 rounded-[3rem] p-3 shadow-2xl border-[8px] border-slate-800 relative z-10 shrink-0 scale-90 lg:scale-100 transition-all overflow-hidden">
           <div class="w-full h-full bg-white rounded-[2.2rem] overflow-hidden relative flex flex-col" :style="{ backgroundColor: event.bgValue }">
+             <!-- Preview-Lock Banner (Restored) -->
+             <div v-if="event.status !== 'AKTIF'" class="sticky top-0 z-30 w-full bg-red-500/90 backdrop-blur-sm p-2 flex items-center justify-center gap-2">
+               <SIGAPIcons name="ShieldAlert" :size="12" class="text-white" />
+               <span class="text-[8px] font-black text-white uppercase tracking-widest">{{ event.status === 'ARSIP' ? 'ARSIP' : 'INAKTIF - PREVIEW' }}</span>
+             </div>
              <div class="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
                 <!-- Cover -->
                 <div v-if="event.showCover" class="w-full shrink-0 bg-slate-800" :style="{ height: event.coverHeight + 'px' }">
@@ -420,6 +577,37 @@ onMounted(fetchEvent)
     <IconSelectorModal :isOpen="showIconModal" :currentIcon="activeItemIndex !== null ? event.items[activeItemIndex].icon : ''" 
                        @close="showIconModal = false" @select="handleIconSelect" />
 
+    <!-- QR Poster Modal (Restored) -->
+    <Teleport to="body">
+      <div v-if="showQrPoster" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-xl" @click="showQrPoster = false"></div>
+        <div class="relative bg-white w-full max-w-md rounded-[3.5rem] shadow-2xl overflow-hidden animate-pop">
+          <div class="p-8 flex items-center justify-between border-b border-slate-50">
+            <div>
+              <h3 class="text-xl font-bold text-slate-800">QR Code Event</h3>
+              <p class="text-[10px] text-slate-400 font-medium">Unduh dan bagikan QR Code event ini</p>
+            </div>
+            <button @click="showQrPoster = false" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl">
+              <SIGAPIcons name="X" :size="20" />
+            </button>
+          </div>
+          <div class="p-8 flex flex-col items-center gap-6">
+            <div class="bg-slate-50 p-6 rounded-3xl shadow-inner border border-slate-100 inline-block">
+              <canvas ref="qrPosterCanvas" class="rounded-2xl"></canvas>
+            </div>
+            <div class="w-full p-4 bg-slate-50 rounded-2xl font-mono text-[10px] text-slate-400 break-all text-center">
+              /e/{{ event.slug }}
+            </div>
+            <div class="flex gap-4 w-full">
+              <button @click="downloadQrPoster" class="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
+                <SIGAPIcons name="Download" :size="16" /> Unduh QR Code
+              </button>
+              <button @click="showQrPoster = false" class="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold text-xs uppercase hover:bg-slate-200 transition-all">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 

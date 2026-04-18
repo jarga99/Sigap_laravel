@@ -118,9 +118,14 @@ onMounted(() => {
           <div v-for="item in rawChartData" :key="item.id" class="flex-1 flex flex-col items-center group relative h-full justify-end">
             <!-- Tooltip info on hover -->
             <div class="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
-               <div class="bg-slate-800 text-white text-[10px] py-1.5 px-3 rounded-lg shadow-xl whitespace-nowrap">
+               <div class="bg-slate-800 text-white text-[10px] py-2 px-4 rounded-lg shadow-xl whitespace-nowrap">
                   <span class="font-bold text-blue-300">{{ item.stats.total }} Klik</span> <br/>
-                  <span class="text-[9px] opacity-70">{{ item.title }}</span>
+                  <span class="text-[9px] opacity-90">{{ item.title }}</span> <br/>
+                  <span v-if="item.category" class="text-[8px] text-amber-300/80">📂 {{ item.category }}</span>
+                  <div class="flex gap-3 mt-1 border-t border-white/10 pt-1">
+                    <span class="text-[8px] text-blue-400">👤 User: {{ item.stats.user }}</span>
+                    <span class="text-[8px] text-amber-400">🌐 Guest: {{ item.stats.guest }}</span>
+                  </div>
                </div>
                <div class="w-2 h-2 bg-slate-800 rotate-45 mx-auto -mt-1"></div>
             </div>

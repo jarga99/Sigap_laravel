@@ -23,5 +23,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /sigap_backup_full_node
+/backups
 /storage/framework/views/*
 !/storage/framework/views/.gitignore

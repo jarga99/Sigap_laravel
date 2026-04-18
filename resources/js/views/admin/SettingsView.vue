@@ -21,6 +21,7 @@ const settings = ref<any>({
 const footerLinks = ref<any[]>([])
 const isLoading = ref(true)
 const isSaving = ref(false)
+const isGenerating = ref(false)
 const message = ref('')
 const isError = ref(false)
 
@@ -60,7 +61,6 @@ const updateSettings = async () => {
   
   try {
     const formData = new FormData()
-    // Filter out restricted keys and multi-language leftovers
     Object.keys(settings.value).forEach(key => {
         if (!key.endsWith('_en') && settings.value[key] !== null && key !== 'logo_url' && key !== 'bg_url') {
             formData.append(key, settings.value[key])
@@ -145,18 +145,105 @@ const deleteLink = async (id: number) => {
     } catch (err) { alert('Gagal menghapus') }
 }
 
-// --- 🛡️ SYSTEM MAINTENANCE ---
-const downloadBackup = () => {
-    window.open('/admin/system/backup', '_blank')
+const toggleLinkActive = async (link: any) => {
+    try {
+        const formData = new FormData()
+        formData.append('isActive', (!link.isActive).toString())
+        formData.append('label', link.label)
+        formData.append('url', link.url)
+        formData.append('type', link.type)
+        
+        await api.post(`/admin/footer-links/${link.id}?_method=PUT`, formData)
+        link.isActive = !link.isActive
+    } catch (err) {
+        alert('Gagal mengubah status')
+    }
+}
+
+// --- ✨ AI TAGLINE ENGINE (Restored) ---
+const generateAiTagline = async () => {
+    if (!settings.value.app_name) {
+        message.value = 'Harap isi Nama Aplikasi terlebih dahulu.'
+        isError.value = true
+        return
+    }
+    isGenerating.value = true
+    try {
+        const res = await api.post('/settings/ai/generate-tagline', { appName: settings.value.app_name })
+        if (res.data.tagline) {
+            settings.value.footer_text = res.data.tagline
+            message.value = 'Tagline berhasil dihasilkan oleh AI!'
+            isError.value = false
+        } else {
+            throw new Error('No tagline')
+        }
+    } catch (err) {
+        message.value = 'Gagal menghubungi AI. Cek koneksi/API Key.'
+        isError.value = true
+    } finally {
+        isGenerating.value = false
+        setTimeout(() => message.value = '', 5000)
+    }
+}
+
+// --- 🛡️ SYSTEM MAINTENANCE (Restored: Blob download + 2-step reset) ---
+const downloadBackup = async () => {
+    message.value = 'Sedang menyiapkan file Backup MySQL...'
+    isError.value = false
+    try {
+        const response = await api.get('/admin/system/backup', { responseType: 'blob' })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        
+        const contentDisposition = response.headers['content-disposition']
+        let fileName = 'sigap_backup.sql'
+        if (contentDisposition && contentDisposition.includes('filename=')) {
+            const parts = contentDisposition.split('filename=')
+            if (parts.length > 1) fileName = parts[1].replace(/["']/g, '')
+        }
+        
+        link.setAttribute('download', fileName)
+        document.body.appendChild(link)
+        link.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(link)
+        message.value = 'Backup berhasil diunduh.'
+    } catch (err) {
+        isError.value = true
+        message.value = 'Gagal men-generate backup MySQL.'
+    }
+    setTimeout(() => message.value = '', 5000)
 }
 
 const resetSystem = async () => {
-    if (!confirm('⚠️ PERINGATAN KRITIS: Seluruh data operasional akan dihapus permanen. Lanjutkan?')) return
+    if (!confirm('⚠️ PERINGATAN KERAS!\n\nUntuk menghindari kehilangan data yang tidak disengaja, sistem akan membuat BACKUP SQL otomatis terlebih dahulu.\n\nKlik OK untuk memulai BACKUP lalu melanjutkan.')) return
+    
     try {
-        const res = await api.post('/admin/system/reset')
-        alert(res.data.message)
-        location.reload()
-    } catch (err) { alert('Gagal mereset sistem') }
+        await downloadBackup()
+        
+        setTimeout(async () => {
+            const confirmation = prompt('Backup telah dikirim ke browser.\nSilakan ketik "RESET" untuk menghapus semua data operasional secara permanen:')
+            
+            if (confirmation === 'RESET') {
+                try {
+                    const res = await api.post('/admin/system/reset')
+                    message.value = res.data.message || 'Sistem berhasil direset.'
+                    isError.value = false
+                    setTimeout(() => window.location.reload(), 2000)
+                } catch (err: any) {
+                    isError.value = true
+                    message.value = err.response?.data?.message || 'Gagal mereset sistem.'
+                }
+            } else {
+                message.value = 'Reset dibatalkan.'
+                isError.value = true
+            }
+        }, 1500)
+    } catch (err) {
+        isError.value = true
+        message.value = 'Gagal melakukan backup wajib sebelum reset. Reset dihentikan.'
+    }
 }
 </script>
 
@@ -299,7 +386,13 @@ const resetSystem = async () => {
                  </div>
 
                  <div class="space-y-2">
-                     <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest ml-2">Slogan / Tagline</label>
+                     <div class="flex items-center justify-between">
+                       <label class="text-[10px] uppercase text-slate-400 font-black tracking-widest ml-2">Slogan / Tagline</label>
+                       <button @click="generateAiTagline" :disabled="isGenerating" class="px-4 py-2 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all flex items-center gap-2 border border-purple-100 active:scale-95">
+                         <SIGAPIcons name="Sparkles" :size="14" />
+                         {{ isGenerating ? 'Generating...' : 'AI Suggest' }}
+                       </button>
+                     </div>
                      <textarea v-model="settings.footer_text" rows="3" placeholder="Melayani dengan hati dan teknologi..." class="w-full bg-white rounded-2xl p-5 font-bold text-sm border border-blue-50 focus:border-blue-400 outline-none transition-all shadow-sm resize-none"></textarea>
                  </div>
               </div>
@@ -355,6 +448,9 @@ const resetSystem = async () => {
                            </div>
                        </div>
                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button @click="toggleLinkActive(link)" :class="[link.isActive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100']" class="px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all">
+                                {{ link.isActive ? 'Aktif' : 'Off' }}
+                            </button>
                            <button @click="openEditLink(link)" class="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl">
                                <SIGAPIcons name="Edit2" :size="16" />
                            </button>

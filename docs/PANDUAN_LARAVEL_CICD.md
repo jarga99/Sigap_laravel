@@ -51,7 +51,7 @@ Jangan gegabah menyerahkan *Username Login* cPanel utama Anda ke orang lain/Gith
 1. Di cPanel, masuk ke menu **FTP Accounts**.
 2. **Log In (Username)**: Ketik misal `robot_sigap` *(Nanti bentuk akhirnya otomatis bergandeng jadi `robot_sigap@kampusku.ac.id`)*. Catat nama utuh ini di Notepad!
 3. **Password**: Ketik sandi yang super kuat. *(Catat lagi sandi ini di Notepad! Ini adalah `FTP_PASSWORD`)*.
-4. **Directory**: Ini letak kekuatannya! Hapus isi otomatisnya, dan ganti HANYA dengan letak folder subdomain di Tahap 0.2 tadi (misal: `/public_html/sigap_portal`).
+4. **Directory**: Ini letak kekuatannya! Hapus isi otomatisnya, dan ganti **HANYA** lurus menuju letak folder *Document Root* subdomain Anda (contoh: `/sigap.uptblkpasuruan.com`).
 5. **Quota**: Unlimited. Klik **Create FTP Account**.
 
 Selesai di Tahap 0! Lanjut menyiapkan pengirimannya.
@@ -134,7 +134,7 @@ Geser ke baris ke-40 hingga ke paling bawah. Awalnya Anda akan melihat banyak ta
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./
-        server-dir: /nama_folder_subdomain/
+        server-dir: /
         exclude: |
           **/.git*
           **/node_modules/**
@@ -142,9 +142,9 @@ Geser ke baris ke-40 hingga ke paling bawah. Awalnya Anda akan melihat banyak ta
           **/sigap_backup_full_node/**
 ```
 > **INFORMASI PENTING TENTANG "SERVER-DIR":** 
-> * Ini adalah kunci keakuratan penembakan FTP! Jika saat Anda membuat Subdomain di Tahap 0 cPanel menaruh foldernya di luar `public_html` (misal namanya `/subdomain_sigap/`), maka Anda cukup mengisi `server-dir: /subdomain_sigap/`. 
-> * Jika Anda meletakkannya di dalam `public_html`, isilah `/public_html/nama_foldernya/`.
-> * *TIPS PRO:* Jika Akun FTP (*Username*) yang Anda gunakan di *Secrets* sudah dikunci oleh cPanel mentok spesifik hanya bisa akses masuk ke folder subdomain itu saja, maka cukup isi `server-dir: /` (garis miring satu).
+> * Ini adalah pedoman terpenting dari Pipeline untuk mencegah kode beranak pinak ke dalam sub-folder! Sangat disarankan Anda membuat konfigurasi Akun FTP (*Username FTP*) di cPanel secara sempurna agar **dikunci spesifik/mentok** masuk langsung ke dalam folder induk subdomain Anda (misal Folder: `/sigap.uptblkpasuruan.com`).
+> * Jika Akun FTP cPanel tersebut sudah dikunci menuju folder tersebut, maka di sini Anda **WAJIB mengisi nilai** `server-dir: /` (hanya satu karakter garis miring alias Root).
+> * Dengan begitu, saat script dieksekusi, robot akan meletakkan seluruh file *core* Laravel Anda rapi berjajar seketika tepat di bawah direktori root subdomain tanpa menyelinap masuk ke folder tambahan lagi.
 
 Setelah menghapus pagarnya, kirim *Update* ini lagi ke Github:
 ```bash
@@ -177,7 +177,7 @@ Walaupun kode sudah tersiram rapi oleh sang Robot Kurir secara berkelanjutan, se
 1. Masuk cPanel Anda, buka menu fitur **Terminal**.
 2. Masuk ke ruang folder baru tempat Robot baru mentransfer datanya. (Ganti `nama_folder_subdomain` dengan jalur Anda):
 ```bash
-cd /home/usercpanel/nama_folder_subdomain
+cd /home/usercpanel/sigap.uptblkpasuruan.com
 ```
 3. Lipat Gandakan File Konfigurasi Rahasia:
 ```bash
@@ -194,20 +194,18 @@ cp .env.example .env
 > ```
 
 5. Inisialisasi Database dan Sistem Keamanan (Jalankan di Terminal dan selesaikan urusannya!):
-```bash
-# Pastikan cPanel Anda menunjuk PHP/PHP-CLI 8.2 minimal!
-php artisan key:generate
+> ⚠️ **PENTING UNTUK cPanel:** Di terminal cPanel, perintah `php` biasanya secara default tertahan di versi lama (misal 7.4). Oleh karena itu, kita **wajib** memanggil versi PHP 8.2 secara spesifik dengan path absolut.
 
+```bash
 # Peringatan! Perintah ini akan menghancurkan data lama dan menggantikannya dengan seeder Super Admin yang segar:
-php artisan migrate:fresh --seed
+/opt/alt/php82/usr/bin/php artisan migrate:fresh --seed
 
 # Membuka jalur gambar dari Storage ke Public:
-# (Jika ini gagal di cPanel, hapus folder public/storage lalu jalankan kembali)
-php artisan storage:link
+# (Jika cara `artisan storage:link` normal gagal karena fungsi symlink() diblokir oleh cPanel, gunakan murni perintah sistem Linux di bawah ini)
+ln -s $(pwd)/storage/app/public $(pwd)/public/storage
 
-# Bekukan konfigurasi Laravel biar tidak lelet (Cache)
-php artisan config:cache
-php artisan route:cache
+# Bekukan konfigurasi Laravel biar website melesat kencang (Cache production)
+/opt/alt/php82/usr/bin/php artisan optimize
 ```
 
 ## 🚨 TAHAP 5 (SANGAT KRUSIAL!): MENGARAHKAN ALAMAT KE FOLDER "PUBLIC"
@@ -221,11 +219,17 @@ Jika aplikasi Anda diinstal di domain utama (atau Subdomain khusus):
 3. Ubah kolom jalurnya (Document Root) menjadi menunjuk langsung ke foldernya, dan tambahkan `/public` di akhirnya. (Contoh: `public_html/sigap/public` atau `sigap.domain.com/public`)
 4. Simpan.
 
-**Cara B (Trik Menggunakan file `.htaccess` rahasia):**
-Jika Cara A diblokir oleh kampus/hostingan Anda, Anda CUKUP membuat 1 file baru bernama `.htaccess` persis di dalam folder induk SIGAP Anda (sejajar dengan `.env`), berisikan kode ini:
+**Cara B (Trik Menggunakan file `.htaccess` rahasia untuk Document Root ATAU Memaksa Versi PHP):**
+Jika Cara A diblokir oleh kampus/hostingan Anda, atau versi PHP masih "nyangkut" di 7.4 sekalipun di cPanel sudah diubah, Anda CUKUP membuat 1 file baru bernama `.htaccess` persis di dalam folder induk SIGAP Anda (sejajar dengan `.env`), berisikan kode ini:
 ```apache
+<IfModule mime_module>
+  # Memaksa Web Server berjalan di PHP 8.2 (Bisa diganti 'ea-php82' menjadi 'alt-php82' jika tidak mempan)
+  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Mengalihkan URL Document Root agar otomatis mengarah ke pintu gerbang public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 ```

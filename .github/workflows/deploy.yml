@@ -46,7 +46,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./
-        server-dir: /public_html/subdomain_sigap/
+        server-dir: /
         exclude: |
           **/.git*
           **/node_modules/**
