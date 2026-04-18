@@ -267,6 +267,7 @@ const resetSystem = async () => {
             
             if (confirmation === 'RESET') {
                 try {
+                    await new Promise(resolve => setTimeout(resolve, 1500))
                     const res = await api.post('/admin/system/reset')
                     message.value = res.data.message || 'Sistem berhasil direset.'
                     isError.value = false

@@ -929,14 +929,22 @@ class ApiGatewayController extends Controller
         $dbPass = env('DB_PASSWORD');
 
         // 1. Generate SQL Dump ke file temporary
-        $command = "mysqldump -h {$dbHost} -u {$dbUser} -p\"{$dbPass}\" {$dbName} --no-tablespaces > \"{$sqlPath}\"";
+        // Gunakan escapeshellarg untuk keamanan karakter khusus di password/db
+        $shHost = escapeshellarg($dbHost);
+        $shUser = escapeshellarg($dbUser);
+        $shPass = escapeshellarg($dbPass);
+        $shName = escapeshellarg($dbName);
+        $shPath = escapeshellarg($sqlPath);
+
+        $command = "mysqldump -h {$shHost} -u {$shUser} -p{$shPass} {$shName} --no-tablespaces > {$shPath} 2>&1";
         
         $output = [];
         $returnVar = 0;
         exec($command, $output, $returnVar);
 
         if ($returnVar !== 0) {
-            return response()->json(['error' => 'Gagal melakukan backup database. Pastikan mysqldump terinstall.'], 500);
+            \Log::error("Backup failed: " . implode("\n", $output));
+            return response()->json(['error' => 'Gagal melakukan backup database. ' . implode(" ", $output)], 500);
         }
 
         // 2. Buat ZIP archive
@@ -1022,13 +1030,27 @@ class ApiGatewayController extends Controller
                 }
             }
 
-            $this->logAction('RESET_SYSTEM', 'System', null, "System has been reset by user ID: {$user->id}");
-
             return response()->json(['status' => 'success', 'message' => 'Sistem berhasil di-reset sepenuhnya.']);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['error' => 'Gagal mereset sistem: ' . $e->getMessage()], 500);
+        } finally {
+            // Selalu nyalakan kembali FK checks
+            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+            
+            // Pastikan folder uploads tetap ada (kosong) agar sistem tidak crash saat simpan file baru
+            $uploadDir = public_path('uploads');
+            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            
+            // Log action di luar transaksi agar tidak terbawa rollback jika log gagal (tapi tetap coba log)
+            try {
+                if (isset($user)) {
+                    $this->logAction('RESET_SYSTEM', 'System', null, "System has been reset by user ID: {$user->id}");
+                }
+            } catch (\Exception $logErr) {
+                \Log::warning("Failed to log RESET_SYSTEM: " . $logErr->getMessage());
+            }
         }
     }
 
@@ -1161,6 +1183,7 @@ class ApiGatewayController extends Controller
             'resource' => $resource,
             'resourceId' => $resourceId,
             'details' => $details,
+            'userId' => $user?->id,
             'category_id' => $user?->category_id,
             'ipAddress' => request()->ip(),
             'userAgent' => request()->userAgent(),
