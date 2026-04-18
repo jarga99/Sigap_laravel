@@ -48,6 +48,7 @@ const qrOptions = ref({
 // Auth & Permissions
 const userRole = ref('')
 const userDeptId = ref<number | null>(null)
+const currentUserId = ref<number | null>(null)
 
 const checkUserAccess = () => {
   const token = localStorage.getItem('token')
@@ -56,6 +57,7 @@ const checkUserAccess = () => {
       const payload = JSON.parse(atob(token.split('.')[1]))
       userRole.value = payload.role || 'GUEST'
       userDeptId.value = payload.category_id ? Number(payload.category_id) : null
+      currentUserId.value = payload.sub ? Number(payload.sub) : null
     } catch (e) {
       console.error('JWT Parse Error:', e)
     }
@@ -64,7 +66,11 @@ const checkUserAccess = () => {
 
 const canModify = (link: any) => {
   if (userRole.value === 'ADMIN') return true
-  if (userRole.value === 'EMPLOYEE' && link.category_id === userDeptId.value) return true
+  if (userRole.value === 'EMPLOYEE') {
+    // Can modify if Same Category OR Owner
+    if (Number(link.category_id) === Number(userDeptId.value)) return true
+    if (Number(link.userId) === Number(currentUserId.value)) return true
+  }
   return false
 }
 
@@ -355,8 +361,8 @@ onMounted(() => { checkUserAccess(); fetchData() })
 
     <!-- Employee hint -->
     <div v-if="userRole === 'EMPLOYEE'" class="flex items-center gap-2.5 px-5 py-3 bg-amber-50 text-amber-700 rounded-xl border border-amber-100 text-xs font-bold">
-      <SIGAPIcons name="AlertCircle" :size="15" />
-      Terkunci di departemen Anda. Hanya tautan kategori Anda yang ditampilkan.
+      <SIGAPIcons name="ShieldCheck" :size="15" />
+      Mode Pegawai: Anda dapat melihat seluruh tautan operasional (Internal), namun hanya dapat mengelola tautan di departemen Anda atau yang Anda buat sendiri.
     </div>
 
     <!-- Table -->

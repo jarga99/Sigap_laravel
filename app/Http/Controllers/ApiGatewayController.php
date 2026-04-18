@@ -419,8 +419,12 @@ class ApiGatewayController extends Controller
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
         
         $query = Link::with(['category', 'user']);
-        if ($user->role === 'EMPLOYEE' && $user->category_id) {
-            $query->where('category_id', $user->category_id);
+        if ($user->role === 'EMPLOYEE') {
+            $query->where(function($q) use ($user) {
+                $q->where('visibility', 'INTERNAL')
+                  ->orWhere('category_id', $user->category_id)
+                  ->orWhere('userId', $user->id);
+            });
         }
         return response()->json($query->orderBy('created_at', 'desc')->get());
     }
@@ -443,8 +447,18 @@ class ApiGatewayController extends Controller
 
     public function linksUpdate(Request $request, $id)
     {
+        $user = $this->currentUser();
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+
         $link = Link::find($id);
         if (!$link) return response()->json(['error' => 'Not found'], 404);
+
+        // RBAC: Employee only same category or owner
+        if ($user->role === 'EMPLOYEE') {
+            if ($link->category_id != $user->category_id && $link->userId != $user->id) {
+                return response()->json(['error' => 'Forbidden'], 403);
+            }
+        }
 
         $link->update($request->all());
         $this->logAction('UPDATE_LINK', 'Link', $link->id, "Updated link: {$link->title}");
@@ -453,9 +467,19 @@ class ApiGatewayController extends Controller
 
     public function linksDestroy($id)
     {
+        $user = $this->currentUser();
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+
         $link = Link::find($id);
         if (!$link) return response()->json(['error' => 'Not found'], 404);
         
+        // RBAC: Employee only same category or owner
+        if ($user->role === 'EMPLOYEE') {
+            if ($link->category_id != $user->category_id && $link->userId != $user->id) {
+                return response()->json(['error' => 'Forbidden'], 403);
+            }
+        }
+
         $link->delete();
         $this->logAction('DELETE_LINK', 'Link', $id, "Deleted link ID: {$id}");
         return response()->json(['success' => true]);
