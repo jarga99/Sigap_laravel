@@ -10,7 +10,7 @@ Route::post('/auth/google', [ApiGatewayController::class, 'loginWithGoogle']);
 Route::get('/categories', [ApiGatewayController::class, 'categories']);
 Route::get('/portal/links', [ApiGatewayController::class, 'portalLinks']);
 Route::get('/portal/preview', [ApiGatewayController::class, 'portalPreview']);
-Route::get('/public/events/{slug}', [ApiGatewayController::class, 'publicEventShow']);
+Route::get('/internal/events/{slug}', [ApiGatewayController::class, 'internalEventShow']);
 Route::post('/feedback', [ApiGatewayController::class, 'submitFeedback']);
 
 // Protected Admin Routes

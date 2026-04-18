@@ -325,7 +325,7 @@ const resetSystem = async () => {
                 <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg border border-blue-50 shadow-inner">01</div>
                 <div>
                    <h3 class="font-black text-slate-800 text-sm uppercase tracking-widest">Visual & Branding</h3>
-                   <p class="text-[9px] text-slate-400 font-bold italic">Atur tampilan publik portal anda</p>
+                   <p class="text-[9px] text-slate-400 font-bold italic">Atur tampilan utama portal anda</p>
                 </div>
              </div>
 

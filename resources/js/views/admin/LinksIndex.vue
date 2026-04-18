@@ -69,7 +69,7 @@ const canModify = (link: any) => {
 }
 
 const visibilityOptions = [
-  { id: 'INTERNAL', name: '🌍 Publik (Internal)' },
+  { id: 'INTERNAL', name: '🌍 Seluruh Pegawai (Internal)' },
   { id: 'KATEGORI', name: '🏢 Khusus Kategori' }
 ]
 
@@ -424,7 +424,7 @@ onMounted(() => { checkUserAccess(); fetchData() })
                   </span>
                   <span class="text-[9px] font-black text-slate-300 flex items-center gap-1 uppercase tracking-tighter">
                     <SIGAPIcons :name="link.visibility === 'INTERNAL' ? 'Lock' : 'Globe'" :size="10" />
-                    {{ link.visibility === 'INTERNAL' ? 'Internal' : 'Publik' }}
+                    {{ link.visibility === 'INTERNAL' ? 'Internal' : 'Kategori' }}
                   </span>
                 </div>
               </td>
@@ -550,7 +550,7 @@ onMounted(() => { checkUserAccess(); fetchData() })
               </div>
               <div class="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2 border-white shadow-sm mt-1">
                 <div>
-                  <p class="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Publikasi Layanan</p>
+                  <p class="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Konfigurasi Visibilitas</p>
                   <p :class="form.is_active ? 'text-emerald-500' : 'text-slate-400'" class="text-[9px] font-bold uppercase tracking-widest mt-1">
                     {{ form.is_active ? 'Siap Tayang' : 'Simpan Draft' }}
                   </p>

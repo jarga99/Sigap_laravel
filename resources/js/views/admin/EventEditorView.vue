@@ -91,7 +91,7 @@ const event = ref<any>({
 })
 
 const statusOptions = [
-  { id: 'AKTIF', name: '🟢 AKTIF (Publik)' },
+  { id: 'AKTIF', name: '🟢 AKTIF (Tayang)' },
   { id: 'TIDAK_AKTIF', name: '🔴 TIDAK AKTIF (Draft)' },
   { id: 'ARSIP', name: '📦 ARSIP (Hidden)' }
 ]

@@ -159,7 +159,7 @@ onMounted(() => {
         </div>
         <div class="flex items-center gap-3">
           <div class="w-4 h-4 bg-amber-300 rounded-lg shadow-sm"></div>
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Guest (Publik)</span>
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pengunjung</span>
         </div>
       </div>
     </div>

@@ -19,7 +19,7 @@ const fetchSettings = async () => {
 const fetchEvent = async () => {
   const slug = route.params.slug
   try {
-    const res = await api.get(`/events/public/${slug}`)
+    const res = await api.get(`/internal/events/${slug}`)
     event.value = res.data
   } catch (err) {
     console.error('Event tidak ditemukan')

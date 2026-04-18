@@ -652,9 +652,9 @@ class ApiGatewayController extends Controller
         return response()->json($query->orderBy('category_id')->orderBy('created_at', 'desc')->get());
     }
 
-    // --- 🌐 PUBLIC PORTAL ---
+    // --- 🌐 INTERNAL PORTAL ---
 
-    public function publicEventShow($slug)
+    public function internalEventShow($slug)
     {
         $event = Event::where('slug', $slug)->first(); // We handle status checks on frontend for preview mode if needed
         if (!$event) return response()->json(['error' => 'Event not found'], 404);

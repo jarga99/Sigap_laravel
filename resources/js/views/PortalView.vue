@@ -255,7 +255,7 @@ onMounted(() => {
           {{ settings.hero_title || 'Pusat Layanan Digital' }}
        </h2>
        <p class="text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium text-lg">
-          {{ settings.hero_subtitle || 'Akses cepat dan mudah ke seluruh aplikasi internal serta layanan publik kami dalam satu pintu.' }}
+          {{ settings.hero_subtitle || 'Akses cepat dan mudah ke seluruh aplikasi internal serta layanan internal kami dalam satu pintu.' }}
        </p>
               <div class="max-w-2xl mx-auto relative group">
           <SIGAPIcons name="Search" :size="20" class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
@@ -271,7 +271,7 @@ onMounted(() => {
        </button>
     </div>
 
-    <!-- Main Grid -->
+    <!-- 🌐 GUEST PORTAL (INTERNAL) -->
      <main class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-32 relative z-10">
         <div 
          v-for="link in paginatedLinks" 
