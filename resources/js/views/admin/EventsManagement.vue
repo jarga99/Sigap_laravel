@@ -73,6 +73,21 @@ const deleteEvent = async (id: number) => {
   catch (err) { alert('Gagal menghapus event') }
 }
 
+const handleExport = async () => {
+  try {
+    const res = await api.get('/admin/events/export', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `export_events_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (err) {
+    alert('Gagal mengekspor data event.')
+  }
+}
+
 onMounted(() => {
   fetchEvents()
 })
@@ -86,10 +101,16 @@ onMounted(() => {
         <h1 class="text-3xl font-black text-slate-800 tracking-tight">Sigap Event Links</h1>
         <p class="text-sm text-slate-500 font-medium">Kelola halaman landing page (Taplink style) untuk event Anda.</p>
       </div>
-      <button @click="openCreateModal" class="w-full sm:w-auto px-6 py-3 bg-[#4f86e8] hover:bg-[#3b75d4] text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest">
-        <SIGAPIcons name="Plus" :size="18" /> 
-        <span>Buat Event Baru</span>
-      </button>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <button @click="handleExport" class="flex-1 sm:flex-none px-6 py-3 bg-white border-2 border-slate-50 text-emerald-600 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-slate-100 transition-all active:scale-95 text-xs uppercase tracking-widest whitespace-nowrap">
+          <SIGAPIcons name="Download" :size="18" /> 
+          <span>Ekspor</span>
+        </button>
+        <button @click="openCreateModal" class="flex-1 sm:flex-none px-6 py-3 bg-[#4f86e8] hover:bg-[#3b75d4] text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 transition-all active:scale-95 text-xs uppercase tracking-widest whitespace-nowrap">
+          <SIGAPIcons name="Plus" :size="18" /> 
+          <span>Buat Event Baru</span>
+        </button>
+      </div>
     </div>
 
     <!-- Status Tabs -->

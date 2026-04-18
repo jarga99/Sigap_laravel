@@ -336,6 +336,10 @@ onMounted(() => { checkUserAccess(); fetchData() })
           <span v-else class="w-4 h-4 border-2 border-blue-400/30 border-t-blue-500 rounded-full animate-spin"></span>
           {{ isImporting ? 'Importing...' : 'Import' }}
         </button>
+        <button @click="downloadTemplate" class="px-6 py-3 bg-white border-2 border-slate-50 text-emerald-600 rounded-2xl text-[10px] font-black hover:bg-slate-50 transition-all flex items-center gap-2 uppercase tracking-widest shadow-sm">
+          <SIGAPIcons name="FileText" :size="16" />
+          Template
+        </button>
         <div class="relative group/export">
           <button @click="showExportMenu = !showExportMenu" class="px-6 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black hover:bg-slate-900 transition-all flex items-center gap-2 uppercase tracking-widest shadow-xl shadow-slate-200">
             <SIGAPIcons name="Download" :size="16" /> Export <SIGAPIcons name="ChevronDown" :size="12" />

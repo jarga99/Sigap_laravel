@@ -28,6 +28,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/admin/users', [ApiGatewayController::class, 'usersStore']);
     Route::put('/admin/users/{id}', [ApiGatewayController::class, 'usersUpdate']);
     Route::delete('/admin/users/{id}', [ApiGatewayController::class, 'usersDestroy']);
+    Route::get('/admin/users/template', [ApiGatewayController::class, 'usersTemplate']);
 
     // Categories Management (Admin Only)
     Route::get('/admin/categories', [ApiGatewayController::class, 'categories']);
@@ -41,6 +42,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/admin/events', [ApiGatewayController::class, 'eventsStore']);
     Route::put('/admin/events/{id}', [ApiGatewayController::class, 'eventsUpdate']);
     Route::delete('/admin/events/{id}', [ApiGatewayController::class, 'eventsDestroy']);
+    Route::get('/admin/events/export', [ApiGatewayController::class, 'eventsExport']);
 
     // System Settings & Dashboard
     Route::get('/admin/settings', [ApiGatewayController::class, 'getSettings']);
@@ -78,6 +80,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/admin/links', [ApiGatewayController::class, 'linksIndex']);
     Route::post('/admin/links', [ApiGatewayController::class, 'linksStore']);
     Route::post('/admin/links/bulk', [ApiGatewayController::class, 'linksBulkImport']);
+    Route::get('/admin/links/template', [ApiGatewayController::class, 'linksTemplate']);
     Route::put('/admin/links/{id}', [ApiGatewayController::class, 'linksUpdate']);
     Route::delete('/admin/links/{id}', [ApiGatewayController::class, 'linksDestroy']);
 });

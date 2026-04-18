@@ -99,7 +99,7 @@ onMounted(() => {
       </div>
 
       <!-- Main Profile Section -->
-      <div class="flex flex-col items-center px-8 text-center relative" :class="event.showCover ? (event.showProfile ? '-mt-12' : 'pt-8') : 'pt-16'">
+      <div class="flex flex-col items-center px-8 text-center relative" :class="event.showCover ? (event.showProfile ? '-mt-12' : 'pt-8') : 'pt-24'">
         
         <!-- Profile Photo -->
         <div v-if="event.showProfile" 

@@ -171,6 +171,14 @@ const handleFileUpload = async (eventTarget: Event, type: 'profile' | 'backgroun
 }
 
 const addNewItem = (type: string) => {
+  if (type === 'SOCIAL') {
+    const socialCount = event.value.items.filter((it: any) => it.type === 'SOCIAL').length
+    if (socialCount >= 6) {
+      alert('⚠️ Batas Maksimal: Anda hanya dapat menambahkan maksimal 6 tombol sosial media untuk menjaga estetika halaman.')
+      return
+    }
+  }
+
   const newItem = {
     label: type === 'DIVIDER' ? 'Separator' : 'Tautan Baru',
     url: type === 'DIVIDER' ? '#' : 'https://',

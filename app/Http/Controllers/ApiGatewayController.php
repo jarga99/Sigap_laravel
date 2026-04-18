@@ -520,7 +520,7 @@ class ApiGatewayController extends Controller
     {
         $headers = [
             "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=template_links.csv",
+            "Content-Disposition" => "attachment; filename=template_links_sigap.csv",
             "Pragma"              => "no-cache",
             "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
             "Expires"             => "0"
@@ -531,7 +531,69 @@ class ApiGatewayController extends Controller
         $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
-            fputcsv($file, ['Contoh Layanan', 'https://google.com', 'google-link', '1', 'INTERNAL', 'Deskripsi layanan ini']);
+            // Standar: title, url, slug(opt), category_id, visibility(INTERNAL/KATEGORI), desc
+            fputcsv($file, ['Google Search', 'https://google.com', 'google-link', '10', 'INTERNAL', 'Mesin pencari utama']);
+            fputcsv($file, ['Portal Internal', 'https://sigap.go.id', 'portal-tu', '1', 'KATEGORI', 'Layanan khusus divisi']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function usersTemplate()
+    {
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=template_users_sigap.csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['username', 'password', 'fullName', 'email', 'role', 'category_id'];
+
+        $callback = function() use($columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            fputcsv($file, ['staff01', 'password123', 'Budi Santoso', 'budi@sigap.go.id', 'EMPLOYEE', '1']);
+            fputcsv($file, ['admin_tu', 'admin123', 'Siti Aminah', 'siti@sigap.go.id', 'ADMIN', '']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function eventsExport()
+    {
+        $user = $this->currentUser();
+        if (!$user || $user->role === 'EMPLOYEE') return response()->json(['error' => 'Forbidden'], 403);
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=export_events_" . date('Y-m-d') . ".csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['ID', 'Slug', 'Title', 'Status', 'Branding', 'Items Count', 'Created At'];
+        
+        $events = \App\Models\Event::withCount('items')->get();
+
+        $callback = function() use($columns, $events) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            foreach ($events as $ev) {
+                fputcsv($file, [
+                    $ev->id,
+                    $ev->slug,
+                    $ev->title,
+                    $ev->status,
+                    $ev->customBranding,
+                    $ev->items_count,
+                    $ev->created_at
+                ]);
+            }
             fclose($file);
         };
 
@@ -703,9 +765,16 @@ class ApiGatewayController extends Controller
         // Auto-fill and link if logged in
         if ($user) {
             $data['user_id'] = $user->id;
-            $data['name'] = $user->fullName ?: $user->username;
-            $data['email'] = $user->email;
-            $data['role'] = $user->role;
+            if (empty($data['is_anonymous'])) {
+                $data['name'] = $user->fullName ?: $user->username;
+                $data['email'] = $user->email;
+                $data['role'] = $user->role;
+            } else {
+                // BUG FIX: Ensure info is null if anonymous, even when logged in
+                $data['name'] = null;
+                $data['email'] = null;
+                $data['role'] = null;
+            }
         }
 
         if ($request->hasFile('file')) {
