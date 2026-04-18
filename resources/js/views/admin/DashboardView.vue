@@ -135,9 +135,9 @@ onMounted(() => {
 
           <!-- Segmented Bar -->
           <div class="w-full max-w-[40px] flex flex-col-reverse rounded-t-xl overflow-hidden transition-all group-hover:scale-x-110 shadow-sm"
-                 :style="{ height: `${(item.stats.total / maxClick) * 100}%` }">
-              <div class="bg-[#4f86e8] w-full" :style="{ height: `${(item.stats.user / item.stats.total) * 100}%` }"></div>
-              <div class="bg-amber-300 w-full" :style="{ height: `${(item.stats.guest / item.stats.total) * 100}%` }"></div>
+                 :style="{ height: maxClick > 0 ? `${(item.stats.total / maxClick) * 100}%` : '0%' }">
+              <div class="bg-[#4f86e8] w-full" :style="{ height: item.stats.total > 0 ? `${(item.stats.user / item.stats.total) * 100}%` : '0%' }"></div>
+              <div class="bg-amber-300 w-full" :style="{ height: item.stats.total > 0 ? `${(item.stats.guest / item.stats.total) * 100}%` : '0%' }"></div>
           </div>
 
           <p class="text-[9px] font-semibold text-slate-300 mt-3 rotate-45 origin-left whitespace-nowrap opacity-100 transition-opacity">

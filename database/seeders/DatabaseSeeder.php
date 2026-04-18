@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database with UPT BLK Pasuruan data (Restored from Backup).
+     * Seed the application's database with REAL and UPDATED data.
      */
     public function run(): void
     {
@@ -32,38 +32,38 @@ class DatabaseSeeder extends Seeder
         Setting::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
-        // 1. Setup Categories (13 Vocational Departments from Backup)
+        // 1. Setup Categories (Vocational Departments)
         $categoriesData = [
-            'Bagian Tata Usaha', 
-            'Pelatihan dan Sertifikasi', 
-            'Pengembangan dan Pemasaran',
-            'Kejuruan TIK', 
-            'Kejuruan Tekmek', 
-            'Kejuruan Bisman', 
-            'Kejuruan Elektro', 
-            'Kejuruan Otomotif', 
-            'Kejuruan Refrigerasi', 
-            'Kejuruan Fashion Teknologi', 
-            'Kejuruan Tata Rias', 
-            'Kejuruan Listrik', 
-            'Umum'
+            ['name' => 'Bagian Tata Usaha', 'icon' => 'Building2', 'color' => '#3b82f6'], 
+            ['name' => 'Pelatihan dan Sertifikasi', 'icon' => 'Award', 'color' => '#10b981'], 
+            ['name' => 'Pengembangan dan Pemasaran', 'icon' => 'TrendingUp', 'color' => '#f59e0b'],
+            ['name' => 'Kejuruan TIK', 'icon' => 'Monitor', 'color' => '#6366f1'], 
+            ['name' => 'Kejuruan Elektro', 'icon' => 'Zap', 'color' => '#ec4899'], 
+            ['name' => 'Kejuruan Otomotif', 'icon' => 'Car', 'color' => '#ef4444'], 
+            ['name' => 'Kejuruan Fashion Teknologi', 'icon' => 'Scissors', 'color' => '#8b5cf6'], 
+            ['name' => 'Kejuruan Tata Rias', 'icon' => 'Sparkles', 'color' => '#d946ef'], 
+            ['name' => 'Kejuruan Listrik', 'icon' => 'Lightbulb', 'color' => '#eab308'], 
+            ['name' => 'Umum', 'icon' => 'Globe', 'color' => '#64748b']
         ];
 
         $categories = [];
-        foreach ($categoriesData as $name) {
+        foreach ($categoriesData as $c) {
             $categories[] = Category::create([
-                'name' => $name,
-                'description' => $name === 'Umum' ? 'Layanan portal untuk tamu dan masyarakat umum.' : "Unit kerja operasional bagian $name."
+                'name' => $c['name'],
+                'slug' => Str::slug($c['name']),
+                'icon' => $c['icon'],
+                'color' => $c['color'],
+                'description' => "Unit kerja operasional bagian {$c['name']}."
             ]);
         }
 
-        // 2. Setup Administrative Users (Credential matches Backup)
+        // 2. Setup Administrative Users
         $admin = User::create([
             'username' => 'admin',
             'password' => Hash::make('admin123'),
             'fullName' => 'Super Administrator',
             'role' => 'ADMIN',
-            'email' => 'admin@blkpasuruan.go.id',
+            'email' => 'admin@sigap.go.id',
             'is_active' => true
         ]);
 
@@ -72,101 +72,114 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password123'),
             'fullName' => 'Admin Event Utama',
             'role' => 'ADMIN_EVENT',
-            'email' => 'event@blkpasuruan.go.id',
+            'email' => 'event@sigap.go.id',
             'is_active' => true
         ]);
 
-        // Sample Employee (Tata Usaha)
         $pegawai = User::create([
             'username' => 'pegawai',
             'password' => Hash::make('password123'),
             'fullName' => 'Staff Tata Usaha',
             'role' => 'EMPLOYEE',
-            'email' => 'pegawai@blkpasuruan.go.id',
+            'email' => 'pegawai@sigap.go.id',
             'category_id' => $categories[0]->id, // Bagian Tata Usaha
             'is_active' => true
         ]);
 
         // 3. Setup Official Settings
         Setting::create([
-            'instansi_name' => 'UPT BLK Pasuruan',
-            'instansi_desc' => 'Dinas Tenaga Kerja dan Transmigrasi Provinsi Jawa Timur - Unit Pelaksana Teknis Balai Latihan Kerja Pasuruan.',
-            'app_name' => 'SIGAP Pasuruan',
+            'instansi_name' => 'Balai Latihan Kerja Pasuruan',
+            'instansi_desc' => 'Pusat Pelatihan Kerja Kompeten dan Profesional untuk Masyarakat.',
+            'app_name' => 'SIGAP Lite',
             'footer_text' => 'AKSI: Akurasi, Kontinuitas, Solusi, Inovasi - Melayani dengan Hati.',
-            'footer_copyright' => '© 2026 UPT BLK Pasuruan',
-            'contact_email' => 'blk.pasuruan@jatimprov.go.id',
+            'footer_copyright' => '© ' . date('Y') . ' UPT BLK Pasuruan',
+            'contact_email' => 'info@blkpasuruan.go.id',
             'contact_phone' => '0343-421234',
             'contact_address' => 'Jl. Raya Pasuruan No. 123, Pasuruan, Jawa Timur',
             'footer_mode' => 'COMPLEX',
-            'custom_domain' => 'sigap.blkpasuruan.go.id'
+            'custom_domain' => 'portal.blkpasuruan.go.id'
         ]);
 
-        // 4. Setup Sample Links (Extracted Patterns from Backup)
+        // 4. Setup REAL Links (Public Access)
         $linksData = [
-            // INTERNAL (Visible to all logged in)
-            ['title' => 'Google', 'url' => 'https://google.com', 'vis' => 'INTERNAL', 'cat' => 12, 'icon' => 'Search'],
-            ['title' => 'Website Resmi BLK', 'url' => 'https://blkpasuruan.go.id', 'vis' => 'INTERNAL', 'cat' => 12, 'icon' => 'Globe'],
-            ['title' => 'Pendaftaran Pelatihan', 'url' => 'https://pelatihan.blkpasuruan.go.id', 'vis' => 'INTERNAL', 'cat' => 1, 'icon' => 'Award'],
+            // INTERNAL (Visible to all staff)
+            ['title' => 'Google Search', 'url' => 'https://www.google.com', 'vis' => 'INTERNAL', 'cat' => 9, 'icon' => 'Search'],
+            ['title' => 'Portal Kemdikbud RI', 'url' => 'https://www.kemdikbud.go.id', 'vis' => 'INTERNAL', 'cat' => 9, 'icon' => 'Globe'],
+            ['title' => 'KBBI Daring', 'url' => 'https://kbbi.kemdikbud.go.id', 'vis' => 'INTERNAL', 'cat' => 9, 'icon' => 'Book'],
+            ['title' => 'DeepL Translator', 'url' => 'https://www.deepl.com', 'vis' => 'INTERNAL', 'cat' => 9, 'icon' => 'Languages'],
             
-            // INTERNAL
-            ['title' => 'Presensi Online', 'url' => 'https://absensi.dummy.go.id', 'vis' => 'INTERNAL', 'cat' => 0, 'icon' => 'Clock'],
-            ['title' => 'E-Office Jatim', 'url' => 'https://eoffice.jatimprov.go.id', 'vis' => 'INTERNAL', 'cat' => 0, 'icon' => 'FileText'],
-            ['title' => 'Layanan Kepegawaian', 'url' => 'https://simpeg.jatimprov.go.id', 'vis' => 'INTERNAL', 'cat' => 0, 'icon' => 'Users'],
+            // TATA USAHA SPECIFIC
+            ['title' => 'JDIH Nasional (Peraturan)', 'url' => 'https://jdihn.go.id', 'vis' => 'KATEGORI', 'cat' => 0, 'icon' => 'FileText'],
+            ['title' => 'LAPOR! (Layanan Aspirasi)', 'url' => 'https://www.lapor.go.id', 'vis' => 'KATEGORI', 'cat' => 0, 'icon' => 'MessageSquare'],
+            ['title' => 'Satu Data Indonesia', 'url' => 'https://data.go.id', 'vis' => 'KATEGORI', 'cat' => 0, 'icon' => 'Database'],
             
-            // KATEGORI SPECIFIC
-            ['title' => 'Aset Unit TIK', 'url' => 'https://tik.sigap.internal', 'vis' => 'KATEGORI', 'cat' => 3, 'icon' => 'Smartphone'],
-            ['title' => 'Silabus Kurikulum', 'url' => 'https://kurikulum.sigap.internal', 'vis' => 'KATEGORI', 'cat' => 1, 'icon' => 'BookOpen'],
-            ['title' => 'Pengadaan Alat Workshop', 'url' => 'https://pengadaan.sigap.internal', 'vis' => 'KATEGORI', 'cat' => 2, 'icon' => 'Briefcase'],
+            // PELATIHAN SPECIFIC
+            ['title' => 'Coursera Learning', 'url' => 'https://www.coursera.org', 'vis' => 'KATEGORI', 'cat' => 1, 'icon' => 'Award'],
+            ['title' => 'Skill Academy', 'url' => 'https://skillacademy.com', 'vis' => 'KATEGORI', 'cat' => 1, 'icon' => 'Zap'],
+            
+            // TIK SPECIFIC
+            ['title' => 'GitHub Repository', 'url' => 'https://github.com', 'vis' => 'KATEGORI', 'cat' => 3, 'icon' => 'Github'],
+            ['title' => 'Stack Overflow', 'url' => 'https://stackoverflow.com', 'vis' => 'KATEGORI', 'cat' => 3, 'icon' => 'HelpCircle'],
+
+            // PEMASARAN SPECIFIC
+            ['title' => 'Canva Design Tools', 'url' => 'https://www.canva.com', 'vis' => 'KATEGORI', 'cat' => 2, 'icon' => 'Palette'],
+            
+            // FASHION SPECIFIC
+            ['title' => 'Pinterest Trends', 'url' => 'https://www.pinterest.com', 'vis' => 'KATEGORI', 'cat' => 6, 'icon' => 'Image'],
         ];
 
         foreach ($linksData as $l) {
-            try {
-                Link::create([
-                    'title' => $l['title'],
-                    'url' => $l['url'],
-                    'slug' => Str::slug($l['title']) . '-' . time() . '-' . rand(100, 999),
-                    'icon' => $l['icon'],
-                    'visibility' => $l['vis'],
-                    'category_id' => $categories[$l['cat']]->id,
-                    'userId' => $admin->id,
-                    'is_active' => true,
-                    'clicks' => rand(10, 500)
-                ]);
-            } catch (\Exception $e) {
-                echo "ERROR CREATING LINK [" . $l['title'] . "]: " . $e->getMessage() . "\n";
-                throw $e;
-            }
+            Link::create([
+                'title' => $l['title'],
+                'url' => $l['url'],
+                'slug' => Str::slug($l['title']) . '-' . rand(1000, 9999),
+                'icon' => $l['icon'],
+                'visibility' => $l['vis'],
+                'category_id' => $categories[$l['cat']]->id,
+                'userId' => $admin->id,
+                'is_active' => true,
+                'clicks' => rand(5, 500)
+            ]);
         }
 
-        // 5. Setup Mock Life (Notifications & Feedback)
+        // 5. Setup Mock Life (Notifications & Feedback using latest schema)
         Notification::create([
-            'message' => 'Selamat datang di SIGAP Lite V2! Platform Anda telah siap digunakan.',
+            'message' => 'Sistem SIGAP Lite telah berhasil dikonfigurasi ulang.',
             'isRead' => false
         ]);
 
-        Notification::create([
-            'message' => 'Terdapat saran baru dari portal publik pada menu Kotak Saran.',
-            'isRead' => false
-        ]);
-
+        // Feedback with response
         Feedback::create([
-            'name' => 'Budi Santoso',
-            'email' => 'budi@example.com',
-            'phone' => '08123456789',
-            'subject' => 'Pelatihan TIK',
-            'comment' => 'Kapan pendaftaran pelatihan TIK gelombang 2 dibuka kembali?',
-            'status' => 'PENDING'
+            'user_id' => $pegawai->id,
+            'name' => $pegawai->fullName,
+            'email' => $pegawai->email,
+            'role' => $pegawai->role,
+            'comment' => 'Mohon tambahkan panduan penggunaan menu baru di dashboard.',
+            'status' => 'REPLIED',
+            'reply_message' => 'Panduan telah kami tambahkan di folder bersama Bagian Tata Usaha. Silakan dicek.',
+            'replied_at' => now(),
+            'replied_by_id' => $admin->id
         ]);
 
-        // 6. Mock Audit Logs
+        // Feedback pending
+        Feedback::create([
+            'name' => 'Pengunjung Umum',
+            'email' => 'guest@gmail.com',
+            'role' => null, // Guest
+            'comment' => 'Tampilan portal sangat memudahkan mencari tautan layanan. Terima kasih!',
+            'status' => 'PENDING',
+            'is_anonymous' => true
+        ]);
+
+        // 6. Mock Audit Logs (Consistent with latest CamelCase schema)
         AuditLog::create([
             'action' => 'DATABASE_SEED',
             'resource' => 'System',
-            'details' => 'Initial database seeding with UPT BLK Pasuruan official data.',
+            'details' => 'Database seeding completed successfully with real-world public links.',
             'userId' => $admin->id,
             'category_id' => null,
             'ipAddress' => '127.0.0.1',
-            'userAgent' => 'SIGAP System Engine'
+            'userAgent' => 'SIGAP Seeder Engine'
         ]);
     }
 }

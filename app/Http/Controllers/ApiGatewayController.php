@@ -1068,16 +1068,47 @@ class ApiGatewayController extends Controller
 
         $topLinks = Link::with('category')->orderBy('clicks', 'desc')->limit(10)->get();
 
-        // Mock chartData representing months/days. Assuming months for simplicity.
+        // Real chartData from click_logs
         $chartData = [];
-        foreach (range(1, 12) as $m) {
+        $currentYear = $year == 'all' ? date('Y') : $year;
+
+        for ($m = 1; $m <= 12; $m++) {
+            $monthName = date('F', mktime(0, 0, 0, $m, 1));
+            
+            // Count Login User Clicks (All roles except GUEST)
+            $userClicks = \App\Models\Link::whereHas('clickLogs', function($q) use ($m, $currentYear) {
+                $q->where('userRole', '!=', 'GUEST')
+                  ->whereYear('clickedAt', $currentYear)
+                  ->whereMonth('clickedAt', $m);
+            })->count();
+
+            // Count Guest Clicks
+            $guestClicks = \App\Models\Link::whereHas('clickLogs', function($q) use ($m, $currentYear) {
+                $q->where('userRole', 'GUEST')
+                  ->whereYear('clickedAt', $currentYear)
+                  ->whereMonth('clickedAt', $m);
+            })->count();
+
+            // Alternative: Directly query click_logs if it's more efficient (likely it is)
+            $userClicks = DB::table('click_logs')
+                            ->where('userRole', '!=', 'GUEST')
+                            ->whereYear('clickedAt', $currentYear)
+                            ->whereMonth('clickedAt', $m)
+                            ->count();
+
+            $guestClicks = DB::table('click_logs')
+                             ->where('userRole', 'GUEST')
+                             ->whereYear('clickedAt', $currentYear)
+                             ->whereMonth('clickedAt', $m)
+                             ->count();
+
             $chartData[] = [
                 'id' => $m,
-                'title' => date('F', mktime(0, 0, 0, $m, 1)),
+                'title' => $monthName,
                 'stats' => [
-                    'total' => rand(100, 1000), 
-                    'user' => rand(50, 500), 
-                    'guest' => rand(50, 500)
+                    'total' => $userClicks + $guestClicks,
+                    'user' => $userClicks,
+                    'guest' => $guestClicks
                 ]
             ];
         }
