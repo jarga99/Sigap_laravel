@@ -32,7 +32,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: PortalView,
-      meta: { requiresAuth: false, title: 'Portal Utama' }
+      meta: { requiresAuth: true, title: 'Portal Utama' }
     },
     {
       path: '/login',
