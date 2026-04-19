@@ -616,9 +616,17 @@ class ApiGatewayController extends Controller
             fputcsv($file, ['### PANDUAN PENGISIAN TEMPLATE ###'], ';');
             fputcsv($file, ['1. Kolom [title] & [url] wajib diisi.'], ';');
             fputcsv($file, ['2. Kolom [slug] opsional (jika kosong akan dibuat otomatis).'], ';');
-            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari menu Kategori (Contoh: 1=TU, 2=Seksi, dsb).'], ';');
-            fputcsv($file, ['4. Kolom [visibility]: Gunakan "PUBLIC" (Semua orang) atau "PROTECTED" (Login user saja).'], ';');
-            fputcsv($file, ['5. Simpan file sebagai .CSV (Comma Separated Values).'], ';');
+            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari daftar di bawah.'], ';');
+            fputcsv($file, ['4. Kolom [visibility]: Gunakan "PUBLIC" atau "PROTECTED".'], ';');
+            fputcsv($file, [], ';');
+
+            // DAFTAR REFERENSI ID KATEGORI
+            fputcsv($file, ['### DAFTAR REFERENSI ID KATEGORI AKTIF ###'], ';');
+            fputcsv($file, ['ID', 'Nama Kategori'], ';');
+            $categories = Category::select('id', 'name')->get();
+            foreach ($categories as $cat) {
+                fputcsv($file, [$cat->id, $cat->name], ';');
+            }
             
             fclose($file);
         };
@@ -646,10 +654,19 @@ class ApiGatewayController extends Controller
             // PANDUAN ROWS
             fputcsv($file, [], ';');
             fputcsv($file, ['### PANDUAN PENGISIAN TEMPLATE USER ###'], ';');
-            fputcsv($file, ['1. Kolom [role]: Gunakan "ADMIN", "EMPLOYEE", atau "ADMIN_EVENT".'], ';');
-            fputcsv($file, ['2. Kolom [email]: Wajib format email valid.'], ';');
-            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID (Angka) bagian/subbagian.'], ';');
-            fputcsv($file, ['4. Password minimal 4 karakter.'], ';');
+            fputcsv($file, ['1. Kolom [role]: Gunakan "EMPLOYEE" atau "ADMIN_EVENT".'], ';');
+            fputcsv($file, ['2. Kolom [role] PENTING: Role "ADMIN" (Super Admin) TIDAK DAPAT dibuat via import CSV.'], ';');
+            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari daftar di bawah.'], ';');
+            fputcsv($file, ['4. Simpan file sebagai .CSV (Semicolon atau Comma Separated).'], ';');
+            fputcsv($file, [], ';');
+
+            // DAFTAR REFERENSI ID BAGIAN / DEPARTEMEN
+            fputcsv($file, ['### DAFTAR REFERENSI ID BAGIAN (DEPARTEMEN) ###'], ';');
+            fputcsv($file, ['ID', 'Nama Bagian/Kategori'], ';');
+            $categories = Category::select('id', 'name')->get();
+            foreach ($categories as $cat) {
+                fputcsv($file, [$cat->id, $cat->name], ';');
+            }
             
             fclose($file);
         };
@@ -675,12 +692,18 @@ class ApiGatewayController extends Controller
             if (empty($row[0]) || str_starts_with($row[0], '#') || count($row) < 2) continue;
 
             try {
+                $roleInCsv = $row[4] ?? 'EMPLOYEE';
+                // Security Restriction: Cannot import Super Admin via CSV
+                if ($roleInCsv === 'ADMIN') {
+                    $roleInCsv = 'EMPLOYEE';
+                }
+
                 User::create([
                     'username' => $row[0],
                     'password' => Hash::make($row[1] ?? 'sigap123'),
                     'fullName' => $row[2] ?? $row[0],
                     'email' => $row[3] ?? null,
-                    'role' => in_array($row[4] ?? null, ['ADMIN', 'EMPLOYEE', 'ADMIN_EVENT']) ? $row[4] : 'EMPLOYEE',
+                    'role' => in_array($roleInCsv, ['ADMIN_EVENT', 'EMPLOYEE']) ? $roleInCsv : 'EMPLOYEE',
                     'category_id' => ($row[5] ?? null) ?: null,
                     'is_active' => true
                 ]);
