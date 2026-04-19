@@ -225,7 +225,7 @@ flowchart TD
 | Fitur | 👑 Admin | 🎭 Admin Event | 💼 Pegawai |
 |---|:---:|:---:|:---:|
 | Dashboard & Statistik Global | ✅ | ✅ (terbatas) | ✅ (terbatas) |
-| Rekap Data CSV | ✅ | ❌ | ❌ |
+| Rekap Data CSV | ✅ | ✅| ✅|
 | Manajemen User (CRUD + Import) | ✅ | ❌ | ❌ |
 | Manajemen Kategori | ✅ | ❌ | ✅ |
 | **Manajemen Link (CRUD)** | ✅ | ❌ | ✅ |
