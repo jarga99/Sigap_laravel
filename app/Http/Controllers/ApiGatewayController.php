@@ -582,7 +582,7 @@ class ApiGatewayController extends Controller
                 'url' => $row[1],
                 'slug' => ($row[2] ?? null) ?: Str::slug($row[0]) . '-' . rand(100,999),
                 'category_id' => ($row[3] ?? null) ?: 1,
-                'visibility' => ($row[4] ?? null) === 'KATEGORI' ? 'KATEGORI' : 'PUBLIC',
+                'visibility' => in_array(($row[4] ?? null), ['INTERNAL', 'KATEGORI']) ? $row[4] : 'INTERNAL',
                 'desc' => $row[5] ?? null,
                 'is_active' => true
             ]);
@@ -609,15 +609,17 @@ class ApiGatewayController extends Controller
             fputcsv($file, $columns, ';');
             
             // Contoh Row
-            fputcsv($file, ['Google Search', 'https://google.com', 'google-link', '1', 'PUBLIC', 'Mesin pencari'], ';');
+            fputcsv($file, ['Formulir Absensi', 'https://forms.example.com/absensi', 'formulir-absensi', '1', 'INTERNAL', 'Form absensi harian pegawai'], ';');
             
             // PANDUAN ROWS
             fputcsv($file, [], ';');
             fputcsv($file, ['### PANDUAN PENGISIAN TEMPLATE ###'], ';');
             fputcsv($file, ['1. Kolom [title] & [url] wajib diisi.'], ';');
-            fputcsv($file, ['2. Kolom [slug] opsional (jika kosong akan dibuat otomatis).'], ';');
-            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari daftar di bawah.'], ';');
-            fputcsv($file, ['4. Kolom [visibility]: Gunakan "PUBLIC" atau "PROTECTED".'], ';');
+            fputcsv($file, ['2. Kolom [slug] opsional (jika kosong akan dibuat otomatis dari judul).'], ';');
+            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari daftar di bawah ini.'], ';');
+            fputcsv($file, ['4. Kolom [visibility]: Gunakan salah satu nilai berikut (huruf kapital):'], ';');
+            fputcsv($file, ['   - INTERNAL : Tautan terlihat oleh SEMUA pengguna yang sudah login (seluruh pegawai).'], ';');
+            fputcsv($file, ['   - KATEGORI : Tautan hanya terlihat oleh pengguna yang berada di kategori/bagian yang sama dengan tautan.'], ';');
             fputcsv($file, [], ';');
 
             // DAFTAR REFERENSI ID KATEGORI
