@@ -266,8 +266,9 @@ onUnmounted(() => {
               </div>
            </div>
 
-           <a href="/" target="_blank" title="Lihat Portal" class="p-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
-             <SIGAPIcons name="ExternalLink" :size="20" />
+           <a href="/" target="_blank" title="Lihat Portal" class="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all border border-transparent hover:border-slate-700">
+             <SIGAPIcons name="ExternalLink" :size="18" />
+             <span class="hidden lg:inline-block text-[10px] font-black uppercase tracking-widest whitespace-nowrap">Portal Layanan</span>
            </a>
         </div>
 
