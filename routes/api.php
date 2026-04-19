@@ -52,7 +52,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/admin/settings', [ApiGatewayController::class, 'updateSettings']);
     Route::post('/admin/upload', [ApiGatewayController::class, 'uploadMedia']);
     Route::get('/admin/dashboard', [ApiGatewayController::class, 'dashboardStats']);
-    Route::get('/admin/dashboard/export', [ApiGatewayController::class, 'exportAuditLogs']);
+    Route::get('/admin/dashboard/export', [ApiGatewayController::class, 'dashboardExport']);
     Route::get('/admin/audit-logs/export', [ApiGatewayController::class, 'exportAuditLogs']);
 
     // Feedback Management

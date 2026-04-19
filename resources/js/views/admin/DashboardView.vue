@@ -49,7 +49,7 @@ const downloadRecap = async () => {
   const dateStr = new Date().toISOString().split('T')[0]
   try {
     isExporting.value = true
-    await downloadFile(`/admin/dashboard/export`, `rekap-data-sigap-${dateStr}.csv`)
+    await downloadFile(`/admin/dashboard/export`, `REKAP_DATA_SIGAP_${dateStr}.csv`)
   } catch (error) {
     alert('Gagal mengunduh rekap data.')
   } finally {

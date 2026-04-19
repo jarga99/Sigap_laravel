@@ -1427,6 +1427,107 @@ class ApiGatewayController extends Controller
         ]);
     }
 
+    public function dashboardExport(Request $request)
+    {
+        $user = $this->currentUser();
+        if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
+
+        $month = $request->input('month', 'all');
+        $year = $request->input('year', date('Y'));
+
+        // 1. Core Summary Metrics
+        $totalLinks = Link::count();
+        $totalCategories = Category::count();
+        
+        $clicksQuery = DB::table('click_logs');
+        if ($year !== 'all') $clicksQuery->whereYear('clickedAt', $year);
+        if ($month !== 'all') $clicksQuery->whereMonth('clickedAt', $month);
+        $totalClicks = $clicksQuery->count();
+        
+        $totalEngagement = $totalLinks > 0 ? min(round(($totalClicks / $totalLinks) * 10), 100) : 0;
+
+        // 2. Top 20 Links
+        $topLinksQuery = Link::with('category')
+            ->select('links.*', DB::raw('count(click_logs.id) as period_clicks'))
+            ->leftJoin('click_logs', 'links.id', '=', 'click_logs.linkId')
+            ->groupBy('links.id', 'links.title', 'links.desc', 'links.url', 'links.slug', 'links.icon', 'links.clicks', 'links.is_active', 'links.visibility', 'links.category_id', 'links.userId', 'links.created_at', 'links.updated_at');
+
+        if ($year !== 'all') $topLinksQuery->whereYear('click_logs.clickedAt', $year);
+        if ($month !== 'all') $topLinksQuery->whereMonth('click_logs.clickedAt', $month);
+
+        $topLinks = $topLinksQuery->orderBy('period_clicks', 'desc')->limit(20)->get();
+
+        // 3. Top 10 Categories
+        $topCategoriesQuery = Category::select('categories.*', DB::raw('count(click_logs.id) as period_clicks'))
+            ->join('links', 'categories.id', '=', 'links.category_id')
+            ->join('click_logs', 'links.id', '=', 'click_logs.linkId');
+
+        if ($year !== 'all') $topCategoriesQuery->whereYear('click_logs.clickedAt', $year);
+        if ($month !== 'all') $topCategoriesQuery->whereMonth('click_logs.clickedAt', $month);
+
+        $topCategories = $topCategoriesQuery->groupBy('categories.id', 'categories.name', 'categories.slug', 'categories.description', 'categories.icon', 'categories.color', 'categories.created_at', 'categories.updated_at')
+            ->orderBy('period_clicks', 'desc')
+            ->limit(10)
+            ->get();
+
+        $headers = [
+            "Content-type"        => "text/csv; charset=utf-8",
+            "Content-Disposition" => "attachment; filename=REKAP_DATA_SIGAP_".date('Y-m-d').".csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($totalLinks, $totalCategories, $totalClicks, $totalEngagement, $topLinks, $topCategories, $year, $month) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM
+
+            // Header Section
+            fputcsv($file, ['RINGKASAN PERFORMA PORTAL SIGAP'], ',');
+            fputcsv($file, ['Periode', ($month == 'all' ? 'Semua Bulan' : $month) . " " . $year], ',');
+            fputcsv($file, ['Dicetak Pada', date('Y-m-d H:i:s')], ',');
+            fputcsv($file, [], ',');
+
+            // Global Stats
+            fputcsv($file, ['STATISTIK GLOBAL'], ',');
+            fputcsv($file, ['Total Tautan', $totalLinks], ',');
+            fputcsv($file, ['Total Kategori', $totalCategories], ',');
+            fputcsv($file, ['Total Klik', $totalClicks], ',');
+            fputcsv($file, ['Engagement Rate', $totalEngagement . '%'], ',');
+            fputcsv($file, [], ',');
+
+            // Top Links
+            fputcsv($file, ['TOP 20 TAUTAN TERPERCAYA'], ',');
+            fputcsv($file, ['No', 'Judul Tautan', 'Kategori', 'URL', 'Total Klik (Periode Ini)', 'Total Klik (Selamanya)'], ',');
+            foreach ($topLinks as $i => $link) {
+                fputcsv($file, [
+                    $i + 1,
+                    $link->title,
+                    $link->category ? $link->category->name : '-',
+                    $link->url,
+                    $link->period_clicks,
+                    $link->clicks
+                ], ',');
+            }
+            fputcsv($file, [], ',');
+
+            // Top Categories
+            fputcsv($file, ['TOP 10 KATEGORI / DEPARTEMEN'], ',');
+            fputcsv($file, ['No', 'Nama Kategori', 'Total Klik (Periode Ini)'], ',');
+            foreach ($topCategories as $i => $cat) {
+                fputcsv($file, [
+                    $i + 1,
+                    $cat->name,
+                    $cat->period_clicks
+                ], ',');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function exportAuditLogs(Request $request)
     {
         $user = $this->currentUser();
