@@ -253,6 +253,51 @@ onUnmounted(() => {
        </div>
     </nav>
 
+    <!-- Mobile Menu Overlay -->
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 translate-x-full"
+      enter-to-class="opacity-100 translate-x-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-x-0"
+      leave-to-class="opacity-0 translate-x-full"
+    >
+      <div v-if="isMobileMenuOpen" class="fixed inset-0 z-[60] md:hidden">
+         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="isMobileMenuOpen = false"></div>
+         <nav class="absolute right-0 top-0 bottom-0 w-80 bg-slate-900 border-l border-slate-800 p-8 shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between mb-12">
+               <span class="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Menu Navigasi</span>
+               <button @click="isMobileMenuOpen = false" class="p-2 text-slate-400 hover:text-white transition-colors">
+                  <SIGAPIcons name="X" :size="24" />
+               </button>
+            </div>
+            
+            <div class="space-y-4">
+               <button v-if="!authStore.token" @click="router.push('/login'); isMobileMenuOpen = false" class="w-full px-6 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3">
+                  <SIGAPIcons name="LogIn" :size="18" /> Login Pegawai
+               </button>
+               <button v-else @click="router.push('/admin/dashboard'); isMobileMenuOpen = false" class="w-full px-6 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-900/40">
+                  <SIGAPIcons name="LayoutDashboard" :size="18" /> Masuk Dashboard
+               </button>
+               
+               <div class="pt-8 mt-8 border-t border-slate-800/50">
+                  <p class="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-4">Informasi</p>
+                  <div class="space-y-4">
+                     <div class="flex items-center gap-3 text-slate-400">
+                        <SIGAPIcons name="Activity" :size="16" />
+                        <span class="text-[11px] font-bold">{{ settings.app_name }} v1.0.1</span>
+                     </div>
+                     <div class="flex items-center gap-3 text-slate-400">
+                        <SIGAPIcons name="Building2" :size="16" />
+                        <span class="text-[11px] font-bold leading-tight">{{ settings.instansi_name }}</span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </nav>
+      </div>
+    </Transition>
+
     <!-- Hero Section -->
     <header class="max-w-7xl mx-auto px-6 pt-20 pb-16 text-center space-y-10 animate-fadeup relative z-10">
         <h2 class="text-4xl md:text-6xl font-black text-slate-800 tracking-tight leading-[1.1] max-w-4xl mx-auto">

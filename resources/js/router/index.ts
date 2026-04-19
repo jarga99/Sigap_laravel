@@ -32,7 +32,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: PortalView,
-      meta: { requiresAuth: true, title: 'Portal Utama' }
+      meta: { requiresAuth: false, title: 'Portal Utama' }
     },
     {
       path: '/login',
@@ -185,7 +185,7 @@ router.beforeEach((to, from, next) => {
   
   // 3. Guest Only Check
   if (to.meta.guest && authStore.token) {
-    return next('/admin/dashboard')
+    return next('/')
   }
 
   // 4. RBAC Check for ADMIN_EVENT
