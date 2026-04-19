@@ -5,15 +5,211 @@
 ---
 
 ## 📖 DAFTAR ISI
-1. [I. Panduan Peran (Role SOP & Manual)](#-i-panduan-peran-role-sop--manual)
-2. [II. Panduan CI/CD Deployment (cPanel Focus)](#-ii-panduan-cicd-deployment-cpanel-focus)
-3. [III. Manajemen Keamanan & Lisensi](#-iii-manajemen-keamanan--lisensi)
-4. [IV. Fitur Unggulan (Backend Laravel)](#-iv-fitur-unggulan-backend-laravel)
-5. [V. Panduan Instalasi & Maintenance](#-v-panduan-instalasi--maintenance)
+1. [VII. Diagram Database (ERD)](#-vii-diagram-database-erd)
+2. [VIII. Diagram Alur Fitur Per Peran](#-viii-diagram-alur-fitur-per-peran-role)
+3. [I. Panduan Peran (Role SOP & Manual)](#-i-panduan-peran-role-sop)
+4. [II. Panduan CI/CD Deployment (cPanel Focus)](#-ii-panduan-cicd-deployment-cpanel-focus)
+5. [III. Manajemen Keamanan & Lisensi](#-iii-manajemen-keamanan--lisensi)
+6. [IV. Fitur Unggulan (Backend Laravel)](#-iv-fitur-unggulan-backend-laravel)
+7. [V. Panduan Instalasi & Maintenance](#-v-panduan-instalasi--maintenance)
+8. [VI. Panduan Update (Post-Initial)](#-vi-panduan-update-post-initial)
 
 ---
 
-## 🔑 I. PANDUAN PERAN (ROLE SOP)
+## 🗺️ VII. DIAGRAM DATABASE (ERD)
+
+```mermaid
+erDiagram
+    users {
+        bigint id PK
+        string username UK
+        string password
+        string email UK
+        string fullName
+        enum role "ADMIN|ADMIN_EVENT|EMPLOYEE"
+        string image_url
+        int category_id FK
+        string sessionId
+        bool is_active
+    }
+    categories {
+        bigint id PK
+        string name
+        text description
+        string icon
+        string slug
+        string color
+    }
+    links {
+        bigint id PK
+        string title
+        text url
+        string slug UK
+        string icon
+        int clicks
+        bool is_active
+        enum visibility "INTERNAL|KATEGORI"
+        int category_id FK
+        int userId FK
+    }
+    click_logs {
+        bigint id PK
+        string userRole
+        string username
+        string ipAddress
+        int linkId FK
+        timestamp clickedAt
+    }
+    events {
+        bigint id PK
+        string slug UK
+        string title
+        text description
+        enum status "AKTIF|TIDAK_AKTIF|ARSIP"
+        string bgType
+        string bgValue
+        string profilePhoto
+        int userId FK
+    }
+    event_items {
+        bigint id PK
+        int eventId FK
+        string label
+        text url
+        string type
+        string color
+        int order
+        bool isActive
+    }
+    feedbacks {
+        bigint id PK
+        string name
+        string email
+        text comment
+        int rating
+        string status "PENDING|DONE"
+        bool is_read
+        text reply_message
+        int replied_by_id FK
+    }
+    audit_logs {
+        bigint id PK
+        string action
+        string resource
+        string resourceId
+        text details
+        int userId FK
+        string ipAddress
+    }
+    notifications {
+        bigint id PK
+        int userId FK
+        string type
+        string message
+        string link
+        bool isRead
+    }
+    settings {
+        bigint id PK
+        string instansi_name
+        string app_name
+        string logo_url
+        string footer_copyright
+    }
+    footer_links {
+        bigint id PK
+        string label
+        text url
+        string type
+        int order
+        bool isActive
+    }
+
+    users ||--o{ links : "membuat"
+    users ||--o{ events : "mengelola"
+    users ||--o{ audit_logs : "tercatat di"
+    users ||--o{ notifications : "menerima"
+    users }o--|| categories : "tergabung di"
+    categories ||--o{ links : "mengelompokkan"
+    links ||--o{ click_logs : "dicatat kliknya di"
+    events ||--o{ event_items : "memiliki"
+    feedbacks }o--o| users : "dibalas oleh"
+```
+
+---
+
+## 👥 VIII. DIAGRAM ALUR FITUR PER PERAN (ROLE)
+
+```mermaid
+flowchart TD
+    START([🌐 User Membuka Website]) --> LOGIN[/Halaman Login/]
+    LOGIN --> AUTH{Autentikasi}
+    AUTH -- Gagal --> LOGIN
+    AUTH -- Berhasil --> PORTAL[🏠 Portal Utama]
+
+    PORTAL --> R1{Peran User?}
+
+    %% ============ ADMIN ============
+    R1 -- ADMIN --> A_DASH[📊 Dashboard\nStatistik Global]
+    A_DASH --> A1[📈 Rekap Data\nEkspor CSV]
+    A_DASH --> A2[👥 Manajemen User\nImport CSV / CRUD]
+    A_DASH --> A3[🔗 Manajemen Link\nImport CSV / CRUD]
+    A_DASH --> A4[🗂️ Manajemen Kategori\nCRUD]
+    A_DASH --> A5[🎪 Manajemen Event\nCRUD + Editor]
+    A_DASH --> A6[💬 Kotak Saran\nBaca & Balas]
+    A_DASH --> A7[⚙️ Pengaturan Sistem\nBranding & Footer]
+    A_DASH --> A8[📋 Audit Log\nEkspor Aktivitas]
+    A_DASH --> A9[🔒 Reset / Backup\nDatabase]
+
+    %% ============ ADMIN_EVENT ============
+    R1 -- ADMIN_EVENT --> E_DASH[📊 Dashboard\nStatistik Terbatas]
+    E_DASH --> E1[🎪 Manajemen Event\nBuat & Edit Event]
+    E1 --> E2[✏️ Event Editor\nTheme, Font, Link]
+    E2 --> E3[👁️ Preview Event\nLink Publik]
+    E_DASH --> E4[🔗 Manajemen Link\nEdit Link Departemen]
+    E_DASH --> E5[💬 Kotak Saran\nBaca Saja]
+
+    %% ============ EMPLOYEE ============
+    R1 -- EMPLOYEE --> P_DASH[📊 Dashboard\nStatistik Departemen]
+    P_DASH --> P1[🔗 Lihat Tautan\nSesuai Kategori]
+    P_DASH --> P2[💬 Kirim Saran\nForm Feedback Anonim]
+
+    %% ============ PORTAL PUBLIK ============
+    PORTAL --> PUB[👁️ Akses Portal\nTautan INTERNAL]
+    PUB --> PUB1[📋 Lihat Tautan\nSesuai Kategori]
+    PUB --> PUB2[🔗 Klik & Redirect\nLog Klik Tercatat]
+    PUB --> PUB3[📝 Kotak Saran\nForm Publik]
+
+    %% Styling
+    style ADMIN fill:#1e40af,color:#fff,stroke:#1e40af
+    style A_DASH fill:#1e40af,color:#fff,stroke:#1e40af
+    style E_DASH fill:#7c3aed,color:#fff,stroke:#7c3aed
+    style P_DASH fill:#065f46,color:#fff,stroke:#065f46
+    style PUB fill:#92400e,color:#fff,stroke:#92400e
+    style START fill:#0f172a,color:#fff,stroke:#0f172a
+    style AUTH fill:#b91c1c,color:#fff,stroke:#b91c1c
+```
+
+### 📜 Keterangan Peran & Hak Akses
+
+| Fitur | 👑 Admin | 🎭 Admin Event | 💼 Pegawai |
+|---|:---:|:---:|:---:|
+| Dashboard & Statistik Global | ✅ | ✅ (terbatas) | ✅ (terbatas) |
+| Rekap Data CSV | ✅ | ❌ | ❌ |
+| Manajemen User (CRUD + Import) | ✅ | ❌ | ❌ |
+| Manajemen Kategori | ✅ | ❌ | ✅ |
+| Manajemen Link (CRUD + Import) | ✅ | ✅ | ✅ |
+| Manajemen Event (CRUD) | ✅ | ✅ | ❌ |
+| Event Editor (Theme, Font, Link) | ✅ | ✅ | ❌ |
+| Kotak Saran (Baca & Balas) | ✅ | ❌ | ❌ |
+| Kotak Saran (Baca Saja) | ✅ | ✅ | ❌ |
+| Audit Log & Ekspor Aktivitas | ✅ | ❌ | ❌ |
+| Pengaturan Sistem & Branding | ✅ | ❌ | ❌ |
+| Reset & Backup Database | ✅ | ❌ | ❌ |
+| Membuat Role ADMIN via Import | ❌ | ❌ | ❌ |
+
+---
+
 
 ### 1. 👑 Super Admin (Sistem & Monitoring)
 Bertanggung jawab atas stabilitas sistem, manajemen kebijakan pengguna, dan branding instansi.
