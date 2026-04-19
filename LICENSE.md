@@ -1,29 +1,29 @@
-# ⚖️ LEGAL DISCLAIMER & LICENSE
+# ⚖️ LISENSI & PERNYATAAN HUKUM (LEGAL DISCLAIMER)
 
 > [!IMPORTANT]
 > **Copyright © 2026 wiradika.jr. All Rights Reserved.**
 > 
-> Sistem **SIGAP (Sistem Gerbang Akses Pintar)** adalah hak milik intelektual sepenuhnya dari pengembang. Penggunaan aplikasi ini tunduk pada syarat dan ketentuan yang tercantum di bawah ini.
+> Dokumen ini mengatur hak dan batasan hukum terkait penggunaan sistem SIGAP. Penggunaan sistem ini oleh instansi/pengguna berarti penyetujuan terhadap seluruh butir yang tercantum di bawah ini.
 
 ---
 
-### 🛡️ 1. HAK CIPTA & ORISINALITAS
-*   **Orisinalitas**: Sistem ini dibangun 100% menggunakan logika dan kreativitas pengembang (**wiradika.jr**).
-*   **Perlindungan**: Seluruh kode sumber (*source code*), arsitektur database, dan desain antarmuka dilindungi oleh undang-undang hak cipta yang berlaku.
-*   **Klaim Plagiarisme**: Segala bentuk tuduhan plagiarisme yang tidak berdasar akan diproses melalui jalur hukum.
+### 🏛️ 1. Hak Atas Kekayaan Intelektual (HAKI)
+Sistem **SIGAP (Sistem Gerbang Akses Pintar)** ini merupakan karya orisinal yang dibangun 100% berdasarkan ide, kreativitas, dan logika pemrograman dari pengembang (**wiradika.jr**). 
+- Segala bentuk kesamaan fungsi atau fitur dengan sistem lain di pasar adalah murni kebetulan secara fungsionalitas dan tidak ada niatan sedikit pun untuk melakukan plagiarisme.
+- Seluruh kode sumber, desain antarmuka, dan struktur logika sistem ini dilindungi di bawah hak cipta pengembang.
 
-### 🚫 2. BATASAN PENGGUNAAN
-Lisensi ini diberikan secara eksklusif kepada instansi/pengguna yang telah disetujui. Anda **DILARANG** untuk:
-1.  **Komersialisasi Ilegal**: Memperjualbelikan kode sumber SIGAP kepada pihak ketiga tanpa izin tertulis.
-2.  **Redistribusi**: Mendistribusikan ulang aplikasi ini untuk keuntungan komersial pribadi.
-3.  **Removal Attribution**: Menghapus atau memodifikasi logo/atribut pengembang pada bagian footer sistem.
+### 🚫 2. Batasan Penggunaan & Larangan Komersialisasi
+Lisensi ini diberikan secara eksklusif kepada pengguna/instansi pemesan. Dengan menggunakan sistem ini, anda setuju untuk:
+- **TIDAK** memperjualbelikan kode sumber (*source code*) SIGAP kepada pihak ketiga tanpa persetujuan tertulis dari pengembang asli.
+- **TIDAK** mendistribusikan ulang aplikasi ini dalam bentuk apapun untuk keuntungan komersial pribadi/pihak lain secara ilegal.
+- **TIDAK** menghapus atau memodifikasi atribut "Credit" pengembang pada bagian footer sistem tanpa izin.
 
-### ⚠️ 3. TANGGUNG JAWAB (DISCLAIMER)
-*   Pengembang tidak bertanggung jawab atas segala kerusakan, kehilangan data, atau penyalahgunaan sistem setelah proses serah terima dan deployment ke server pengguna selesai.
-*   Keamanan data operasional sepenuhnya menjadi tanggung jawab administratif instansi pengguna.
+### 🛡️ 3. Perlindungan Hukum Developer
+Pengembang tidak bertanggung jawab atas segala tuntutan hukum, kerugian, atau penyalahgunaan sistem yang dilakukan oleh pihak yang tidak bertanggung jawab setelah sistem dideploy. 
+- Pengembang berhak menuntut secara hukum pihak-pihak yang secara sengaja melakukan pembajakan, penjualan ilegal, atau tindakan pelanggaran hak cipta lainnya yang merugikan pengembang secara materiil maupun imateriil.
 
-### 👮 4. SANKSI HUKUM
-Setiap pelanggaran terhadap poin-poin di atas, termasuk pembajakan atau penjualan ilegal kode sumber, akan ditindak tegas melalui jalur hukum sesuai dengan **Undang-Undang Hak Cipta** yang berlaku di wilayah hukum Republik Indonesia.
+### 📝 4. Pernyataan Orisinalitas
+Sistem ini dibuat untuk tujuan membantu digitalisasi layanan instansi secara efisien. Segala bentuk tuduhan plagiarisme yang tidak berdasar akan diproses secara hukum sesuai dengan peraturan perundang-undangan Hak Cipta yang berlaku di Indonesia.
 
 ---
 
