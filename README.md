@@ -228,7 +228,7 @@ flowchart TD
 | Rekap Data CSV | ✅ | ❌ | ❌ |
 | Manajemen User (CRUD + Import) | ✅ | ❌ | ❌ |
 | Manajemen Kategori | ✅ | ❌ | ✅ |
-| **Manajemen Link (CRUD)** | ✅ | ✅ | ✅ |
+| **Manajemen Link (CRUD)** | ✅ | ❌ | ✅ |
 | **Manajemen Link (Bulk Import)** | ✅ | ❌ | ❌ |
 | Manajemen Event (CRUD) | ✅ (semua) | ✅ (milik sendiri) | ✅ (milik sendiri) |
 | Event Editor (Theme, Font, Link) | ✅ | ✅ | ✅ |
