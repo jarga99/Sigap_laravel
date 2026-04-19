@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
+import { downloadFile } from '../../lib/download'
 
 const settings = ref<any>({
     instansi_name: '',
@@ -165,29 +166,17 @@ const downloadLogs = async (format: 'csv' | 'txt') => {
     message.value = 'Mempersiapkan file log...'
     isError.value = false
     try {
-        const response = await api.post('/admin/audit-logs/export', {
+        const dateStr = new Date().toISOString().split('T')[0]
+        const fileName = format === 'csv' ? `Rekap_Aktivitas_SIGAP_${dateStr}.csv` : `Log_Aktivitas_SIGAP_${dateStr}.txt`
+        
+        // Use downloadFile helper (handles URL construction + auth)
+        const queryParams = new URLSearchParams({
             startDate: logStartDate.value,
             endDate: logEndDate.value,
             format: format
-        }, { responseType: 'blob' })
+        }).toString()
         
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        
-        const contentDisposition = response.headers['content-disposition']
-        let fileName = format === 'csv' ? `Activity_Report_${new Date().toISOString().split('T')[0]}.csv` : `Activity_Log_${new Date().toISOString().split('T')[0]}.txt`
-        
-        if (contentDisposition && contentDisposition.includes('filename=')) {
-            const parts = contentDisposition.split('filename=')
-            if (parts.length > 1) fileName = parts[1].replace(/["']/g, '')
-        }
-        
-        link.setAttribute('download', fileName)
-        document.body.appendChild(link)
-        link.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(link)
+        await downloadFile(`/admin/audit-logs/export?${queryParams}`, fileName)
         message.value = `Log berhasil diunduh dalam format ${format.toUpperCase()}.`
     } catch (err) {
         isError.value = true
@@ -200,23 +189,8 @@ const downloadRawSystemLog = async () => {
     message.value = 'Mempersiapkan Log Sistem Laravel...'
     isError.value = false
     try {
-        const response = await api.get('/admin/system/logs-raw', { responseType: 'blob' })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        
-        const contentDisposition = response.headers['content-disposition']
-        let fileName = `laravel_system_${new Date().toISOString().split('T')[0]}.log`
-        if (contentDisposition && contentDisposition.includes('filename=')) {
-            const parts = contentDisposition.split('filename=')
-            if (parts.length > 1) fileName = parts[1].replace(/["']/g, '')
-        }
-        
-        link.setAttribute('download', fileName)
-        document.body.appendChild(link)
-        link.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(link)
+        const fileName = `laravel_system_${new Date().toISOString().split('T')[0]}.log`
+        await downloadFile('/admin/system/logs-raw', fileName)
         message.value = 'Log sistem Laravel berhasil diunduh.'
     } catch (err) {
         isError.value = true
@@ -231,23 +205,7 @@ const downloadBackup = async () => {
     message.value = 'Sedang menyiapkan file Backup MySQL...'
     isError.value = false
     try {
-        const response = await api.get('/admin/system/backup', { responseType: 'blob' })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        
-        const contentDisposition = response.headers['content-disposition']
-        let fileName = 'sigap_backup.sql'
-        if (contentDisposition && contentDisposition.includes('filename=')) {
-            const parts = contentDisposition.split('filename=')
-            if (parts.length > 1) fileName = parts[1].replace(/["']/g, '')
-        }
-        
-        link.setAttribute('download', fileName)
-        document.body.appendChild(link)
-        link.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(link)
+        await downloadFile('/admin/system/backup', `sigap_backup_${new Date().toISOString().split('T')[0]}.sql`)
         message.value = 'Backup berhasil diunduh.'
     } catch (err) {
         isError.value = true

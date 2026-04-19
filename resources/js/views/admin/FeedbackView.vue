@@ -23,11 +23,22 @@ const replyForm = ref({
 })
 const replyImagePreview = ref('')
 
-const fetchFeedbacks = async () => {
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  total: 0
+})
+
+const fetchFeedbacks = async (page = 1) => {
   isLoading.value = true
   try {
-    const res = await api.get('/admin/feedback')
-    feedbacks.value = res.data
+    const res = await api.get(`/admin/feedback?page=${page}`)
+    feedbacks.value = res.data.data
+    pagination.value = {
+      current_page: res.data.current_page,
+      last_page: res.data.last_page,
+      total: res.data.total
+    }
   } catch (err) { console.error(err) }
   finally { isLoading.value = false }
 }
@@ -274,12 +285,19 @@ onMounted(fetchFeedbacks)
          </div>
       </div>
 
-      <div v-else class="col-span-full py-24 text-center">
-         <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 opacity-50">
-            <SIGAPIcons name="Inbox" :size="48" class="text-slate-300" />
-         </div>
-         <h4 class="text-xl font-black text-slate-800 tracking-tight">Tidak Ada Data</h4>
-         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{{ isAdmin ? 'Belum ada masukan yang masuk ke sistem' : 'Anda belum pernah mengirimkan saran atau masukan' }}</p>
+      <!-- Pagination -->
+      <div v-if="pagination.last_page > 1" class="px-8 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          Menampilkan <span class="text-slate-800">{{ feedbacks.length }}</span> dari <span class="text-slate-800">{{ pagination.total }}</span> data
+        </p>
+        <div class="flex items-center gap-3">
+          <button @click="fetchFeedbacks(pagination.current_page - 1)" :disabled="pagination.current_page === 1" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Prev</button>
+          <div class="flex items-center gap-2">
+             <span class="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-200">{{ pagination.current_page }}</span>
+             <span class="text-[10px] font-black text-slate-300">/ {{ pagination.last_page }}</span>
+          </div>
+          <button @click="fetchFeedbacks(pagination.current_page + 1)" :disabled="pagination.current_page === pagination.last_page" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Next</button>
+        </div>
       </div>
     </div>
 

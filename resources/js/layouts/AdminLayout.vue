@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { API_BASE_URL } from '../lib/config'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -27,6 +27,10 @@ const userPhoto = computed(() => {
   if (!user) return null
   const photoPath = user.image_url || user.photo
   if (!photoPath) return null
+  
+  // If it's already a full URL (e.g., Google or absolute path), return as is
+  if (photoPath.startsWith('http')) return photoPath
+  
   const fileName = photoPath.split('/').pop()
   return `${API_URL}/uploads/profiles/${fileName}`
 })
@@ -194,9 +198,15 @@ const goToNotification = async (notif) => {
   } catch (err) { console.error(err) }
 }
 
+let intervalId
+
 onMounted(() => {
   fetchNotifications()
-  setInterval(fetchNotifications, 120000)
+  intervalId = setInterval(fetchNotifications, 300000) // Cek setiap 5 menit
+})
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
 })
 </script>
 

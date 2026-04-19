@@ -31,9 +31,11 @@ const isEditing = ref(false)
 const editId = ref<number | null>(null)
 const form = ref({
   username: '',
+  fullName: '',
+  email: '',
   password: '',
   category_id: '',
-  role: 'EMPLOYEE' as 'ADMIN_EVENT' | 'EMPLOYEE'
+  role: 'EMPLOYEE' as 'ADMIN_EVENT' | 'EMPLOYEE' | 'ADMIN'
 })
 
 const fetchUsers = async () => {
@@ -61,14 +63,21 @@ onMounted(async () => {
 const openAddModal = () => {
   isEditing.value = false
   editId.value = null
-  form.value = { username: '', password: '', category_id: '', role: 'EMPLOYEE' }
+  form.value = { username: '', fullName: '', email: '', password: '', category_id: '', role: 'EMPLOYEE' }
   showModal.value = true
 }
 
 const openEditModal = (user: any) => {
   isEditing.value = true
   editId.value = user.id
-  form.value = { username: user.username, password: '', category_id: user.category_id || '', role: user.role || 'EMPLOYEE' }
+  form.value = { 
+    username: user.username, 
+    fullName: user.fullName || '', 
+    email: user.email || '', 
+    password: '', 
+    category_id: user.category_id || '', 
+    role: user.role || 'EMPLOYEE' 
+  }
   showModal.value = true
 }
 
@@ -178,9 +187,9 @@ const downloadTemplate = async () => {
           <thead>
             <tr class="bg-slate-50/80 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-100">
               <th class="px-8 py-6 font-black">Identitas user</th>
+              <th class="px-6 py-6 font-black">Email</th>
               <th class="px-6 py-6 font-black">Role / akses</th>
               <th class="px-6 py-6 font-black">Unit kerja / kategori</th>
-              <th class="px-6 py-6 font-black">Tgl bergabung</th>
               <th class="px-8 py-6 text-right font-black">Aksi</th>
             </tr>
           </thead>
@@ -198,6 +207,9 @@ const downloadTemplate = async () => {
                 </div>
               </td>
               <td class="px-6 py-5">
+                 <span class="text-[11px] font-black text-slate-600 truncate max-w-[150px] block opacity-80">{{ user.email || '-' }}</span>
+              </td>
+              <td class="px-6 py-5">
                 <span :class="user.role === 'ADMIN' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-500 border-slate-200'" 
                       class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border-2 border-white">
                    {{ user.role === 'ADMIN' ? 'Administrator' : (user.role === 'ADMIN_EVENT' ? 'Admin Event' : 'Pegawai') }}
@@ -205,9 +217,6 @@ const downloadTemplate = async () => {
               </td>
               <td class="px-6 py-5">
                  <span class="text-[11px] font-black text-slate-500 uppercase tracking-tighter bg-slate-50 px-3 py-1 rounded-lg border border-white shadow-sm">{{ user.category?.name || '-' }}</span>
-              </td>
-              <td class="px-6 py-5">
-                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] opacity-70">{{ new Date(user.created_at || user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) }}</span>
               </td>
               <td class="px-8 py-6 text-right">
                 <div class="flex justify-end gap-2 border-l border-slate-100 pl-4">
@@ -263,9 +272,20 @@ const downloadTemplate = async () => {
              </div>
              
              <form @submit.prevent="handleSaveUser" class="p-6 space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div class="space-y-1.5">
+                      <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Username</label>
+                      <input v-model="form.username" type="text" required placeholder="pake_underscore" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
+                   </div>
+                   <div class="space-y-1.5">
+                      <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Nama Lengkap</label>
+                      <input v-model="form.fullName" type="text" required placeholder="Nama User" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
+                   </div>
+                </div>
+
                 <div class="space-y-1.5">
-                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Username</label>
-                   <input v-model="form.username" type="text" required placeholder="pake_underscore" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
+                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Email</label>
+                   <input v-model="form.email" type="email" placeholder="user@sigap.go.id" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold border-2 border-transparent focus:border-blue-300 transition-all outline-none" />
                 </div>
 
                 <div class="space-y-1.5">

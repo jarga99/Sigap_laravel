@@ -18,31 +18,26 @@ watch([pageSize, searchQuery, activeTab], () => {
   currentPage.value = 1
 })
 
-const fetchEvents = async () => {
+const totalPages = ref(1)
+const pagination = ref<any>({})
+
+const fetchEvents = async (page = 1) => {
   isLoading.value = true
+  currentPage.value = page
   try {
-    const res = await api.get('/admin/events')
-    events.value = res.data
+    const res = await api.get('/admin/events', { params: { page, limit: pageSize.value } })
+    events.value = res.data.data
+    totalPages.value = res.data.last_page
+    pagination.value = res.data
   } catch (err) { console.error(err); alert('Gagal mengambil data event') }
   finally { isLoading.value = false }
 }
 
-const filteredEvents = computed(() => {
-  return events.value.filter(e => {
-    if (activeTab.value === 'active' && e.status !== 'AKTIF') return false
-    if (activeTab.value === 'inactive' && e.status !== 'TIDAK_AKTIF') return false
-    if (activeTab.value === 'archive' && e.status !== 'ARSIP') return false
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      return e.title.toLowerCase().includes(q) || e.slug.toLowerCase().includes(q)
-    }
-    return true
-  })
-})
+const filteredEvents = computed(() => events.value)
+const paginatedEvents = computed(() => events.value)
 
-const paginatedEvents = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return filteredEvents.value.slice(start, start + pageSize.value)
+watch([pageSize, activeTab], () => {
+  fetchEvents(1)
 })
 
 const showCreateModal = ref(false)
@@ -207,6 +202,21 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="flex flex-col sm:flex-row justify-between items-center gap-6 px-10 py-8 bg-white rounded-2xl border border-slate-100 shadow-sm mt-8">
+      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+        Menampilkan <span class="text-slate-800">{{ events.length }}</span> dari <span class="text-slate-800">{{ pagination.total }}</span> data
+      </p>
+      <div class="flex items-center gap-3">
+        <button @click="fetchEvents(currentPage - 1)" :disabled="currentPage === 1" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-100/50 active:scale-90">Prev</button>
+        <div class="flex items-center gap-2">
+           <span class="w-12 h-12 flex items-center justify-center bg-[#4f86e8] text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-200">{{ currentPage }}</span>
+           <span class="text-[10px] font-black text-slate-300">/ {{ totalPages }}</span>
+        </div>
+        <button @click="fetchEvents(currentPage + 1)" :disabled="currentPage >= totalPages" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-100/50 active:scale-90">Next</button>
       </div>
     </div>
 

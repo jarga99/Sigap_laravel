@@ -64,6 +64,19 @@ const groupedItems = computed(() => {
   return result
 })
 
+const formatText = (text: string, transformType: string) => {
+  if (!text) return text;
+  if (transformType === 'uppercase') return text.toUpperCase();
+  if (transformType === 'lowercase') return text.toLowerCase();
+  if (transformType === 'proper') {
+    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  }
+  if (transformType === 'capitalize') {
+    return text.toLowerCase().replace(/\b\w/g, m => m.toUpperCase());
+  }
+  return text;
+}
+
 onMounted(() => {
   fetchSettings()
   fetchEvent()
@@ -91,22 +104,35 @@ onMounted(() => {
     </div>
 
     <!-- Scrollable Content -->
-    <div class="w-full max-w-2xl relative z-10 flex flex-col min-h-screen">
+    <div class="w-full relative z-10 flex flex-col min-h-screen">
       
-      <!-- Cover Photo -->
-      <div v-if="event.showCover && event.eventPhoto" class="w-full shrink-0 shadow-lg" :style="{ height: (event.coverHeight || 140) + 'px' }">
-        <img :src="event.eventPhoto" class="w-full h-full object-cover" />
+      <!-- Cover Photo: Dynamic Responsive Scaling -->
+      <div v-if="event.showCover && event.eventPhoto" 
+           class="w-full shrink-0 shadow-lg overflow-hidden" 
+           :style="{ 
+              height: `calc( ( (${event.coverHeight || 140}) / 360 ) * 100vw )`,
+              maxHeight: '600px',
+              minHeight: (event.coverHeight || 140) + 'px'
+           }">
+        <img :src="event.eventPhoto" class="w-full h-full object-cover object-center" />
       </div>
 
-      <!-- Main Profile Section -->
-      <div class="flex flex-col items-center px-8 text-center relative" :class="event.showCover ? (event.showProfile ? '-mt-12' : 'pt-8') : 'pt-24'">
+      <!-- Centered Content Box (Max width 672px for professional Linktree look) -->
+      <div class="w-full max-w-2xl mx-auto flex flex-col items-center px-8 relative">
         
-        <!-- Profile Photo -->
+        <!-- Main Profile Section -->
+        <div class="flex flex-col items-center text-center relative w-full" :class="event.showCover ? (event.showProfile ? '-mt-12' : 'pt-8') : 'pt-20'">
+        
+        <!-- Profile Photo: Dynamic Scaling -->
         <div v-if="event.showProfile" 
              :class="event.profileShape === 'circle' ? 'rounded-full' : 'rounded-[2rem]'"
              :style="{ 
-               width: (event.profileWidth || 80) + 'px', 
-               height: (event.profileHeight || 80) + 'px',
+               width: `calc( ( (${event.profileWidth || 80}) / 360 ) * 100vw )`, 
+               height: `calc( ( (${event.profileHeight || 80}) / 360 ) * 100vw )`,
+               maxWidth: (event.profileWidth * 1.5 || 250) + 'px',
+               maxHeight: (event.profileHeight * 1.5 || 250) + 'px',
+               minWidth: (event.profileWidth || 40) + 'px',
+               minHeight: (event.profileHeight || 40) + 'px',
                border: event.profileBorderStyle !== 'none' ? `${event.profileBorderWidth || 2}px ${event.profileBorderStyle} ${event.profileBgColor || '#ffffff'}` : 'none'
              }"
              class="bg-white shadow-2xl overflow-hidden shrink-0 ring-4 ring-white/50">
@@ -119,19 +145,35 @@ onMounted(() => {
         <!-- Branding Info -->
         <div class="mt-6 space-y-2 w-full">
           <h1 v-if="event.showTitle" 
-              :style="{ color: event.titleColor || '#1e293b', fontFamily: getFontStack(event.titleFont), textAlign: event.titleAlign || 'center' }"
-              class="text-3xl font-black uppercase tracking-tight leading-none drop-shadow-sm w-full">
-            {{ event.title }}
+              :style="{ 
+                color: event.titleColor || '#1e293b', 
+                fontFamily: getFontStack(event.titleFont), 
+                textAlign: event.titleAlign || 'center',
+                fontSize: (event.titleFontSize || 30) + 'px',
+                fontWeight: event.titleFontWeight || '900',
+                fontStyle: event.titleFontStyle || 'normal',
+                textDecoration: event.titleTextDecoration || 'none'
+              }"
+              class="tracking-tight leading-none drop-shadow-sm w-full">
+            {{ formatText(event.title, event.titleTextTransform) }}
           </h1>
           <p v-if="event.showDescription" 
-             :style="{ color: event.descColor || '#64748b', fontFamily: getFontStack(event.descFont), textAlign: event.descAlign || 'center' }"
-             class="text-sm font-bold opacity-90 leading-relaxed w-full">
-            {{ event.description }}
+              :style="{ 
+                color: event.descColor || '#64748b', 
+                fontFamily: getFontStack(event.descFont), 
+                textAlign: event.descAlign || 'center',
+                fontSize: (event.descFontSize || 14) + 'px',
+                fontWeight: event.descFontWeight || 'bold',
+                fontStyle: event.descFontStyle || 'normal',
+                textDecoration: event.descTextDecoration || 'none'
+              }"
+              class="opacity-90 leading-relaxed w-full">
+            {{ formatText(event.description, event.descTextTransform) }}
           </p>
         </div>
 
         <!-- Dynamic Item List -->
-        <div class="px-8 space-y-4 pb-24 w-full relative z-10 overflow-x-hidden mt-8">
+        <div class="space-y-4 pb-24 w-full relative z-10 overflow-x-hidden mt-8">
            <template v-for="(it, i) in groupedItems" :key="i">
               <!-- Social Icons Row -->
               <div v-if="it.type === 'SOC_GROUP'" class="flex flex-wrap justify-center gap-4 py-3">
@@ -198,21 +240,30 @@ onMounted(() => {
            </template>
         </div>
 
-        <!-- Spacer for Footer -->
-        <div class="flex-1"></div>
+      </div> <!-- End Centered Box -->
 
-        <!-- Footer Section -->
-        <footer v-if="event.showFooter" 
-                class="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mt-auto">
+      <!-- Spacer for Footer -->
+      <div class="flex-1"></div>
+
+      <!-- Footer Section: Now Full Width & Aligned -->
+      <footer v-if="event.showFooter" class="w-full mt-auto">
            <div class="w-full flex flex-col items-center py-12 px-8 space-y-8 relative">
               <!-- Footer BG Layer with Opacity -->
               <div class="absolute inset-0 z-0" :style="{ backgroundColor: event.footerBgColor || 'transparent', opacity: (event.footerBgOpacity ?? 100) / 100 }"></div>
               
               <!-- Footer Text Message -->
               <p v-if="event.footerText" 
-                 :style="{ color: event.footerColor || '#94a3b8', fontFamily: getFontStack(event.footerFont), textAlign: event.footerAlign || 'center' }"
-                 class="text-[11px] font-black uppercase tracking-[0.2em] leading-loose max-w-md whitespace-pre-wrap opacity-80 relative z-10 w-full">
-                {{ event.footerText }}
+                 :style="{ 
+                    color: event.footerColor || '#94a3b8', 
+                    fontFamily: getFontStack(event.footerFont), 
+                    textAlign: event.footerAlign || 'center',
+                    fontSize: (event.footerFontSize || 11) + 'px',
+                    fontWeight: event.footerFontWeight || '900',
+                    fontStyle: event.footerFontStyle || 'normal',
+                    textDecoration: event.footerTextDecoration || 'none'
+                 }"
+                 class="tracking-[0.2em] leading-loose max-w-md whitespace-pre-wrap opacity-80 relative z-10 w-full text-[11px]">
+                {{ formatText(event.footerText, event.footerTextTransform) }}
               </p>
 
               <!-- Copyright & Powered By -->
@@ -222,10 +273,10 @@ onMounted(() => {
                     <span class="text-[9px] font-black uppercase tracking-widest" :style="{ color: event.footerColor || '#94a3b8' }" style="opacity:0.5">{{ event.customBranding || 'SIGAP' }} &copy; {{ new Date().getFullYear() }}</span>
                     <div class="w-8 h-[1px]" :style="{ backgroundColor: event.footerColor || '#94a3b8' }" style="opacity:0.3"></div>
                  </div>
-                 <div class="flex flex-col gap-1 opacity-40 hover:opacity-100 transition-opacity" :class="{ 'items-center': (event.footerAlign || 'center') === 'center', 'items-start': event.footerAlign === 'left', 'items-end': event.footerAlign === 'right' }">
-                    <span class="text-[7px] font-bold uppercase tracking-tighter" :style="{ color: event.footerColor || '#94a3b8' }">Powered By Platform</span>
-                    <h5 class="text-xs font-black tracking-tighter uppercase" :style="{ color: event.footerColor || '#94a3b8' }">{{ event.customPoweredBy || 'Sigap Engine' }}</h5>
-                 </div>
+                  <div class="flex flex-col gap-1 opacity-40 hover:opacity-100 transition-opacity" :class="{ 'items-center': (event.footerAlign || 'center') === 'center', 'items-start': event.footerAlign === 'left', 'items-end': event.footerAlign === 'right' }">
+                    <span class="text-[7px] font-bold uppercase tracking-tighter" :style="{ color: event.footerColor || '#94a3b8', fontFamily: getFontStack(event.footerFont) }">Powered By Platform</span>
+                    <h5 class="text-xs font-black tracking-tighter uppercase" :style="{ color: event.footerColor || '#94a3b8', fontFamily: getFontStack(event.footerFont) }">{{ event.customPoweredBy || 'Sigap Engine' }}</h5>
+                  </div>
               </div>
            </div>
         </footer>

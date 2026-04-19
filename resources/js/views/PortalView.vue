@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, reactive, watch } from 'vue'
 import api from '../lib/axios'
 import QRCode from 'qrcode'
 import { useRouter } from 'vue-router'
@@ -208,6 +208,10 @@ const copyLink = (link: any) => {
 onMounted(() => {
   loadData()
   document.documentElement.classList.remove('dark') // Force light mode
+})
+
+onUnmounted(() => {
+  Object.values(hoverTimers).forEach(timer => clearTimeout(timer))
 })
 </script>
 

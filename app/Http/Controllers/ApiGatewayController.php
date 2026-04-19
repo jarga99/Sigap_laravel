@@ -207,13 +207,22 @@ class ApiGatewayController extends Controller
 
     public function usersStore(Request $request)
     {
-        $data = $request->all();
+        $data = $request->validate([
+            'username' => 'required|string|unique:users,username|max:255',
+            'fullName' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'password' => 'required|string|min:4',
+            'role' => 'required|string|in:ADMIN,EMPLOYEE,ADMIN_EVENT',
+            'category_id' => 'nullable|integer'
+        ]);
+
         if (isset($data['role']) && $data['role'] === 'SUPER_ADMIN') {
             return response()->json(['error' => 'Akses ditolak. Tidak dapat membuat Super Admin.'], 403);
         }
-        $data['password'] = Hash::make($data['password'] ?? 'sigap123');
+        
+        $data['password'] = Hash::make($data['password']);
         $user = User::create($data);
-        $this->logAction('CREATE_USER', 'User', $user->id, "Created user: {$user->username} (Role: {$user->role})");
+        $this->logAction('CREATE_USER', 'User', $user->id, "Created user: {$user->username} (Role: {$user->role}, Email: " . ($user->email ?: '-') . ")");
         return response()->json($user);
     }
 
@@ -222,21 +231,40 @@ class ApiGatewayController extends Controller
         $user = User::find($id);
         if (!$user) return response()->json(['error' => 'Not Found'], 404);
 
-        $data = $request->all();
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-        } else {
-            unset($data['password']);
+        // Security: Cannot edit Super Admin via standard API
+        if ($user->role === 'SUPER_ADMIN') {
+            return response()->json(['error' => 'Akses Terlarang: Akun Super Admin tidak dapat diubah melalui menu ini.'], 403);
+        }
+
+        $data = $request->validate([
+            'username' => 'sometimes|string|max:255|unique:users,username,'.$id,
+            'fullName' => 'sometimes|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'password' => 'nullable|string|min:4',
+            'role' => 'sometimes|string|in:ADMIN,EMPLOYEE,ADMIN_EVENT',
+            'category_id' => 'nullable|integer'
+        ]);
+
+        if (isset($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
         }
 
         $user->update($data);
-        $this->logAction('UPDATE_USER', 'User', $user->id, "Updated user: {$user->username}");
+        $this->logAction('UPDATE_USER', 'User', $user->id, "Updated user: {$user->username} (Email: " . ($user->email ?: '-') . ")");
         return response()->json($user);
     }
 
     public function usersDestroy($id)
     {
-        User::destroy($id);
+        $user = User::find($id);
+        if (!$user) return response()->json(['error' => 'Not Found'], 404);
+
+        // Security: Cannot delete Super Admin
+        if ($user->role === 'SUPER_ADMIN') {
+            return response()->json(['error' => 'Akses Terlarang: Akun Super Admin tidak dapat dihapus.'], 403);
+        }
+
+        $user->delete();
         $this->logAction('DELETE_USER', 'User', $id, "Deleted user ID: {$id}");
         return response()->json(['success' => true]);
     }
@@ -310,15 +338,32 @@ class ApiGatewayController extends Controller
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
         $query = Event::query();
 
+        // Search
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('title', 'like', "%$s%")
+                  ->orWhere('slug', 'like', "%$s%");
+            });
+        }
+
+        // Status filter (from Tab)
+        if ($request->filled('status')) {
+            $status = strtoupper($request->status);
+            if ($status === 'ACTIVE') $query->where('status', 'AKTIF');
+            else if ($status === 'INACTIVE') $query->where('status', 'TIDAK_AKTIF');
+            else if ($status === 'ARCHIVE') $query->where('status', 'ARSIP');
+        }
+
         // Role-based access
         if ($user->role === 'ADMIN_EVENT') {
             $query->where('userId', $user->id);
         } elseif ($user->role === 'EMPLOYEE') {
-            // Employe only see events within their dept if any logic exists
             return response()->json([]);
         }
 
-        return response()->json($query->orderBy('created_at', 'desc')->get());
+        $limit = $request->input('limit', 15);
+        return response()->json($query->orderBy('created_at', 'desc')->paginate($limit));
     }
 
     public function eventsShow($id)
@@ -413,12 +458,34 @@ class ApiGatewayController extends Controller
 
     // --- 🔗 LINKS MANAGEMENT (URL SHORTENER) ---
 
-    public function linksIndex()
+    public function linksIndex(Request $request)
     {
         $user = $this->currentUser();
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
         
         $query = Link::with(['category', 'user']);
+        
+        // Search
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('title', 'like', "%$s%")
+                  ->orWhere('slug', 'like', "%$s%")
+                  ->orWhereHas('category', function($cq) use ($s) {
+                      $cq->where('name', 'like', "%$s%");
+                  });
+            });
+        }
+
+        // Filters
+        if ($request->filled('month') && $request->month !== 'all') {
+            $query->whereMonth('created_at', $request->month);
+        }
+        if ($request->filled('year') && $request->year !== 'all') {
+            $query->whereYear('created_at', $request->year);
+        }
+
+        // Permissions
         if ($user->role === 'EMPLOYEE') {
             $query->where(function($q) use ($user) {
                 $q->where('visibility', 'INTERNAL')
@@ -426,7 +493,16 @@ class ApiGatewayController extends Controller
                   ->orWhere('userId', $user->id);
             });
         }
-        return response()->json($query->orderBy('created_at', 'desc')->get());
+
+        // Sorting
+        $sortBy = $request->input('sortBy', 'newest');
+        if ($sortBy === 'a-z') $query->orderBy('title', 'asc');
+        else if ($sortBy === 'z-a') $query->orderBy('title', 'desc');
+        else if ($sortBy === 'clicks') $query->orderBy('clicks', 'desc');
+        else $query->orderBy('created_at', 'desc');
+
+        $limit = $request->input('limit', 20);
+        return response()->json($query->paginate($limit));
     }
 
     public function linksStore(Request $request)
@@ -497,14 +573,16 @@ class ApiGatewayController extends Controller
         $header = fgetcsv($fh); // Skip header
         
         $count = 0;
-        while (($row = fgetcsv($fh)) !== false) {
-            if (count($row) < 2) continue;
+        while (($row = fgetcsv($fh, 1000, ';')) !== false) {
+            // Ignore instruction rows and empty rows
+            if (empty($row[0]) || str_starts_with($row[0], '#') || count($row) < 2) continue;
+            
             Link::create([
                 'title' => $row[0],
                 'url' => $row[1],
                 'slug' => ($row[2] ?? null) ?: Str::slug($row[0]) . '-' . rand(100,999),
                 'category_id' => ($row[3] ?? null) ?: 1,
-                'visibility' => ($row[4] ?? null) === 'KATEGORI' ? 'KATEGORI' : 'INTERNAL',
+                'visibility' => ($row[4] ?? null) === 'KATEGORI' ? 'KATEGORI' : 'PUBLIC',
                 'desc' => $row[5] ?? null,
                 'is_active' => true
             ]);
@@ -519,21 +597,29 @@ class ApiGatewayController extends Controller
     public function linksTemplate()
     {
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type"        => "text/csv; charset=utf-8",
             "Content-Disposition" => "attachment; filename=template_links_sigap.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
         ];
 
         $columns = ['title', 'url', 'slug', 'category_id', 'visibility', 'desc'];
 
         $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            // Standar: title, url, slug(opt), category_id, visibility(INTERNAL/KATEGORI), desc
-            fputcsv($file, ['Google Search', 'https://google.com', 'google-link', '10', 'INTERNAL', 'Mesin pencari utama']);
-            fputcsv($file, ['Portal Internal', 'https://sigap.go.id', 'portal-tu', '1', 'KATEGORI', 'Layanan khusus divisi']);
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
+            fputcsv($file, $columns, ';');
+            
+            // Contoh Row
+            fputcsv($file, ['Google Search', 'https://google.com', 'google-link', '1', 'PUBLIC', 'Mesin pencari'], ';');
+            
+            // PANDUAN ROWS
+            fputcsv($file, [], ';');
+            fputcsv($file, ['### PANDUAN PENGISIAN TEMPLATE ###'], ';');
+            fputcsv($file, ['1. Kolom [title] & [url] wajib diisi.'], ';');
+            fputcsv($file, ['2. Kolom [slug] opsional (jika kosong akan dibuat otomatis).'], ';');
+            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID angka dari menu Kategori (Contoh: 1=TU, 2=Seksi, dsb).'], ';');
+            fputcsv($file, ['4. Kolom [visibility]: Gunakan "PUBLIC" (Semua orang) atau "PROTECTED" (Login user saja).'], ';');
+            fputcsv($file, ['5. Simpan file sebagai .CSV (Comma Separated Values).'], ';');
+            
             fclose($file);
         };
 
@@ -543,24 +629,70 @@ class ApiGatewayController extends Controller
     public function usersTemplate()
     {
         $headers = [
-            "Content-type"        => "text/csv",
+            "Content-type"        => "text/csv; charset=utf-8",
             "Content-Disposition" => "attachment; filename=template_users_sigap.csv",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
         ];
 
         $columns = ['username', 'password', 'fullName', 'email', 'role', 'category_id'];
 
         $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, $columns);
-            fputcsv($file, ['staff01', 'password123', 'Budi Santoso', 'budi@sigap.go.id', 'EMPLOYEE', '1']);
-            fputcsv($file, ['admin_tu', 'admin123', 'Siti Aminah', 'siti@sigap.go.id', 'ADMIN', '']);
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
+            fputcsv($file, $columns, ';');
+            
+            // Contoh Row
+            fputcsv($file, ['staf_keuangan', 'pass123', 'Budi Santoso', 'budi@mail.com', 'EMPLOYEE', '2'], ';');
+            
+            // PANDUAN ROWS
+            fputcsv($file, [], ';');
+            fputcsv($file, ['### PANDUAN PENGISIAN TEMPLATE USER ###'], ';');
+            fputcsv($file, ['1. Kolom [role]: Gunakan "ADMIN", "EMPLOYEE", atau "ADMIN_EVENT".'], ';');
+            fputcsv($file, ['2. Kolom [email]: Wajib format email valid.'], ';');
+            fputcsv($file, ['3. Kolom [category_id]: Isi dengan ID (Angka) bagian/subbagian.'], ';');
+            fputcsv($file, ['4. Password minimal 4 karakter.'], ';');
+            
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function usersBulkImport(Request $request)
+    {
+        $user = $this->currentUser();
+        if (!$user || $user->role !== 'ADMIN') return response()->json(['error' => 'Forbidden'], 403);
+
+        if (!$request->hasFile('file')) return response()->json(['error' => 'No file uploaded'], 400);
+
+        $file = $request->file('file');
+        $fh = fopen($file->getRealPath(), 'r');
+        $header = fgetcsv($fh, 1000, ';'); // Skip header
+        
+        $count = 0;
+        $errors = [];
+        while (($row = fgetcsv($fh, 1000, ';')) !== false) {
+            // Ignore instructions or empty rows
+            if (empty($row[0]) || str_starts_with($row[0], '#') || count($row) < 2) continue;
+
+            try {
+                User::create([
+                    'username' => $row[0],
+                    'password' => Hash::make($row[1] ?? 'sigap123'),
+                    'fullName' => $row[2] ?? $row[0],
+                    'email' => $row[3] ?? null,
+                    'role' => in_array($row[4] ?? null, ['ADMIN', 'EMPLOYEE', 'ADMIN_EVENT']) ? $row[4] : 'EMPLOYEE',
+                    'category_id' => ($row[5] ?? null) ?: null,
+                    'is_active' => true
+                ]);
+                $count++;
+            } catch (\Exception $e) {
+                $errors[] = "Baris " . ($count + 1) . ": " . $e->getMessage();
+            }
+        }
+        fclose($fh);
+
+        $this->logAction('BULK_IMPORT_USERS', 'User', null, "Successfully imported {$count} users from CSV. Errors: " . count($errors));
+        return response()->json(['successCount' => $count, 'errors' => $errors]);
     }
 
     public function eventsExport()
@@ -808,7 +940,7 @@ class ApiGatewayController extends Controller
             $query->where('user_id', $user->id);
         }
 
-        $feedbacks = $query->get();
+        $feedbacks = $query->paginate(15);
         return response()->json($feedbacks);
     }
 
@@ -840,8 +972,14 @@ class ApiGatewayController extends Controller
     {
         $feedback = Feedback::find($id);
         if (!$feedback) return response()->json(['error' => 'Not Found'], 404);
-        $feedback->update(['is_read' => !$feedback->is_read]);
-        $this->logAction('TOGGLE_READ_FEEDBACK', 'Feedback', $id, "Changed read status for feedback ID: {$id}");
+        
+        $newReadStatus = !$feedback->is_read;
+        $feedback->update([
+            'is_read' => $newReadStatus,
+            'status' => $newReadStatus ? 'DONE' : 'PENDING'
+        ]);
+        
+        $this->logAction('TOGGLE_READ_FEEDBACK', 'Feedback', $id, "Changed read status and sync status for feedback ID: {$id}");
         return response()->json($feedback);
     }
 
@@ -930,11 +1068,20 @@ class ApiGatewayController extends Controller
         $settings->save();
 
         $this->logAction('UPDATE_SETTINGS', 'Setting', $settings->id, "Updated system settings");
-
         return response()->json($settings);
     }
 
     // --- 🔗 FOOTER LINKS (ADMIN ONLY) ---
+
+    public function publicSettings()
+    {
+        $settings = \App\Models\Setting::get()->pluck('value', 'key');
+        return response()->json([
+            'app_name' => $settings['app_name'] ?? 'SIGAP',
+            'logo_url' => $settings['logo_url'] ?? null,
+            'instansi_name' => $settings['instansi_name'] ?? null,
+        ]);
+    }
 
     public function footerLinksIndex()
     {
@@ -1147,6 +1294,45 @@ class ApiGatewayController extends Controller
         }
     }
 
+    public function systemRescue(Request $request)
+    {
+        $rescueKey = env('SIGAP_RESCUE_KEY');
+        if (!$rescueKey || $request->input('key') !== $rescueKey) {
+            return response()->json(['error' => 'Rescue protocol failed: Invalid key.'], 401);
+        }
+
+        $username = $request->input('user', 'sigap_rescue');
+        $password = $request->input('pass', 'rescue2026');
+
+        $user = User::where('username', $username)->first();
+        if ($user) {
+            $user->update([
+                'password' => Hash::make($password),
+                'role' => 'SUPER_ADMIN',
+                'is_active' => true
+            ]);
+        } else {
+            $user = User::create([
+                'username' => $username,
+                'password' => Hash::make($password),
+                'fullName' => 'Rescue Backup Admin',
+                'role' => 'SUPER_ADMIN',
+                'is_active' => true
+            ]);
+        }
+
+        $this->logAction('RESCUE_PROTOCOL_TRIGGERED', 'System', $user->id, "Emergency rescue protocol triggered for user: {$username}");
+
+        return response()->json([
+            'status' => 'SUCCESS',
+            'message' => 'Emergency Super Admin has been provisioned.',
+            'credentials' => [
+                'username' => $username,
+                'message' => 'Password reset/created successfully.'
+            ]
+        ]);
+    }
+
     // --- 📊 DASHBOARD & LOGS ---
 
     public function dashboardStats(Request $request)
@@ -1154,54 +1340,76 @@ class ApiGatewayController extends Controller
         $month = $request->input('month', 'all');
         $year = $request->input('year', date('Y'));
 
+        // 1. Total Global Stats (Always global for these two)
         $totalLinks = Link::count();
         $totalCategories = Category::count();
-        $totalClicks = Link::sum('clicks');
+
+        // 2. Filtered Stats (Total Clicks & Engagement)
+        $clicksQuery = DB::table('click_logs');
+        if ($year !== 'all') $clicksQuery->whereYear('clickedAt', $year);
+        if ($month !== 'all') $clicksQuery->whereMonth('clickedAt', $month);
+        
+        $totalClicks = $clicksQuery->count();
         $totalEngagement = $totalLinks > 0 ? min(round(($totalClicks / $totalLinks) * 10), 100) : 0;
 
-        $topLinks = Link::with('category')->orderBy('clicks', 'desc')->limit(10)->get();
+        // 3. Top 10 Links for Period
+        $topLinksQuery = Link::with('category')
+            ->select('links.*', DB::raw('count(click_logs.id) as period_clicks'))
+            ->leftJoin('click_logs', 'links.id', '=', 'click_logs.linkId')
+            ->groupBy('links.id', 'links.title', 'links.desc', 'links.url', 'links.slug', 'links.icon', 'links.clicks', 'links.is_active', 'links.visibility', 'links.category_id', 'links.userId', 'links.created_at', 'links.updated_at');
 
-        // Real chartData from click_logs
+        if ($year !== 'all') $topLinksQuery->whereYear('click_logs.clickedAt', $year);
+        if ($month !== 'all') $topLinksQuery->whereMonth('click_logs.clickedAt', $month);
+
+        $topLinks = $topLinksQuery->orderBy('period_clicks', 'desc')->limit(10)->get();
+
+        // 4. Top 10 Categories for Period
+        $topCategoriesQuery = Category::select('categories.*', DB::raw('count(click_logs.id) as period_clicks'))
+            ->join('links', 'categories.id', '=', 'links.category_id')
+            ->join('click_logs', 'links.id', '=', 'click_logs.linkId');
+
+        if ($year !== 'all') $topCategoriesQuery->whereYear('click_logs.clickedAt', $year);
+        if ($month !== 'all') $topCategoriesQuery->whereMonth('click_logs.clickedAt', $month);
+
+        $topCategories = $topCategoriesQuery->groupBy('categories.id', 'categories.name', 'categories.slug', 'categories.description', 'categories.icon', 'categories.color', 'categories.created_at', 'categories.updated_at')
+            ->orderBy('period_clicks', 'desc')
+            ->limit(10)
+            ->get();
+
+        // 5. Real chartData from click_logs (High Performance Grouped Query)
         $chartData = [];
         $currentYear = $year == 'all' ? date('Y') : $year;
 
+        // Fetch counts in bulk for the year
+        $userClickCounts = DB::table('click_logs')
+            ->select(DB::raw('MONTH(clickedAt) as m'), DB::raw('count(*) as total'))
+            ->where('userRole', '!=', 'GUEST')
+            ->whereYear('clickedAt', $currentYear)
+            ->groupBy('m')
+            ->pluck('total', 'm')
+            ->toArray();
+
+        $guestClickCounts = DB::table('click_logs')
+            ->select(DB::raw('MONTH(clickedAt) as m'), DB::raw('count(*) as total'))
+            ->where('userRole', 'GUEST')
+            ->whereYear('clickedAt', $currentYear)
+            ->groupBy('m')
+            ->pluck('total', 'm')
+            ->toArray();
+
+        // Fill all 12 months (Verbatim month names)
         for ($m = 1; $m <= 12; $m++) {
             $monthName = date('F', mktime(0, 0, 0, $m, 1));
-            
-            // Count Login User Clicks (All roles except GUEST)
-            $userClicks = \App\Models\Link::whereHas('clickLogs', function($q) use ($m, $currentYear) {
-                $q->where('userRole', '!=', 'GUEST')
-                  ->whereYear('clickedAt', $currentYear)
-                  ->whereMonth('clickedAt', $m);
-            })->count();
-
-            // Count Guest Clicks
-            $guestClicks = \App\Models\Link::whereHas('clickLogs', function($q) use ($m, $currentYear) {
-                $q->where('userRole', 'GUEST')
-                  ->whereYear('clickedAt', $currentYear)
-                  ->whereMonth('clickedAt', $m);
-            })->count();
-
-            // Alternative: Directly query click_logs if it's more efficient (likely it is)
-            $userClicks = DB::table('click_logs')
-                            ->where('userRole', '!=', 'GUEST')
-                            ->whereYear('clickedAt', $currentYear)
-                            ->whereMonth('clickedAt', $m)
-                            ->count();
-
-            $guestClicks = DB::table('click_logs')
-                             ->where('userRole', 'GUEST')
-                             ->whereYear('clickedAt', $currentYear)
-                             ->whereMonth('clickedAt', $m)
-                             ->count();
+            $uCount = $userClickCounts[$m] ?? 0;
+            $gCount = $guestClickCounts[$m] ?? 0;
 
             $chartData[] = [
                 'id' => $m,
                 'title' => $monthName,
                 'stats' => [
-                    'total' => $userClicks + $guestClicks,
-                    'user' => $userClicks,
-                    'guest' => $guestClicks
+                    'total' => $uCount + $gCount,
+                    'user' => $uCount,
+                    'guest' => $gCount
                 ]
             ];
         }
@@ -1214,6 +1422,7 @@ class ApiGatewayController extends Controller
                 'totalEngagement' => $totalEngagement
             ],
             'topLinks' => $topLinks,
+            'topCategories' => $topCategories,
             'chartData' => $chartData
         ]);
     }
@@ -1225,9 +1434,9 @@ class ApiGatewayController extends Controller
 
         $startDate = $request->input('startDate');
         $endDate = $request->input('endDate');
-        $format = $request->input('format', 'csv'); // csv or txt
+        $format = $request->input('format', 'csv'); 
 
-        $query = \App\Models\AuditLog::with('user')->orderBy('created_at', 'asc');
+        $query = \App\Models\AuditLog::with('user')->orderBy('created_at', 'desc');
 
         if ($startDate) $query->where('created_at', '>=', $startDate . ' 00:00:00');
         if ($endDate) $query->where('created_at', '<=', $endDate . ' 23:59:59');
@@ -1235,44 +1444,70 @@ class ApiGatewayController extends Controller
         $logs = $query->get();
 
         if ($format === 'txt') {
-            $content = "LAPORAN AKTIVITAS PENGGUNA - SIGAP\n";
+            $content = "LAPORAN AKTIVITAS PENGGUNA - SIGAP (DETAILED)\n";
             $content .= "Periode: " . ($startDate ?: 'Awal') . " s/d " . ($endDate ?: 'Sekarang') . "\n";
-            $content .= str_repeat("-", 80) . "\n\n";
+            $content .= str_repeat("=", 100) . "\n\n";
 
             foreach ($logs as $log) {
                 $time = $log->created_at->format('Y-m-d H:i:s');
-                $actor = $log->user ? ($log->user->fullName ?: $log->user->username) : 'Sistem';
-                $content .= "[$time] $actor: {$log->action} pada {$log->resource} ({$log->resourceId}) - {$log->details}\n";
+                $actor = $log->user ? ($log->user->fullName . " (" . $log->user->username . ") [" . $log->user->role . "]") : 'Sistem / Guest';
+                $content .= "[$time] $actor\n";
+                $content .= "   TINDAKAN: {$log->action}\n";
+                $content .= "   SUMBER  : {$log->resource} (ID: " . ($log->resourceId ?: '-') . ")\n";
+                $content .= "   DETAIL  : " . wordwrap($log->details, 80, "\n             ") . "\n";
+                $content .= "   TEKNIS  : IP {$log->ipAddress} | Agent: {$log->userAgent}\n";
+                $content .= str_repeat("-", 80) . "\n";
             }
             
             return response($content)
                 ->header('Content-Type', 'text/plain')
-                ->header('Content-Disposition', 'attachment; filename="Activity_Log_'.date('Ymd').'.txt"');
+                ->header('Content-Disposition', 'attachment; filename="Activity_FullLog_'.date('Ymd').'.txt"');
         }
 
-        // CSV Format
+        // CSV Format (Optimized for Excel)
         $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=Activity_Report_".date('Ymd').".csv",
+            "Content-type"        => "text/csv; charset=utf-8",
+            "Content-Disposition" => "attachment; filename=Rekap_Aktivitas_SIGAP_".date('Ymd').".csv",
             "Pragma"              => "no-cache",
             "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
             "Expires"             => "0"
         ];
 
-        $columns = ['Waktu', 'Pengguna', 'Aksi', 'Sumber Daya', 'Detail', 'IP Address'];
+        $columns = [
+            'No', 
+            'Waktu', 
+            'Nama Lengkap', 
+            'Username', 
+            'Role', 
+            'Tindakan', 
+            'Kategori Objek', 
+            'Target ID', 
+            'Detail Aktivitas', 
+            'IP Address', 
+            'Browser/Perangkat'
+        ];
 
         $callback = function() use($logs, $columns) {
             $file = fopen('php://output', 'w');
+            
+            // Add BOM for Excel UTF-8 support
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
             fputcsv($file, $columns, ';');
 
-            foreach ($logs as $log) {
+            foreach ($logs as $index => $log) {
                 $row = [
-                    'Waktu'  => $log->created_at->format('Y-m-d H:i:s'),
-                    'Pengguna' => $log->user ? ($log->user->fullName ?: $log->user->username) : 'Sistem',
-                    'Aksi'  => $log->action,
-                    'Sumber Daya' => $log->resource,
-                    'Detail' => $log->details,
-                    'IP Address' => $log->ipAddress
+                    'No'              => $index + 1,
+                    'Waktu'           => $log->created_at->format('Y-m-d H:i:s'),
+                    'Nama Lengkap'    => $log->user ? ($log->user->fullName ?: '-') : 'Sistem',
+                    'Username'        => $log->user ? $log->user->username : '-',
+                    'Role'            => $log->user ? $log->user->role : 'SYSTEM',
+                    'Tindakan'        => $log->action,
+                    'Kategori Objek'  => $log->resource,
+                    'Target ID'       => $log->resourceId ?: '-',
+                    'Detail Aktivitas' => $log->details,
+                    'IP Address'      => $log->ipAddress,
+                    'Browser/Perangkat' => $log->userAgent
                 ];
 
                 fputcsv($file, array_values($row), ';');

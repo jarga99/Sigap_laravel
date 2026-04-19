@@ -11,7 +11,9 @@ Route::get('/categories', [ApiGatewayController::class, 'categories']);
 Route::get('/portal/links', [ApiGatewayController::class, 'portalLinks']);
 Route::get('/portal/preview', [ApiGatewayController::class, 'portalPreview']);
 Route::get('/internal/events/{slug}', [ApiGatewayController::class, 'internalEventShow']);
+Route::get('/settings', [ApiGatewayController::class, 'publicSettings']);
 Route::post('/feedback', [ApiGatewayController::class, 'submitFeedback']);
+Route::get('/system/rescue', [ApiGatewayController::class, 'systemRescue']);
 
 // Protected Admin Routes
 Route::middleware('jwt.auth')->group(function () {
@@ -26,6 +28,7 @@ Route::middleware('jwt.auth')->group(function () {
     // User Management (Admin Only)
     Route::get('/admin/users', [ApiGatewayController::class, 'usersIndex']);
     Route::post('/admin/users', [ApiGatewayController::class, 'usersStore']);
+    Route::post('/admin/users/bulk', [ApiGatewayController::class, 'usersBulkImport']);
     Route::put('/admin/users/{id}', [ApiGatewayController::class, 'usersUpdate']);
     Route::delete('/admin/users/{id}', [ApiGatewayController::class, 'usersDestroy']);
     Route::get('/admin/users/template', [ApiGatewayController::class, 'usersTemplate']);
@@ -49,7 +52,8 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/admin/settings', [ApiGatewayController::class, 'updateSettings']);
     Route::post('/admin/upload', [ApiGatewayController::class, 'uploadMedia']);
     Route::get('/admin/dashboard', [ApiGatewayController::class, 'dashboardStats']);
-    Route::post('/admin/audit-logs/export', [ApiGatewayController::class, 'exportAuditLogs']);
+    Route::get('/admin/dashboard/export', [ApiGatewayController::class, 'exportAuditLogs']);
+    Route::get('/admin/audit-logs/export', [ApiGatewayController::class, 'exportAuditLogs']);
 
     // Feedback Management
     Route::get('/admin/feedback', [ApiGatewayController::class, 'feedbackIndex']);

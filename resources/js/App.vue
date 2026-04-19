@@ -8,9 +8,14 @@ const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 const route = useRoute()
-let timeout: number
+let lastReset = 0
+let timeout: any
 
 const resetTimeout = () => {
+  const now = Date.now()
+  if (authStore.token && (now - lastReset < 30000)) return
+  lastReset = now
+  
   clearTimeout(timeout)
   if (authStore.token) {
     timeout = window.setTimeout(() => {

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { downloadFile } from '@/lib/download'
-import api from '@/services/api' 
+import api from '@/lib/axios' 
 import SIGAPIcons from '@/components/SIGAPIcons.vue'
 
 // State
@@ -18,9 +18,16 @@ const stats = ref({
   totalClicks: 0,
   totalEngagement: 0
 })
+const topCategories = ref([])
 const topLinks = ref([])
 const rawChartData = ref([])
 const isLoading = ref(true)
+const isExporting = ref(false)
+const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+const currentPeriodLabel = computed(() => {
+  if (filterMonth.value === 'all') return `Tahun ${filterYear.value}`
+  return `${monthNames[parseInt(filterMonth.value) - 1]} ${filterYear.value}`
+})
 
 // Fetch Data
 const fetchData = async () => {
@@ -29,6 +36,7 @@ const fetchData = async () => {
     const { data } = await api.get(`/admin/dashboard?month=${filterMonth.value}&year=${filterYear.value}`) 
     stats.value = data.stats
     topLinks.value = data.topLinks
+    topCategories.value = data.topCategories
     rawChartData.value = data.chartData
   } catch (error) {
     console.error("Gagal ambil data dashboard", error)
@@ -40,15 +48,23 @@ const fetchData = async () => {
 const downloadRecap = async () => {
   const dateStr = new Date().toISOString().split('T')[0]
   try {
+    isExporting.value = true
     await downloadFile(`/admin/dashboard/export`, `rekap-data-sigap-${dateStr}.csv`)
   } catch (error) {
     alert('Gagal mengunduh rekap data.')
+  } finally {
+    isExporting.value = false
   }
 }
 
 const maxClick = computed(() => {
   if (rawChartData.value.length === 0) return 0
   return Math.max(...rawChartData.value.map(item => item.stats.total))
+})
+
+const maxClicksInPeriod = computed(() => {
+  if (topLinks.value.length === 0) return 0
+  return Math.max(...topLinks.value.map(link => link.period_clicks || link.clicks))
 })
 
 onMounted(() => {
@@ -66,10 +82,12 @@ onMounted(() => {
       </div>
       <button 
         @click="downloadRecap" 
-        class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-200 font-bold text-xs uppercase tracking-wider self-start"
+        :disabled="isExporting"
+        class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-200 font-bold text-xs uppercase tracking-wider self-start"
       >
-        <SIGAPIcons name="Download" :size="16" />
-        Ekspor Data (CSV)
+        <SIGAPIcons v-if="!isExporting" name="Download" :size="16" />
+        <span v-else class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        {{ isExporting ? 'Mengunduh...' : 'Ekspor Data (CSV)' }}
       </button>
     </div>
 
@@ -163,54 +181,89 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- New Section: Top 10 Visual Chart (Monthly) -->
+    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-white relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 opacity-20"></div>
+      
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 relative z-10">
+        <div>
+          <h3 class="font-black text-xl text-slate-800 tracking-tight uppercase">Visualisasi Top 10 Tautan</h3>
+          <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">{{ currentPeriodLabel }}</p>
+        </div>
+        <div class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100">Analisis Performa</div>
+      </div>
+
+      <div class="space-y-6 relative z-10">
+        <div v-for="(link, index) in topLinks" :key="link.id" class="group cursor-default">
+          <div class="flex justify-between items-end mb-2 px-1">
+            <div class="flex items-center gap-4">
+              <span class="text-[11px] font-black text-slate-300 group-hover:text-indigo-500 transition-colors w-5">{{ index + 1 }}</span>
+              <div class="flex flex-col">
+                <span class="text-[13px] font-black text-slate-700 leading-tight group-hover:text-slate-900 transition-colors">{{ link.title_id || link.title }}</span>
+                <span class="text-[9px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-all duration-300 truncate max-w-[200px] md:max-w-md">{{ link.url }}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-[13px] font-black text-slate-800">{{ link.period_clicks || link.clicks }}</span>
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Klik</span>
+            </div>
+          </div>
+          <div class="h-4 w-full bg-slate-50/80 rounded-full overflow-hidden border border-slate-100 p-0.5">
+            <div 
+              class="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(79,134,232,0.2)]"
+              :style="{ width: maxClicksInPeriod > 0 ? `${((link.period_clicks || link.clicks) / maxClicksInPeriod) * 100}%` : '0%' }"
+            ></div>
+          </div>
+        </div>
+        
+        <div v-if="topLinks.length === 0" class="py-20 flex flex-col items-center justify-center opacity-30 text-slate-400">
+           <SIGAPIcons name="BarChart3" :size="48" />
+           <p class="text-[10px] font-black uppercase tracking-widest mt-4">Data belum tersedia untuk periode ini</p>
+        </div>
+      </div>
+    </div>
   </div>
 
-    <!-- Table Section -->
+    <!-- Bottom Sections: Top Categories -->
     <div class="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-white overflow-hidden">
       <div class="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
         <div>
-          <h3 class="font-black text-xl text-slate-800">Top 10 Tautan Terpopuler</h3>
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Layanan dengan tingkat interaksi tertinggi.</p>
+          <h3 class="font-black text-xl text-slate-800 uppercase tracking-tight">Top Kategori (Performa Departemen)</h3>
+          <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">{{ currentPeriodLabel }}</p>
         </div>
-        <span class="text-[10px] font-black text-white px-4 py-2 bg-blue-600 rounded-full tracking-widest uppercase shadow-lg shadow-blue-200">Live Stats</span>
+        <span class="text-[10px] font-black text-white px-4 py-2 bg-emerald-600 rounded-full tracking-widest uppercase shadow-lg shadow-emerald-200">Categories</span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="text-slate-400 font-black text-[10px] uppercase tracking-widest bg-slate-50/80 border-b border-slate-100">
-              <th class="px-8 py-6 w-16 text-center">Rank</th>
-              <th class="px-6 py-6 font-black">Informasi Tautan</th>
-              <th class="px-6 py-6 font-black">Kategori</th>
-              <th class="px-6 py-6 text-center font-black">Interaksi</th>
-              <th class="px-8 py-6 text-center font-black">Status</th>
+              <th class="px-8 py-4 w-16 text-center">#</th>
+              <th class="px-6 py-4 font-black">Nama Kategori (Subbagian)</th>
+              <th class="px-6 py-4 font-black">Deskripsi Singkat</th>
+              <th class="px-6 py-4 text-center font-black">Total Klik</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <tr v-for="(link, index) in topLinks" :key="link.id" class="hover:bg-blue-50/40 transition-colors group">
-              <td class="px-8 py-6 text-center">
-                <span class="w-9 h-9 flex items-center justify-center rounded-2xl bg-slate-100 text-xs font-black text-slate-400 group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-12 transition-all duration-300">
-                  {{ index + 1 }}
-                </span>
+            <tr v-for="(cat, index) in topCategories" :key="cat.id" class="hover:bg-emerald-50/40 transition-colors group">
+              <td class="px-8 py-4 text-center">
+                <span class="text-xs font-black text-slate-400 group-hover:text-emerald-600 transition-colors">{{ index + 1 }}</span>
               </td>
-              <td class="px-6 py-6">
-                <div class="font-black text-sm text-slate-800 leading-tight mb-1">{{ link.title_id || link.title }}</div>
-                <div class="text-[11px] text-slate-400 font-bold truncate max-w-xs opacity-70 group-hover:text-blue-500 transition-colors">{{ link.url }}</div>
-              </td>
-              <td class="px-6 py-6">
-                <span class="text-[10px] font-black text-slate-500 bg-slate-100 border-2 border-white shadow-sm px-4 py-1.5 rounded-xl uppercase tracking-tighter">
-                  {{ link.category?.name || link.category?.name_id || 'Umum' }}
-                </span>
-              </td>
-              <td class="px-6 py-6 text-center">
-                <div class="flex flex-col items-center">
-                  <span class="text-base font-black text-slate-800">{{ link.clicks }}</span>
-                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Klik</span>
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-2 h-6 rounded-full" :style="{ backgroundColor: cat.color || '#ddd' }"></div>
+                  <div class="font-black text-sm text-slate-800 leading-tight">{{ cat.name }}</div>
                 </div>
               </td>
-              <td class="px-8 py-6 text-center">
-                <span v-if="link.is_active" class="px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">Aktif</span>
-                <span v-else class="px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-400 border border-slate-200">Arsip</span>
+              <td class="px-6 py-4">
+                <span class="text-[10px] font-bold text-slate-400 line-clamp-1 italic">{{ cat.description || '-' }}</span>
               </td>
+              <td class="px-6 py-4 text-center">
+                <span class="text-sm font-black text-slate-800">{{ cat.period_clicks }}</span>
+              </td>
+            </tr>
+            <tr v-if="topCategories.length === 0">
+              <td colspan="4" class="px-6 py-10 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">Tidak ada aktivitas kategori</td>
             </tr>
           </tbody>
         </table>

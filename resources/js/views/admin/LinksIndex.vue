@@ -91,16 +91,31 @@ const form = ref({
   is_active: true
 })
 
-const fetchData = async () => {
+const totalPages = ref(1)
+const pagination = ref<any>({})
+
+const fetchData = async (page = 1) => {
   isLoading.value = true
+  currentPage.value = page
   try {
+    const params = {
+      page,
+      search: searchQuery.value,
+      month: filterMonth.value,
+      year: filterYear.value,
+      sortBy: sortBy.value,
+      limit: pageSize.value
+    }
     const [resLinks, resCats, resSettings] = await Promise.all([
-      api.get('/admin/links'), 
+      api.get('/admin/links', { params }), 
       api.get('/categories'),
       api.get('/admin/settings')
     ])
-    links.value = resLinks.data
+    links.value = resLinks.data.data
+    totalPages.value = resLinks.data.last_page
+    pagination.value = resLinks.data
     settings.value = resSettings.data
+    
     if (userRole.value === 'EMPLOYEE' && userDeptId.value) {
       categories.value = resCats.data.filter((c: any) => Number(c.id) === Number(userDeptId.value))
     } else {
@@ -261,28 +276,17 @@ const pageSize = ref(10)
 const yearsList = computed(() => { const c = new Date().getFullYear(); return [c - 1, c, c + 1] })
 watch(pageSize, () => { currentPage.value = 1 })
 
-const processedLinks = computed(() => {
-  let r = [...links.value]
-  if (searchQuery.value) {
-    const q = searchQuery.value.toLowerCase()
-    r = r.filter(l => l.title?.toLowerCase().includes(q) || l.slug?.toLowerCase().includes(q) || l.category?.name?.toLowerCase().includes(q))
-  }
-  r = r.filter(l => {
-    const d = l.created_at || l.createdAt; if (!d) return true
-    const dt = new Date(d)
-    const mOk = filterMonth.value === 'all' || (dt.getMonth() + 1).toString() === filterMonth.value
-    const yOk = filterYear.value === 'all' || dt.getFullYear().toString() === filterYear.value
-    return mOk && yOk
-  })
-  if (sortBy.value === 'a-z') r.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
-  else if (sortBy.value === 'z-a') r.sort((a, b) => (b.title || '').localeCompare(a.title || ''))
-  else if (sortBy.value === 'clicks') r.sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
-  else r.sort((a, b) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime())
-  return r
+const processedLinks = computed(() => links.value)
+const paginatedLinks = computed(() => links.value)
+
+watch([searchQuery, filterMonth, filterYear, sortBy, pageSize], () => { 
+  fetchData(1) 
 })
-const paginatedLinks = computed(() => processedLinks.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
-const totalPages = computed(() => Math.ceil(processedLinks.value.length / pageSize.value) || 1)
-watch([searchQuery, filterMonth, filterYear, sortBy], () => { currentPage.value = 1 })
+
+const handlePageChange = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  fetchData(page)
+}
 
 onMounted(() => { checkUserAccess(); fetchData() })
 </script>
@@ -463,17 +467,17 @@ onMounted(() => { checkUserAccess(); fetchData() })
       </div>
 
       <!-- Pagination -->
-      <div class="px-8 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
+      <div v-if="totalPages > 1" class="px-8 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Menampilkan <span class="text-slate-800">{{ paginatedLinks.length }}</span> dari <span class="text-slate-800">{{ processedLinks.length }}</span> data
+          Menampilkan <span class="text-slate-800">{{ links.length }}</span> dari <span class="text-slate-800">{{ pagination.total }}</span> data
         </p>
         <div class="flex items-center gap-3">
-          <button @click="currentPage--" :disabled="currentPage === 1" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Prev</button>
+          <button @click="handlePageChange(currentPage - 1)" :disabled="currentPage === 1" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Prev</button>
           <div class="flex items-center gap-2">
              <span class="w-12 h-12 flex items-center justify-center bg-blue-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-200">{{ currentPage }}</span>
              <span class="text-[10px] font-black text-slate-300">/ {{ totalPages }}</span>
           </div>
-          <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Next</button>
+          <button @click="handlePageChange(currentPage + 1)" :disabled="currentPage >= totalPages" class="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black text-slate-600 disabled:opacity-30 hover:border-blue-200 transition-all uppercase tracking-widest shadow-lg shadow-slate-200/50 active:scale-90">Next</button>
         </div>
       </div>
     </div>
