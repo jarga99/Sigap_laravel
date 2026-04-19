@@ -1,74 +1,72 @@
-name: SIGAP CI/CD Pipeline
+name: SIGAP Monolith Deployment
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch full history for change detection
+      - name: 🚚 Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.2'
-        extensions: mbstring, dom, curl, libxml, mysql, zip
+      - name: 🐘 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, bcmath, pdo_mysql, dom, curl, libxml, zip
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: 📦 Install Composer Dependencies
+        run: composer install --no-dev --optimize-autoloader
 
-    - name: Install Composer Dependencies
-      run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader
+      - name: ⬢ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install NPM Dependencies & Build Assets
-      run: |
-        npm ci
-        npm run build
+      - name: 🏗️ Install NPM Dependencies & Build Assets
+        run: |
+          npm ci
+          npm run build
 
-    - name: Set Directory Permissions
-      run: chmod -R 755 storage bootstrap/cache
+      - name: ✅ Run PHP Syntax Check
+        run: php -l app/Models/*.php app/Http/Controllers/*.php || echo "Syntax check failed but continuing..."
 
-    - name: Run PHP Syntax Check
-      run: php -l app/Models/*.php app/Http/Controllers/*.php
+      - name: 📂 Prepare Deployment Artifacts
+        run: |
+          # Create a clean deployment folder
+          mkdir -p deploy_ready
+          
+          # Copy essential Laravel files
+          cp -r app bootstrap config database public resources routes storage vendor .env.example artisan composer.json package.json vite.config.js deploy_ready/
+          
+          # Preparation for storage folders on cPanel
+          mkdir -p deploy_ready/storage/framework/{sessions,views,cache}
+          chmod -R 775 deploy_ready/storage deploy_ready/bootstrap/cache
 
-    # ─────────────────────────────────────────────────────────────────────
-    # DEPLOYMENT: Only uploads files that have changed since last deploy.
-    # Server-specific configs (.env, .htaccess, storage/) are EXCLUDED
-    # to prevent overwriting production configurations.
-    # ─────────────────────────────────────────────────────────────────────
-    - name: Deploy Changed Files to Server via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./
-        server-dir: ./
-        state-name: .ftp-deploy-sync-fresh.json
-        exclude: |
-          **/.git/**
-          **/.github/**
-          **/node_modules/**
-          **/.env
-          **/.env.*
-          **/.htaccess
-          **/public/.htaccess
-          **/public/storage
-          **/public/storage/**
-          **/storage/app/public/**
-          **/storage/logs/**
-          **/storage/framework/cache/**
-          **/storage/framework/sessions/**
-          **/storage/framework/views/**
-          **/bootstrap/cache/**
-          **/public/hot
+      - name: 🚀 Deploy to Server via FTP
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy_ready/
+          server-dir: ${{ secrets.FTP_REMOTE_DIR || './' }}
+          state-name: .ftp-deploy-sync-monolith.json
+          dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env

@@ -4,11 +4,35 @@
 
 ---
 
+## 🛠️ TECHNOLOGICAL STACK
+
+SIGAP dibangun menggunakan kombinasi teknologi modern yang dipilih untuk keseimbangan antara performa tinggi dan kemudahan deployment di lingkungan *Shared Hosting*.
+
+| Komponen | Teknologi | Versi | Keunggulan |
+| :--- | :--- | :--- | :--- |
+| **Runtime** | PHP | `^8.2` | Keamanan dan efisiensi memori terbaru. |
+| **Backend** | **Laravel** | `^11.0` | Framework PHP tercanggih dengan ekosistem keamanan solid. |
+| **Frontend** | **Vue.js** | `^3.4` | Reaktivitas instan dan performa UI yang sangat ringan. |
+| **Build Tool** | **Vite** | `^6.0` | Proses *Hot Module Replacement* tercepat saat ini. |
+| **Styling** | **Tailwind CSS** | `^4.0` | Desain modern dengan performa CSS *zero-runtime* yang bersih. |
+| **State Mgmt** | Pinia | `^2.3` | Manajemen state ringan dan terstruktur untuk Vue 3. |
+| **Database** | MySQL / MariaDB | - | Kompatibilitas luas dan performa indexing yang dioptimasi. |
+
+### 💎 KENAPA SIGAP? (KEY ADVANTAGES)
+
+- **🚀 Shared Hosting Ready**: Satu-satunya platform kompleks yang dioptimasi khusus agar berjalan mulus di cPanel tanpa perlu VPS mahal.
+- **📦 True Monolith Architecture**: Frontend (Vue) dan Backend (Laravel) dalam satu paket, memudahkan backup dan satu kali push deployment.
+- **🛡️ Enterprise Audit Logs**: Setiap aksi (Create/Update/Delete) dicatat otomatis untuk akuntabilitas.
+- **🎨 Dynamic Event Editor**: Editor visual real-time untuk membuat microsite event dalam hitungan menit tanpa menyentuh kode.
+- **⚡ High-Performance Indexing**: Optimasi query database untuk menangani ribuan klik log tanpa lag.
+
+---
+
 ## 📖 DAFTAR ISI
 1. [VII. Diagram Database (ERD)](#-vii-diagram-database-erd)
 2. [VIII. Diagram Alur Fitur Per Peran](#-viii-diagram-alur-fitur-per-peran-role)
-3. [I. Panduan Peran (Role SOP & Manual)](#-i-panduan-peran-role-sop)
-4. [II. Panduan CI/CD Deployment (cPanel Focus)](#-ii-panduan-cicd-deployment-cpanel-focus)
+3. [I. Panduan Peran (Role SOP)](#-i-panduan-peran-role-sop)
+4. [II. Panduan Deployment (CI/CD)](#-ii-panduan-deployment-cicd)
 5. [III. Manajemen Keamanan & Lisensi](#-iii-manajemen-keamanan--lisensi)
 6. [IV. Fitur Unggulan (Backend Laravel)](#-iv-fitur-unggulan-backend-laravel)
 7. [V. Panduan Instalasi & Maintenance](#-v-panduan-instalasi--maintenance)
@@ -192,6 +216,9 @@ flowchart TD
     style START fill:#0f172a,color:#fff,stroke:#0f172a
     style AUTH fill:#b91c1c,color:#fff,stroke:#b91c1c
 ```
+---
+
+## 👥 I. PANDUAN PERAN (ROLE SOP)
 
 ### 📜 Keterangan Peran & Hak Akses
 
@@ -299,12 +326,17 @@ git push -u origin master
 ### 🤖 TAHAP 2: MEMBUAT ROBOT KURIR (GITHUB ACTIONS)
 Di GitHub -> **Settings** -> **Secrets and variables** -> **Actions**, tambahkan:
 - `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`.
-> **PENTING**: Jika Akun FTP cPanel sudah dikunci ke folder tersebut, maka di `deploy.yml` wajib mengisi `server-dir: /`.
+- `FTP_REMOTE_DIR` (Opsional): Isi jika ingin menentukan folder tertentu di server (Default: `./`).
 
 ---
 
-### 👨‍🍳 TAHAP 3: ALUR BUILD & SYNC
-GitHub Actions akan menyewa komputer Ubuntu-Linux, menginstall PHP 8.2 & Node.js 20, memasak aset (`npm run build`), dan mengirimkan kode matang ke hosting Anda secara otomatis (Incremental Sync).
+### 👨‍🍳 TAHAP 3: ALUR BUILD & SYNC (OTOMATIS)
+Setiap kali Anda menekan `git push origin master`, robot GitHub akan:
+1. Menyiapkan lingkungan PHP 8.2 & Node.js 20.
+2. Menginstall semua dependensi (Composer & NPM).
+3. **Membangun Aset** secara otomatis (`npm run build`).
+4. Menjalankan pemeriksaan sintaks kode.
+5. Mengirimkan hanya file yang diperlukan ke server hosting Anda.
 
 ---
 
