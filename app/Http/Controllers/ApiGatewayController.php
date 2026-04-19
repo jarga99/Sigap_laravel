@@ -355,11 +355,9 @@ class ApiGatewayController extends Controller
             else if ($status === 'ARCHIVE') $query->where('status', 'ARSIP');
         }
 
-        // Role-based access
-        if ($user->role === 'ADMIN_EVENT') {
+        // Role-based access: ADMIN sees all, ADMIN_EVENT & EMPLOYEE see only their own events
+        if ($user->role === 'ADMIN_EVENT' || $user->role === 'EMPLOYEE') {
             $query->where('userId', $user->id);
-        } elseif ($user->role === 'EMPLOYEE') {
-            return response()->json([]);
         }
 
         $limit = $request->input('limit', 15);
@@ -723,7 +721,7 @@ class ApiGatewayController extends Controller
     public function eventsExport()
     {
         $user = $this->currentUser();
-        if (!$user || $user->role === 'EMPLOYEE') return response()->json(['error' => 'Forbidden'], 403);
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
 
         $headers = [
             "Content-type"        => "text/csv",

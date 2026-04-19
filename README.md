@@ -199,14 +199,18 @@ flowchart TD
 | Manajemen User (CRUD + Import) | ✅ | ❌ | ❌ |
 | Manajemen Kategori | ✅ | ❌ | ✅ |
 | Manajemen Link (CRUD + Import) | ✅ | ✅ | ✅ |
-| Manajemen Event (CRUD) | ✅ | ✅ | ❌ |
-| Event Editor (Theme, Font, Link) | ✅ | ✅ | ❌ |
+| Manajemen Event / Sigap Event (CRUD) | ✅ (semua) | ✅ (milik sendiri) | ✅ (milik sendiri) |
+| Event Editor (Theme, Font, Link) | ✅ | ✅ | ✅ |
+| Notifikasi (Bell / Riwayat) | ✅ | ✅ | ✅ |
+| **Kirim Saran** ke Admin | ❌ (Admin = penerima) | ✅ | ✅ |
 | Kotak Saran (Baca & Balas) | ✅ | ❌ | ❌ |
 | Kotak Saran (Baca Saja) | ✅ | ✅ | ❌ |
 | Audit Log & Ekspor Aktivitas | ✅ | ❌ | ❌ |
 | Pengaturan Sistem & Branding | ✅ | ❌ | ❌ |
 | Reset & Backup Database | ✅ | ❌ | ❌ |
 | Membuat Role ADMIN via Import | ❌ | ❌ | ❌ |
+
+> ℹ️ **Catatan**: Pegawai dan Admin Event hanya dapat melihat dan mengelola **event milik mereka sendiri** (berdasarkan `userId`). Admin dapat melihat dan mengelola **semua event**.
 
 ---
 
