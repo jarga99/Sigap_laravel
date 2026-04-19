@@ -34,7 +34,7 @@ const handleLogin = async () => {
       password: password.value
     })
     
-    router.push('/admin/dashboard')
+    router.push('/')
     
   } catch (err: any) {
     console.error("💥 [UI] Login API Error:", err);
@@ -55,7 +55,7 @@ const handleGoogleSuccess = async (response: any) => {
   try {
     const success = await authStore.loginWithGoogle(response.credential)
     if (success) {
-      router.push('/admin/dashboard')
+      router.push('/')
     }
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Gagal login via Google. Pastikan email Anda sudah terdaftar atau hubungi admin.'
@@ -65,7 +65,7 @@ const handleGoogleSuccess = async (response: any) => {
 }
 
 onMounted(() => {
-  if (authStore.token) router.push('/admin/dashboard')
+  if (authStore.token) router.push('/')
   document.documentElement.classList.remove('dark')
 })
 </script>
@@ -137,7 +137,7 @@ onMounted(() => {
            <button :disabled="isLoading" class="w-full py-5 bg-blue-600 text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
               <SIGAPIcons v-if="!isLoading" name="LogIn" :size="20" />
               <div v-else class="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-              {{ isLoading ? 'Otentikasi...' : 'Masuk Dashboard' }}
+              {{ isLoading ? 'Otentikasi...' : 'Masuk ke Portal' }}
            </button>
 
            <div class="flex items-center gap-4 py-2">
