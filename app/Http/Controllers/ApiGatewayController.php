@@ -355,10 +355,37 @@ class ApiGatewayController extends Controller
             else if ($status === 'ARCHIVE') $query->where('status', 'ARSIP');
         }
 
-        // Role-based access: ADMIN sees all, ADMIN_EVENT & EMPLOYEE see only their own events
-        if ($user->role === 'ADMIN_EVENT' || $user->role === 'EMPLOYEE') {
-            $query->where('userId', $user->id);
+        // Role-based visibility:
+        // - ADMIN       : Lihat SEMUA event
+        // - ADMIN_EVENT : Lihat event milik sendiri + event dari user 1 kategori
+        // - EMPLOYEE    : Lihat event milik sendiri + event 1 kategori + event dari ADMIN_EVENT (broadcast)
+        if ($user->role === 'ADMIN_EVENT') {
+            $categoryId = $user->category_id;
+            $sameCategoryUserIds = $categoryId
+                ? User::where('category_id', $categoryId)->pluck('id')->toArray()
+                : [$user->id];
+
+            $query->where(function($q) use ($user, $sameCategoryUserIds) {
+                $q->where('userId', $user->id)
+                  ->orWhereIn('userId', $sameCategoryUserIds);
+            });
+
+        } elseif ($user->role === 'EMPLOYEE') {
+            $categoryId = $user->category_id;
+            $sameCategoryUserIds = $categoryId
+                ? User::where('category_id', $categoryId)->pluck('id')->toArray()
+                : [$user->id];
+
+            // ADMIN_EVENT events act as broadcasts — visible to all employees
+            $adminEventUserIds = User::where('role', 'ADMIN_EVENT')->pluck('id')->toArray();
+
+            $query->where(function($q) use ($user, $sameCategoryUserIds, $adminEventUserIds) {
+                $q->where('userId', $user->id)
+                  ->orWhereIn('userId', $sameCategoryUserIds)
+                  ->orWhereIn('userId', $adminEventUserIds);
+            });
         }
+        // ADMIN: no filter — sees all events
 
         $limit = $request->input('limit', 15);
         return response()->json($query->orderBy('created_at', 'desc')->paginate($limit));

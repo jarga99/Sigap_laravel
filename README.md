@@ -210,7 +210,10 @@ flowchart TD
 | Reset & Backup Database | ✅ | ❌ | ❌ |
 | Membuat Role ADMIN via Import | ❌ | ❌ | ❌ |
 
-> ℹ️ **Catatan**: Pegawai dan Admin Event hanya dapat melihat dan mengelola **event milik mereka sendiri** (berdasarkan `userId`). Admin dapat melihat dan mengelola **semua event**.
+> ℹ️ **Catatan Visibilitas Event di Panel Admin:**
+> - 👑 **Admin**: Melihat **semua** event dari semua pengguna.
+> - 🎭 **Admin Event**: Melihat event milik sendiri + event dari pengguna **satu kategori / departemen** yang sama. Tidak dapat melihat event pegawai dari departemen lain.
+> - 💼 **Pegawai**: Melihat event milik sendiri + event dari pengguna **satu kategori** + semua event yang dibuat oleh **Admin Event** (event siaran / broadcast untuk seluruh pegawai).
 
 ---
 
