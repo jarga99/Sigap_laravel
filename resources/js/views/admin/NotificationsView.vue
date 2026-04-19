@@ -72,7 +72,7 @@ onMounted(() => fetchNotifications())
     </div>
 
     <!-- Notification List -->
-    <div class="bg-white rounded-[3rem] border border-blue-50 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-[3rem] border border-blue-100 shadow-sm overflow-hidden">
        <div v-if="isLoading" class="p-20 text-center space-y-4">
           <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
           <p class="text-slate-400 font-bold text-sm">Memuat riwayat...</p>
@@ -93,7 +93,7 @@ onMounted(() => fetchNotifications())
              
              <div class="w-12 h-12 rounded-2xl flex items-center justify-center transition-all" 
                 :class="!notif.isRead ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-100 text-slate-400'">
-                <SIGAPIcons :name="notif.type === 'FEEDBACK' ? 'MessageSquare' : 'Bell'" :size="20" />
+                <SIGAPIcons :name="notif.type === 'FEEDBACK' ? 'MessageSquare' : notif.type === 'FEEDBACK_REPLY' ? 'Reply' : 'Bell'" :size="20" />
              </div>
 
              <div class="flex-1">

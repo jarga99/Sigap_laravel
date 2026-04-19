@@ -82,7 +82,7 @@ const fetchNotifications = async () => {
 const toggleNotifications = () => {
   isNotificationOpen.value = !isNotificationOpen.value
   if (isNotificationOpen.value && unreadCount.value > 0) {
-    api.put('/notifications').then(() => {
+    api.post('/notifications/read').then(() => {
       unreadCount.value = 0
       notifications.value = notifications.value.map(n => ({ ...n, isRead: true }))
     })
@@ -211,7 +211,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#eff2f6] flex flex-col font-sans overflow-x-hidden text-slate-800">
+  <div class="min-h-screen bg-[#f1f5f9] flex flex-col font-sans overflow-x-hidden text-slate-800">
     <!-- Navbar Header -->
     <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 px-4 h-16 flex items-center justify-between shadow-xl shadow-slate-900/10 transition-all">
       <div class="flex items-center gap-3">

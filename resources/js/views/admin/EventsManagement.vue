@@ -3,6 +3,14 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
+import SIGAPSelect from '../../components/admin/SIGAPSelect.vue'
+
+const pageSizeList = [
+  { id: 10, name: '10 Per Hal' },
+  { id: 20, name: '20 Per Hal' },
+  { id: 50, name: '50 Per Hal' },
+  { id: 100, name: '100 Per Hal' }
+]
 
 const router = useRouter()
 const events = ref<any[]>([])
@@ -122,34 +130,35 @@ onMounted(() => {
     </div>
 
     <!-- Toolbar -->
-    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col lg:flex-row gap-4">
+    <div class="bg-white p-4 rounded-2xl border border-blue-100 shadow-sm flex flex-col lg:flex-row gap-4">
       <div class="relative flex-1">
         <SIGAPIcons name="Search" :size="18" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
         <input v-model="searchQuery" type="text" placeholder="Cari event berdasarkan judul atau slug..." class="w-full bg-[#f4f8ff] border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:border-blue-300 transition-all" />
       </div>
       <div class="flex gap-2">
-         <select v-model="pageSize" class="bg-[#f4f8ff] border-none rounded-2xl px-4 py-3 text-xs font-bold text-slate-500 outline-none">
-           <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }} Per Hal</option>
-         </select>
+         <div class="w-40">
+           <SIGAPSelect v-model="pageSize" :options="pageSizeList" />
+         </div>
       </div>
     </div>
 
     <!-- Content Table -->
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="text-slate-400 font-bold text-[10px] uppercase tracking-widest border-b border-slate-50">
               <th class="px-6 py-5">Event & Url Signature</th>
               <th class="px-6 py-5 text-center">Status</th>
-              <th class="px-6 py-5">Komponen / Konten</th>
+              <th class="px-6 py-5">Pembuat & Kategori</th>
+              <th class="px-6 py-5">Komponen</th>
               <th class="px-6 py-5">Dibuat</th>
               <th class="px-6 py-5 text-right">Manajemen</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
             <tr v-if="isLoading" v-for="i in 3" :key="i" class="animate-pulse">
-               <td colspan="5" class="px-6 py-8"><div class="h-4 bg-[#f4f8ff] rounded-full w-full"></div></td>
+               <td colspan="6" class="px-6 py-8"><div class="h-4 bg-[#f4f8ff] rounded-full w-full"></div></td>
             </tr>
             <tr v-else v-for="event in paginatedEvents" :key="event.id" class="group hover:bg-[#f4f8ff]/50 transition-all">
               <td class="px-6 py-5">
@@ -172,9 +181,15 @@ onMounted(() => {
                  </span>
               </td>
               <td class="px-6 py-5">
+                 <div class="flex flex-col">
+                    <span class="text-xs font-black text-slate-700 leading-tight">{{ event.user?.fullName || '-' }}</span>
+                    <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter mt-1">{{ event.user?.category?.name || 'Global / Admin' }}</span>
+                 </div>
+              </td>
+              <td class="px-6 py-5">
                  <div class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-tighter">
                     <SIGAPIcons name="Layers" :size="14" class="opacity-40" />
-                    {{ event._count?.items || 0 }} Item Konten
+                    {{ event.items_count || event._count?.items || 0 }} Item
                  </div>
               </td>
               <td class="px-6 py-5">
@@ -195,7 +210,7 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-if="!isLoading && filteredEvents.length === 0">
-               <td colspan="5" class="px-6 py-20 text-center">
+               <td colspan="6" class="px-6 py-20 text-center">
                   <SIGAPIcons name="Inbox" :size="48" class="mx-auto text-slate-200 mb-4" />
                   <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Tidak ada event ditemukan</p>
                </td>

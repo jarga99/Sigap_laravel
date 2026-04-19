@@ -9,6 +9,53 @@ import { downloadFile } from '../../lib/download'
 import { useRouter } from 'vue-router'
 import QRCode from 'qrcode'
 
+const monthOptions = [
+  { id: 'all', name: 'Bulan' },
+  ...['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => ({ id: (i+1).toString(), name: m }))
+]
+
+const formatDate = (date: string) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+const yearsOptions = computed(() => {
+  const current = new Date().getFullYear()
+  return [
+    { id: 'all', name: 'Tahun' },
+    { id: (current - 1).toString(), name: (current - 1).toString() },
+    { id: current.toString(), name: current.toString() },
+    { id: (current + 1).toString(), name: (current+1).toString() }
+  ]
+})
+
+const sortOptions = [
+  { id: 'newest', name: 'Terbaru' },
+  { id: 'a-z', name: 'Atas → Bawah' },
+  { id: 'z-a', name: 'Bawah → Atas' },
+  { id: 'clicks', name: 'Terpopuler' }
+]
+
+const pageSizeOptionsList = [
+  { id: 10, name: '10 Baris' },
+  { id: 25, name: '25 Baris' },
+  { id: 50, name: '50 Baris' }
+]
+
+const qrShapeOptions = [
+  { id: 'square', name: '■ Kotak' },
+  { id: 'circle', name: '● Bulat' }
+]
+
+const qrCornerOptions = [
+  { id: 'square', name: 'Tajam' },
+  { id: 'rounded', name: 'Melengkung' }
+]
+
 const router = useRouter()
 const links = ref<any[]>([])
 const categories = ref<any[]>([])
@@ -311,7 +358,7 @@ onMounted(() => { checkUserAccess(); fetchData() })
     </div>
 
     <!-- Toolbar -->
-    <div class="bg-white rounded-[2rem] border-2 border-white shadow-xl shadow-slate-200/50 p-4 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center relative z-20">
+    <div class="bg-white rounded-[2rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 p-4 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center relative z-20">
       <!-- Search -->
       <div class="relative flex-1">
         <SIGAPIcons name="Search" :size="18" class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
@@ -320,20 +367,15 @@ onMounted(() => { checkUserAccess(); fetchData() })
       </div>
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-2.5">
-        <select v-model="filterMonth" class="bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3 text-[10px] font-black text-slate-600 outline-none focus:border-blue-100 transition-all uppercase tracking-widest cursor-pointer">
-          <option value="all">Bulan</option>
-          <option v-for="m in 12" :key="m" :value="m.toString()">{{ ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][m-1] }}</option>
-        </select>
-        <select v-model="filterYear" class="bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3 text-[10px] font-black text-slate-600 outline-none focus:border-blue-100 transition-all uppercase tracking-widest cursor-pointer">
-          <option value="all">Tahun</option>
-          <option v-for="y in yearsList" :key="y" :value="y.toString()">{{ y }}</option>
-        </select>
-        <select v-model="sortBy" class="bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3 text-[10px] font-black text-slate-600 outline-none focus:border-blue-100 transition-all uppercase tracking-widest cursor-pointer">
-          <option value="newest">Terbaru</option>
-          <option value="a-z">Atas → Bawah</option>
-          <option value="z-a">Bawah → Atas</option>
-          <option value="clicks">Terpopuler</option>
-        </select>
+        <div class="w-32">
+          <SIGAPSelect v-model="filterMonth" :options="monthOptions" />
+        </div>
+        <div class="w-28">
+          <SIGAPSelect v-model="filterYear" :options="yearsOptions" />
+        </div>
+        <div class="w-40">
+          <SIGAPSelect v-model="sortBy" :options="sortOptions" />
+        </div>
         <input type="file" ref="fileInput" hidden @change="handleImport" accept=".csv,.xlsx" />
         <button @click="triggerImport" :disabled="isImporting" class="px-6 py-3 bg-slate-50 border-2 border-slate-100 text-blue-600 rounded-2xl text-[10px] font-black hover:bg-blue-50 transition-all flex items-center gap-2 uppercase tracking-widest shadow-sm">
           <SIGAPIcons v-if="!isImporting" name="Upload" :size="16" />
@@ -361,9 +403,9 @@ onMounted(() => { checkUserAccess(); fetchData() })
             </div>
           </Transition>
         </div>
-        <select v-model="pageSize" class="bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3 text-[10px] font-black text-slate-600 outline-none uppercase tracking-widest cursor-pointer">
-          <option v-for="opt in [10, 25, 50]" :key="opt" :value="opt">{{ opt }} Baris</option>
-        </select>
+        <div class="w-32">
+          <SIGAPSelect v-model="pageSize" :options="pageSizeOptionsList" />
+        </div>
       </div>
     </div>
 
@@ -374,7 +416,7 @@ onMounted(() => { checkUserAccess(); fetchData() })
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 overflow-hidden relative z-10">
+    <div class="bg-white rounded-[2.5rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 overflow-hidden relative z-10">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -383,6 +425,7 @@ onMounted(() => { checkUserAccess(); fetchData() })
               <th class="px-6 py-6 font-black">Layanan</th>
               <th class="px-6 py-6 font-black">Kategori</th>
               <th class="px-6 py-6 font-black">Pembuat</th>
+              <th class="px-6 py-6 font-black text-center">Dibuat</th>
               <th class="px-6 py-6 text-center font-black">Klik</th>
               <th class="px-6 py-6 text-center font-black">Status</th>
               <th class="px-8 py-6 text-right font-black">Aksi</th>
@@ -390,10 +433,10 @@ onMounted(() => { checkUserAccess(); fetchData() })
           </thead>
           <tbody class="divide-y divide-slate-100">
             <tr v-if="isLoading" v-for="i in 4" :key="i" class="animate-pulse">
-              <td colspan="7" class="px-8 py-8"><div class="h-4 bg-slate-50 rounded-full w-full"></div></td>
+              <td colspan="8" class="px-8 py-8"><div class="h-4 bg-slate-50 rounded-full w-full"></div></td>
             </tr>
             <tr v-else-if="paginatedLinks.length === 0">
-              <td colspan="7" class="px-8 py-24 text-center">
+              <td colspan="8" class="px-8 py-24 text-center">
                 <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
                   <SIGAPIcons name="Inbox" :size="40" class="text-slate-200" />
                 </div>
@@ -425,6 +468,9 @@ onMounted(() => { checkUserAccess(); fetchData() })
                   <SIGAPIcons name="User" :size="14" class="text-slate-400" />
                   <span class="text-xs font-bold text-slate-600">{{ link.user?.username || link.user?.fullName || 'Sistem' }}</span>
                 </div>
+              </td>
+              <td class="px-6 py-4 text-center">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ formatDate(link.createdAt || link.created_at) }}</span>
               </td>
               <td class="px-6 py-4 text-center">
                 <p class="text-xl font-black text-slate-800 group-hover:text-blue-600 transition-colors">{{ link.clicks || 0 }}</p>
@@ -623,16 +669,10 @@ onMounted(() => { checkUserAccess(); fetchData() })
                 </div>
               </div>
               <div><label class="label-soft block mb-1.5">Bentuk Modul</label>
-                <select v-model="qrOptions.shape" class="input-soft text-xs py-2.5">
-                  <option value="square">■ Kotak</option>
-                  <option value="circle">● Bulat</option>
-                </select>
+                <SIGAPSelect v-model="qrOptions.shape" :options="qrShapeOptions" />
               </div>
               <div><label class="label-soft block mb-1.5">Sudut Finder</label>
-                <select v-model="qrOptions.cornerShape" class="input-soft text-xs py-2.5">
-                  <option value="square">Tajam</option>
-                  <option value="rounded">Melengkung</option>
-                </select>
+                <SIGAPSelect v-model="qrOptions.cornerShape" :options="qrCornerOptions" />
               </div>
             </div>
 

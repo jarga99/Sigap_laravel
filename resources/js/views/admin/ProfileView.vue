@@ -137,7 +137,7 @@ const updateProfile = async () => {
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 px-4">
        <!-- LEFT: Summary Card -->
        <div class="lg:col-span-1 space-y-6">
-          <div class="bg-white p-8 rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 flex flex-col items-center text-center">
+          <div class="bg-white p-8 rounded-[2.5rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 flex flex-col items-center text-center">
              <div class="relative w-32 h-32 mb-6 group">
                 <div class="w-full h-full bg-slate-50 rounded-[2.5rem] border-4 border-white shadow-lg overflow-hidden transition-transform group-hover:scale-105">
                    <img :src="previewImage || `https://ui-avatars.com/api/?name=${form.username}&background=eff6ff&color=3b82f6`" 
@@ -163,7 +163,7 @@ const updateProfile = async () => {
 
        <!-- RIGHT: Form Card -->
        <div class="lg:col-span-3">
-          <div class="bg-white p-10 rounded-[3rem] border-2 border-white shadow-xl shadow-slate-200/50 space-y-10">
+          <div class="bg-white p-10 rounded-[3rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 space-y-10">
              <div v-if="message" :class="[isError ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100']" 
                   class="p-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest text-center animate-fadeup">
                 {{ message }}

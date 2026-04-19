@@ -193,7 +193,7 @@ onMounted(fetchFeedbacks)
     <div class="max-w-xl relative group">
        <SIGAPIcons name="Search" :size="20" class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
        <input v-model="searchQuery" type="text" :placeholder="isAdmin ? 'Cari nama, pesan, atau kategori...' : 'Cari riwayat pesan anda...'" 
-              class="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] py-4 pl-16 pr-6 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm" />
+              class="w-full bg-white border-2 border-blue-100 rounded-[1.5rem] py-4 pl-16 pr-6 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm" />
     </div>
 
     <!-- Compact List -->
@@ -201,7 +201,7 @@ onMounted(fetchFeedbacks)
       <div v-if="isLoading" v-for="i in 3" :key="i" class="h-48 bg-white border border-slate-100 rounded-[2.5rem] animate-pulse"></div>
       
       <div v-else-if="filteredFeedbacks.length > 0" v-for="fb in filteredFeedbacks" :key="fb.id" 
-           class="group bg-white rounded-[2.5rem] border border-slate-100 hover:border-blue-200 transition-all duration-300 shadow-sm hover:shadow-xl overflow-hidden">
+           class="group bg-white rounded-[2.5rem] border border-blue-100 hover:border-blue-200 transition-all duration-300 shadow-sm hover:shadow-xl overflow-hidden">
          <div class="p-8 md:p-10 flex flex-col lg:flex-row gap-8 lg:gap-12">
             
             <!-- Person / Info Panel (Clipped for User view) -->

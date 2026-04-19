@@ -94,7 +94,7 @@ onMounted(fetchCategories)
       
       <!-- Actual Data -->
       <template v-else>
-         <div v-for="cat in categories" :key="cat.id" class="group bg-white p-8 rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 relative flex flex-col justify-between h-[320px] overflow-hidden">
+         <div v-for="cat in categories" :key="cat.id" class="group bg-white p-8 rounded-[2.5rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 relative flex flex-col justify-between h-[320px] overflow-hidden">
             <div class="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 opacity-50 group-hover:scale-110 transition-transform pointer-events-none"></div>
             
             <!-- Actions (Always Visible) -->

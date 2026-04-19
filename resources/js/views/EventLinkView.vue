@@ -91,7 +91,7 @@ onMounted(() => {
   <div v-else-if="event" class="min-h-screen relative flex flex-col items-center overflow-x-hidden selection:bg-blue-100">
     
     <!-- BACKGROUND LAYER -->
-    <div class="fixed inset-0 z-0">
+    <div class="fixed inset-0 z-0 pointer-events-none select-none">
        <!-- SOLID BG -->
        <div v-if="event.bgType === 'color'" class="absolute inset-0" :style="{ backgroundColor: event.bgValue, opacity: (event.bgOpacity ?? 100) / 100 }"></div>
        
@@ -106,22 +106,26 @@ onMounted(() => {
     <!-- Scrollable Content -->
     <div class="w-full relative z-10 flex flex-col min-h-screen">
       
+      <!-- Top Spacer: Active only when there is no cover (or cover is empty) to push content to center -->
+      <div v-if="!(event.showCover && event.eventPhoto)" class="flex-1 min-h-[5vh]"></div>
+      
       <!-- Cover Photo: Dynamic Responsive Scaling -->
       <div v-if="event.showCover && event.eventPhoto" 
-           class="w-full shrink-0 shadow-lg overflow-hidden" 
-           :style="{ 
-              height: `calc( ( (${event.coverHeight || 140}) / 360 ) * 100vw )`,
-              maxHeight: '600px',
-              minHeight: (event.coverHeight || 140) + 'px'
-           }">
-        <img :src="event.eventPhoto" class="w-full h-full object-cover object-center" />
-      </div>
+             class="w-full shrink-0 shadow-lg overflow-hidden" 
+             :style="{ 
+                height: `calc( ( (${event.coverHeight || 140}) / 360 ) * 100vw )`,
+                maxHeight: '600px',
+                minHeight: (event.coverHeight || 140) + 'px'
+             }">
+          <img :src="event.eventPhoto" class="w-full h-full object-cover object-center" />
+        </div>
 
-      <!-- Centered Content Box (Max width 672px for professional Linktree look) -->
-      <div class="w-full max-w-2xl mx-auto flex flex-col items-center px-8 relative">
-        
-        <!-- Main Profile Section -->
-        <div class="flex flex-col items-center text-center relative w-full" :class="event.showCover ? (event.showProfile ? '-mt-12' : 'pt-8') : 'pt-20'">
+        <!-- Centered Content Box (Max width 672px for professional Linktree look) -->
+        <div class="w-full max-w-2xl mx-auto flex flex-col items-center px-8 relative">
+          
+          <!-- Main Profile Section: Margin depends on actual rendered cover -->
+          <div class="flex flex-col items-center text-center relative w-full pb-12" 
+               :class="(event.showCover && event.eventPhoto) ? (event.showProfile ? '-mt-12' : 'pt-12') : 'pt-0'">
         
         <!-- Profile Photo: Dynamic Scaling -->
         <div v-if="event.showProfile" 

@@ -53,25 +53,22 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./
-        server-dir: sigap.uptblkpasuruan.com/
-        # Hanya upload file yang berubah (FTP-Deploy sudah tracking otomatis
-        # via .ftp-deploy-sync-state.json yang disimpan di server)
+        server-dir: ./
+        state-name: .ftp-deploy-sync-fresh.json
         exclude: |
           **/.git/**
           **/.github/**
           **/node_modules/**
           **/.env
           **/.env.*
-          **/sigap_backup_full_node/**
-          **/backups/**
+          **/.htaccess
+          **/public/.htaccess
+          **/public/storage
+          **/public/storage/**
           **/storage/app/public/**
           **/storage/logs/**
           **/storage/framework/cache/**
           **/storage/framework/sessions/**
           **/storage/framework/views/**
           **/bootstrap/cache/**
-          **/tests/**
-          **/.htaccess
-          **/public/uploads/**
-          **/public/storage/**
           **/public/hot

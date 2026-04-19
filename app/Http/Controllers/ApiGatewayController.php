@@ -179,7 +179,18 @@ class ApiGatewayController extends Controller
 
         // Handle Avatar Upload
         if ($request->hasFile('image')) {
-            $data['image_url'] = $this->imageService->optimize($request->file('image'), 'uploads/profiles', 'AVATAR', 600);
+            $file = $request->file('image');
+            if (!$file->isValid()) {
+                return response()->json(['error' => 'File tidak valid atau melebihi batas ukuran server.'], 422);
+            }
+            if ($file->getSize() > 8 * 1024 * 1024) {
+                return response()->json(['error' => 'Ukuran file maksimal adalah 8MB.'], 422);
+            }
+            try {
+                $data['image_url'] = $this->imageService->optimize($file, 'uploads/profiles', 'AVATAR', 600);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Gagal mengoptimasi profil: ' . $e->getMessage()], 500);
+            }
         }
 
         $user->update($data);
@@ -336,8 +347,9 @@ class ApiGatewayController extends Controller
     {
         $user = $this->currentUser();
         if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
-        $query = Event::query();
-
+        $query = Event::with(['user.category']);
+        $query->withCount('items');
+        
         // Search
         if ($request->filled('search')) {
             $s = $request->search;
@@ -372,18 +384,15 @@ class ApiGatewayController extends Controller
 
         } elseif ($user->role === 'EMPLOYEE') {
             $categoryId = $user->category_id;
-            $sameCategoryUserIds = $categoryId
-                ? User::where('category_id', $categoryId)->pluck('id')->toArray()
-                : [$user->id];
 
-            // ADMIN_EVENT events act as broadcasts — visible to all employees
-            $adminEventUserIds = User::where('role', 'ADMIN_EVENT')->pluck('id')->toArray();
+            // Single optimized query: get same-category users + all ADMIN_EVENT users
+            $visibleUserIds = $categoryId
+                ? User::where('category_id', $categoryId)
+                    ->orWhere('role', 'ADMIN_EVENT')
+                    ->pluck('id')->toArray()
+                : User::where('role', 'ADMIN_EVENT')->pluck('id')->push($user->id)->toArray();
 
-            $query->where(function($q) use ($user, $sameCategoryUserIds, $adminEventUserIds) {
-                $q->where('userId', $user->id)
-                  ->orWhereIn('userId', $sameCategoryUserIds)
-                  ->orWhereIn('userId', $adminEventUserIds);
-            });
+            $query->whereIn('userId', $visibleUserIds);
         }
         // ADMIN: no filter — sees all events
 
@@ -438,8 +447,16 @@ class ApiGatewayController extends Controller
 
     public function eventsUpdate(Request $request, $id)
     {
+        $user = $this->currentUser();
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+
         $event = Event::find($id);
         if (!$event) return response()->json(['error' => 'Not Found'], 404);
+
+        // RBAC: Non-admin users can only edit their own events
+        if ($user->role !== 'ADMIN' && $event->userId !== $user->id) {
+            return response()->json(['error' => 'Anda hanya dapat mengedit event milik Anda sendiri.'], 403);
+        }
 
         $data = $request->all();
 
@@ -470,8 +487,16 @@ class ApiGatewayController extends Controller
 
     public function eventsDestroy($id)
     {
+        $user = $this->currentUser();
+        if (!$user) return response()->json(['error' => 'Unauthorized'], 401);
+
         $event = Event::find($id);
         if (!$event) return response()->json(['error' => 'Not Found'], 404);
+
+        // RBAC: Non-admin users can only delete their own events
+        if ($user->role !== 'ADMIN' && $event->userId !== $user->id) {
+            return response()->json(['error' => 'Anda hanya dapat menghapus event milik Anda sendiri.'], 403);
+        }
 
         $event->items()->delete();
         $event->delete();
@@ -760,12 +785,12 @@ class ApiGatewayController extends Controller
 
         $columns = ['ID', 'Slug', 'Title', 'Status', 'Branding', 'Items Count', 'Created At'];
         
-        $events = \App\Models\Event::withCount('items')->get();
+        $events = \App\Models\Event::withCount('items');
 
         $callback = function() use($columns, $events) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
-            foreach ($events as $ev) {
+            foreach ($events->cursor() as $ev) {
                 fputcsv($file, [
                     $ev->id,
                     $ev->slug,
@@ -792,14 +817,13 @@ class ApiGatewayController extends Controller
             "Expires"             => "0"
         ];
 
-        $links = Link::all();
         $columns = ['title', 'url', 'slug', 'category_id', 'visibility', 'desc', 'clicks'];
 
-        $callback = function() use($links, $columns) {
+        $callback = function() use($columns) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
 
-            foreach ($links as $link) {
+            foreach (Link::cursor() as $link) {
                 fputcsv($file, [
                     $link->title,
                     $link->url,
@@ -942,6 +966,12 @@ class ApiGatewayController extends Controller
     public function submitFeedback(Request $request)
     {
         $user = $this->currentUser();
+
+        // Security: Super Admin (ADMIN) tidak diizinkan mengirim feedback
+        if ($user && $user->role === 'ADMIN') {
+            return response()->json(['error' => 'Administrator tidak diizinkan mengirim laporan. Gunakan menu manajemen.'], 403);
+        }
+
         $data = $request->all();
 
         // Auto-fill and link if logged in
@@ -960,8 +990,19 @@ class ApiGatewayController extends Controller
         }
 
         if ($request->hasFile('file')) {
-            $data['attachment_url'] = $this->imageService->optimize($request->file('file'), 'uploads/feedback', 'FEEDBACK', 1000);
-            $data['attachment_type'] = 'IMAGE';
+            $file = $request->file('file');
+            if (!$file->isValid()) {
+                return response()->json(['error' => 'File lampiran tidak valid atau melebihi batas.'], 422);
+            }
+            if ($file->getSize() > 8 * 1024 * 1024) {
+                return response()->json(['error' => 'Ukuran file lampiran maksimal adalah 8MB.'], 422);
+            }
+            try {
+                $data['attachment_url'] = $this->imageService->optimize($file, 'uploads/feedback', 'FEEDBACK', 1000);
+                $data['attachment_type'] = 'IMAGE';
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Gagal memproses lampiran: ' . $e->getMessage()], 500);
+            }
             unset($data['file']); // Remove file object from database insertion data
         }
 
@@ -1005,7 +1046,18 @@ class ApiGatewayController extends Controller
         $data = $request->only(['reply_message']);
         
         if ($request->hasFile('file')) {
-            $data['reply_image_url'] = $this->imageService->optimize($request->file('file'), 'uploads/replies', 'REPLY', 1000);
+            $file = $request->file('file');
+            if (!$file->isValid()) {
+                return response()->json(['error' => 'File balasan tidak valid atau terlalu besar.'], 422);
+            }
+            if ($file->getSize() > 8 * 1024 * 1024) {
+                return response()->json(['error' => 'Ukuran gambar balasan maksimal adalah 8MB.'], 422);
+            }
+            try {
+                $data['reply_image_url'] = $this->imageService->optimize($file, 'uploads/replies', 'REPLY', 1000);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Gagal memproses lampiran balasan: ' . $e->getMessage()], 500);
+            }
         }
 
         $data['replied_at'] = now();
@@ -1015,6 +1067,17 @@ class ApiGatewayController extends Controller
 
         $feedback->update($data);
         $this->logAction('REPLY_FEEDBACK', 'Feedback', $id, "Replied to feedback from: {$feedback->name}");
+
+        // Notify the original feedback submitter (if they are a registered user)
+        if ($feedback->user_id) {
+            \App\Models\Notification::create([
+                'userId' => $feedback->user_id,
+                'type' => 'FEEDBACK_REPLY',
+                'message' => 'Laporan Anda telah dibalas oleh Administrator.',
+                'link' => '/admin/feedback'
+            ]);
+        }
+
         return response()->json(['status' => 'success', 'data' => $feedback]);
     }
 
@@ -1038,21 +1101,38 @@ class ApiGatewayController extends Controller
     public function notifications(Request $request)
     {
         $user = $this->currentUser();
-        if (!$user || $user->role !== 'ADMIN') return response()->json(['notifications' => [], 'unreadCount' => 0]);
+        if (!$user) return response()->json(['notifications' => [], 'unreadCount' => 0]);
+
+        // Scope query: ADMIN sees broadcast (userId=null) + own; others see own only
+        $scopeQuery = function($query) use ($user) {
+            if ($user->role === 'ADMIN') {
+                $query->where(function($q) use ($user) {
+                    $q->whereNull('userId')->orWhere('userId', $user->id);
+                });
+            } else {
+                $query->where('userId', $user->id);
+            }
+        };
 
         $showAll = $request->query('all') === 'true';
         
         if ($showAll) {
             // All history (latest first)
-            $notifs = \App\Models\Notification::orderBy('created_at', 'desc')->paginate(20);
+            $notifs = \App\Models\Notification::where($scopeQuery)
+                ->orderBy('created_at', 'desc')->paginate(20);
             return response()->json($notifs);
         } else {
             // FIFO Queue (oldest unread first, top 10)
+            // Single query: fetch 10 unread + count in one pass
             $notifs = \App\Models\Notification::where('isRead', false)
+                ->where($scopeQuery)
                 ->orderBy('created_at', 'asc')
                 ->limit(10)
                 ->get();
-            $unread = \App\Models\Notification::where('isRead', false)->count();
+            // Avoid second COUNT query: if we got fewer than 10, that IS the total
+            $unread = count($notifs) < 10
+                ? count($notifs)
+                : \App\Models\Notification::where('isRead', false)->where($scopeQuery)->count();
 
             return response()->json([
                 'notifications' => $notifs,
@@ -1063,16 +1143,33 @@ class ApiGatewayController extends Controller
 
     public function notificationMarkRead($id)
     {
+        $user = $this->currentUser();
         $notif = \App\Models\Notification::find($id);
         if ($notif) {
-            $notif->update(['isRead' => true]);
+            // Only mark if it belongs to this user (or is a broadcast for ADMIN)
+            if ($user && ($notif->userId === $user->id || ($user->role === 'ADMIN' && $notif->userId === null))) {
+                $notif->update(['isRead' => true]);
+            }
         }
         return response()->json(['success' => true]);
     }
 
     public function notificationsRead(Request $request)
     {
-        \App\Models\Notification::where('isRead', false)->update(['isRead' => true]);
+        $user = $this->currentUser();
+        if (!$user) return response()->json(['success' => false], 401);
+
+        // Scope: only mark user's own notifications as read
+        $query = \App\Models\Notification::where('isRead', false);
+        if ($user->role === 'ADMIN') {
+            $query->where(function($q) use ($user) {
+                $q->whereNull('userId')->orWhere('userId', $user->id);
+            });
+        } else {
+            $query->where('userId', $user->id);
+        }
+        $query->update(['isRead' => true]);
+
         return response()->json(['success' => true]);
     }
 
@@ -1087,8 +1184,25 @@ class ApiGatewayController extends Controller
     public function uploadMedia(Request $request)
     {
         if ($request->hasFile('file')) {
-            $url = $this->imageService->optimize($request->file('file'), 'uploads/media', 'MEDIA', 1200);
-            return response()->json(['url' => $url]);
+            $file = $request->file('file');
+            
+            // Check if file upload was successful at the PHP level
+            if (!$file->isValid()) {
+                return response()->json([
+                    'error' => 'File tidak valid atau terlalu besar (melebihi limit server).'
+                ], 422);
+            }
+            
+            if ($file->getSize() > 8 * 1024 * 1024) {
+                return response()->json(['error' => 'Ukuran file event maksimal adalah 8MB.'], 422);
+            }
+
+            try {
+                $url = $this->imageService->optimize($file, 'uploads/media', 'MEDIA', 1200);
+                return response()->json(['url' => $url]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Gagal memproses gambar: ' . $e->getMessage()], 500);
+            }
         }
         return response()->json(['error' => 'No file uploaded'], 400);
     }
@@ -1105,12 +1219,18 @@ class ApiGatewayController extends Controller
 
         // --- 🖼️ HANDAL UPLOAD LOGO & BG ---
         if ($request->hasFile('logo')) {
-            $data['logo_url'] = $this->imageService->optimize($request->file('logo'), 'uploads/settings', 'LOGO', 800);
+            $file = $request->file('logo');
+            if (!$file->isValid()) return response()->json(['error' => 'Server menolak file logo.'], 422);
+            if ($file->getSize() > 8 * 1024 * 1024) return response()->json(['error' => 'Ukuran logo max 8MB.'], 422);
+            $data['logo_url'] = $this->imageService->optimize($file, 'uploads/settings', 'LOGO', 800);
             unset($data['logo']);
         }
 
         if ($request->hasFile('bg')) {
-            $data['bg_url'] = $this->imageService->optimize($request->file('bg'), 'uploads/settings', 'BG', 1600);
+            $file = $request->file('bg');
+            if (!$file->isValid()) return response()->json(['error' => 'Server menolak file background.'], 422);
+            if ($file->getSize() > 8 * 1024 * 1024) return response()->json(['error' => 'Ukuran background max 8MB.'], 422);
+            $data['bg_url'] = $this->imageService->optimize($file, 'uploads/settings', 'BG', 1600);
             unset($data['bg']);
         }
 
@@ -1592,14 +1712,12 @@ class ApiGatewayController extends Controller
         if ($startDate) $query->where('created_at', '>=', $startDate . ' 00:00:00');
         if ($endDate) $query->where('created_at', '<=', $endDate . ' 23:59:59');
 
-        $logs = $query->get();
-
         if ($format === 'txt') {
             $content = "LAPORAN AKTIVITAS PENGGUNA - SIGAP (DETAILED)\n";
             $content .= "Periode: " . ($startDate ?: 'Awal') . " s/d " . ($endDate ?: 'Sekarang') . "\n";
             $content .= str_repeat("=", 100) . "\n\n";
 
-            foreach ($logs as $log) {
+            foreach ($query->cursor() as $log) {
                 $time = $log->created_at->format('Y-m-d H:i:s');
                 $actor = $log->user ? ($log->user->fullName . " (" . $log->user->username . ") [" . $log->user->role . "]") : 'Sistem / Guest';
                 $content .= "[$time] $actor\n";
@@ -1615,7 +1733,7 @@ class ApiGatewayController extends Controller
                 ->header('Content-Disposition', 'attachment; filename="Activity_FullLog_'.date('Ymd').'.txt"');
         }
 
-        // CSV Format (Optimized for Excel)
+        // CSV Format (Optimized for Excel — streamed with cursor)
         $headers = [
             "Content-type"        => "text/csv; charset=utf-8",
             "Content-Disposition" => "attachment; filename=Rekap_Aktivitas_SIGAP_".date('Ymd').".csv",
@@ -1638,7 +1756,7 @@ class ApiGatewayController extends Controller
             'Browser/Perangkat'
         ];
 
-        $callback = function() use($logs, $columns) {
+        $callback = function() use($query, $columns) {
             $file = fopen('php://output', 'w');
             
             // Add BOM for Excel UTF-8 support
@@ -1646,7 +1764,8 @@ class ApiGatewayController extends Controller
             
             fputcsv($file, $columns, ';');
 
-            foreach ($logs as $index => $log) {
+            $index = 0;
+            foreach ($query->cursor() as $log) {
                 $row = [
                     'No'              => $index + 1,
                     'Waktu'           => $log->created_at->format('Y-m-d H:i:s'),
@@ -1662,6 +1781,7 @@ class ApiGatewayController extends Controller
                 ];
 
                 fputcsv($file, array_values($row), ';');
+                $index++;
             }
 
             fclose($file);

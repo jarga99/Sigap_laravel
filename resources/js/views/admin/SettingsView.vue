@@ -2,7 +2,19 @@
 import { ref, onMounted, reactive } from 'vue'
 import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
+import SIGAPSelect from '../../components/admin/SIGAPSelect.vue'
+import SIGAPDatePicker from '../../components/admin/SIGAPDatePicker.vue'
 import { downloadFile } from '../../lib/download'
+
+const footerModeOptions = [
+    { id: 'SIMPLE', name: 'Sederhana' },
+    { id: 'COMPLEX', name: 'Lengkap' }
+]
+
+const linkTypeOptions = [
+    { id: 'TEXT', name: 'Hanya Teks' },
+    { id: 'IMAGE', name: 'Ikon Brand' }
+]
 
 const settings = ref<any>({
     instansi_name: '',
@@ -279,7 +291,7 @@ const resetSystem = async () => {
        <!-- ROW 1: Branding & Identity -->
        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
           <!-- CARD 01: Visual & Branding -->
-          <div class="bg-white p-10 rounded-[3rem] border-2 border-white shadow-xl shadow-slate-200/50 space-y-8">
+          <div class="bg-white p-10 rounded-[3rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 space-y-8">
              <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg border border-blue-50 shadow-inner">01</div>
                 <div>
@@ -333,7 +345,7 @@ const resetSystem = async () => {
           </div>
 
           <!-- CARD 02: Agency Info -->
-          <div class="bg-blue-50/30 p-10 rounded-[3rem] border-2 border-white shadow-xl shadow-slate-200/50 space-y-8">
+          <div class="bg-white p-10 rounded-[3rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 space-y-8">
              <div class="flex items-center gap-4">
                 <div class="w-12 h-12 bg-white text-blue-600 rounded-2xl flex items-center justify-center font-black text-lg border border-blue-50 shadow-inner">02</div>
                 <div>
@@ -362,7 +374,7 @@ const resetSystem = async () => {
        <!-- ROW 2: Maintenance & Links -->
        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <!-- CARD 03: Maintenance -->
-          <div class="lg:col-span-2 bg-white p-10 rounded-[3rem] border-2 border-white shadow-xl shadow-slate-200/50 space-y-8">
+          <div class="lg:col-span-2 bg-white p-10 rounded-[3rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 space-y-8">
              <div class="flex items-center justify-between border-b border-slate-50 pb-6">
                 <div class="flex items-center gap-4">
                    <div class="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center font-black text-lg border border-white shadow-inner">03</div>
@@ -385,13 +397,10 @@ const resetSystem = async () => {
              <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <!-- Footer Config -->
                 <div class="space-y-6">
-                   <div class="space-y-2">
-                      <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mode Footer</label>
-                      <select v-model="settings.footer_mode" class="w-full bg-[#f4f8ff] rounded-2xl p-4 font-bold text-sm outline-none">
-                         <option value="SIMPLE">Sederhana</option>
-                         <option value="COMPLEX">Lengkap</option>
-                      </select>
-                   </div>
+                    <div class="space-y-2">
+                       <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mode Footer</label>
+                       <SIGAPSelect v-model="settings.footer_mode" :options="footerModeOptions" />
+                    </div>
                    <div class="space-y-2">
                       <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Slogan / Tagline Portal</label>
                       <textarea v-model="settings.footer_text" rows="4" class="w-full bg-[#f4f8ff] rounded-2xl p-4 font-bold text-sm outline-none resize-none"></textarea>
@@ -404,10 +413,10 @@ const resetSystem = async () => {
                       <SIGAPIcons name="History" :size="16" class="text-blue-500" />
                       <span class="text-[10px] font-black uppercase text-slate-600 tracking-widest">Ekspor Aktivitas</span>
                    </div>
-                   <div class="grid grid-cols-2 gap-4">
-                      <input type="date" v-model="logStartDate" class="bg-white border border-slate-200 rounded-xl p-3 text-[11px] font-bold outline-none" />
-                      <input type="date" v-model="logEndDate" class="bg-white border border-slate-200 rounded-xl p-3 text-[11px] font-bold outline-none" />
-                   </div>
+                    <div class="grid grid-cols-2 gap-4">
+                       <SIGAPDatePicker v-model="logStartDate" placeholder="Tanggal Mulai" />
+                       <SIGAPDatePicker v-model="logEndDate" placeholder="Tanggal Selesai" />
+                    </div>
                    <div class="grid grid-cols-2 gap-3 pt-2">
                       <button @click="downloadLogs('csv')" class="py-3.5 bg-white border border-slate-200 text-blue-600 rounded-xl font-black text-[9px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 transition-all">
                          <SIGAPIcons name="FileSpreadsheet" :size="14" />
@@ -427,7 +436,7 @@ const resetSystem = async () => {
           </div>
 
           <!-- CARD 04: Footer Links -->
-          <div class="lg:col-span-1 bg-blue-50/20 p-8 rounded-[3rem] border-2 border-white shadow-xl shadow-slate-200/50 flex flex-col h-full">
+          <div class="lg:col-span-1 bg-white p-8 rounded-[3rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 flex flex-col h-full">
              <div class="flex items-center justify-between mb-8 border-b border-blue-50 pb-6">
                 <div class="flex items-center gap-3">
                    <div class="w-10 h-10 bg-white text-blue-600 rounded-xl flex items-center justify-center font-black text-md border border-blue-50">04</div>
@@ -486,10 +495,7 @@ const resetSystem = async () => {
                       </div>
                       <div class="space-y-2">
                           <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipe Tautan</label>
-                          <select v-model="linkForm.type" class="w-full bg-[#f4f8ff] rounded-2xl p-4 text-sm font-bold border-2 border-transparent outline-none">
-                              <option value="TEXT">Hanya Teks</option>
-                              <option value="IMAGE">Ikon Brand</option>
-                          </select>
+                          <SIGAPSelect v-model="linkForm.type" :options="linkTypeOptions" />
                       </div>
                   </div>
 

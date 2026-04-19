@@ -3,13 +3,20 @@ import { ref, onMounted, computed } from 'vue'
 import { downloadFile } from '@/lib/download'
 import api from '@/lib/axios' 
 import SIGAPIcons from '@/components/SIGAPIcons.vue'
+import SIGAPSelect from '@/components/admin/SIGAPSelect.vue'
 
 // State
 const filterMonth = ref('all')
 const filterYear = ref(new Date().getFullYear().toString())
+
+const monthOptions = [
+  { id: 'all', name: 'Semua Bulan' },
+  ...['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => ({ id: (i+1).toString(), name: m }))
+]
+
 const yearsList = computed(() => {
   const current = new Date().getFullYear();
-  return [current - 2, current - 1, current, current + 1];
+  return [current - 2, current - 1, current, current + 1].map(y => ({ id: y.toString(), name: y.toString() }));
 })
 
 const stats = ref({
@@ -98,7 +105,7 @@ onMounted(() => {
         'Kategori': { v: stats.totalCategories, i: 'Layers', c: 'text-indigo-500', bg: 'bg-indigo-50' },
         'Total Klik': { v: stats.totalClicks, i: 'MousePointer2', c: 'text-emerald-500', bg: 'bg-emerald-50' },
         'Engagement': { v: stats.totalEngagement + '%', i: 'Sparkles', c: 'text-violet-500', bg: 'bg-violet-50' }
-      }" :key="key" class="bg-white p-6 rounded-[2rem] border-2 border-white shadow-xl shadow-slate-200/50 flex items-center gap-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden">
+      }" :key="key" class="bg-white p-6 rounded-[2rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 flex items-center gap-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden">
         <div class="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform"></div>
         <div :class="[val.bg, val.c]" class="w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-6 shadow-sm border border-white/50 shrink-0">
           <SIGAPIcons :name="val.i" :size="28" />
@@ -111,7 +118,7 @@ onMounted(() => {
     </div>
 
     <!-- Charts Section -->
-    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-white relative overflow-hidden">
+    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-blue-50 relative overflow-hidden">
       <div class="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full -mr-32 -mt-32 opacity-20"></div>
       
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 relative z-10">
@@ -119,14 +126,9 @@ onMounted(() => {
           <h3 class="font-black text-xl text-slate-800">Visualisasi Aktivitas Tautan</h3>
           <p class="text-sm text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Berdasarkan jumlah klik per periode.</p>
         </div>
-        <div class="flex gap-3 w-full md:w-auto">
-          <select v-model="filterMonth" @change="fetchData" class="flex-1 md:flex-none text-xs font-black border-2 border-slate-100 rounded-2xl px-5 py-3 bg-slate-50 text-slate-600 outline-none focus:border-blue-300 transition-all cursor-pointer">
-            <option value="all">Semua Bulan</option>
-            <option v-for="(m, i) in ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']" :key="m" :value="i+1">{{ m }}</option>
-          </select>
-          <select v-model="filterYear" @change="fetchData" class="flex-1 md:flex-none text-xs font-black border-2 border-slate-100 rounded-2xl px-5 py-3 bg-slate-50 text-slate-600 outline-none focus:border-blue-300 transition-all cursor-pointer">
-            <option v-for="y in yearsList" :key="y" :value="y.toString()">{{ y }}</option>
-          </select>
+        <div class="flex gap-3 w-full md:w-auto md:min-w-[400px]">
+          <SIGAPSelect v-model="filterMonth" :options="monthOptions" placeholder="Pilih Bulan" @update:modelValue="fetchData" />
+          <SIGAPSelect v-model="filterYear" :options="yearsList" placeholder="Pilih Tahun" @update:modelValue="fetchData" />
         </div>
       </div>
 
@@ -183,7 +185,7 @@ onMounted(() => {
     </div>
 
     <!-- New Section: Top 10 Visual Chart (Monthly) -->
-    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-white relative overflow-hidden">
+    <div class="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-blue-50 relative overflow-hidden">
       <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 opacity-20"></div>
       
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 relative z-10">

@@ -167,12 +167,15 @@ flowchart TD
     E1 --> E2[✏️ Event Editor\nTheme, Font, Link]
     E2 --> E3[👁️ Preview Event\nLink Publik]
     E_DASH --> E4[🔗 Manajemen Link\nEdit Link Departemen]
-    E_DASH --> E5[💬 Kotak Saran\nBaca Saja]
+    E_DASH --> E5[💬 Kirim Saran\nForm Feedback]
+    E_DASH --> E6[🔔 Notifikasi\nBalasan Feedback]
 
     %% ============ EMPLOYEE ============
     R1 -- EMPLOYEE --> P_DASH[📊 Dashboard\nStatistik Departemen]
     P_DASH --> P1[🔗 Lihat Tautan\nSesuai Kategori]
     P_DASH --> P2[💬 Kirim Saran\nForm Feedback Anonim]
+    P_DASH --> P3[🎪 Manajemen Event\nCRUD Milik Sendiri]
+    P_DASH --> P4[🔔 Notifikasi\nBalasan Feedback]
 
     %% ============ PORTAL PUBLIK ============
     PORTAL --> PUB[👁️ Akses Portal\nTautan INTERNAL]
@@ -211,9 +214,16 @@ flowchart TD
 | Membuat Role ADMIN via Import | ❌ | ❌ | ❌ |
 
 > ℹ️ **Catatan Visibilitas Event di Panel Admin:**
-> - 👑 **Admin**: Melihat **semua** event dari semua pengguna.
-> - 🎭 **Admin Event**: Melihat event milik sendiri + event dari pengguna **satu kategori / departemen** yang sama. Tidak dapat melihat event pegawai dari departemen lain.
-> - 💼 **Pegawai**: Melihat event milik sendiri + event dari pengguna **satu kategori** + semua event yang dibuat oleh **Admin Event** (event siaran / broadcast untuk seluruh pegawai).
+> - 👑 **Admin**: Melihat **semua** event dari semua pengguna. Dapat mengedit/menghapus event siapapun.
+> - 🎭 **Admin Event**: Melihat event milik sendiri + event dari pengguna **satu kategori / departemen** yang sama. Hanya dapat mengedit/menghapus event **milik sendiri**.
+> - 💼 **Pegawai**: Melihat event milik sendiri + event dari pengguna **satu kategori** + semua event yang dibuat oleh **Admin Event** (event siaran / broadcast). Hanya dapat mengedit/menghapus event **milik sendiri**.
+
+> 🔔 **Catatan Notifikasi:**
+> - 👑 **Admin**: Menerima notifikasi **broadcast** (seperti laporan feedback baru masuk) + notifikasi personal.
+> - 🎭 **Admin Event** & 💼 **Pegawai**: Menerima notifikasi **personal saja** (misalnya: balasan atas laporan yang mereka kirim).
+
+> 🚫 **Catatan Feedback:**
+> - 👑 **Admin** adalah **penerima** laporan, sehingga **tidak diizinkan** mengirim feedback untuk menjaga pemisahan tanggung jawab.
 
 ---
 

@@ -2,7 +2,21 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../lib/axios'
 import SIGAPIcons from '../../components/SIGAPIcons.vue'
+import SIGAPSelect from '../../components/admin/SIGAPSelect.vue'
 import { downloadFile } from '../../lib/download'
+
+const roleOptions = [
+    { id: 'EMPLOYEE', name: 'Pegawai (Default)' },
+    { id: 'ADMIN_EVENT', name: 'Admin Event / Portofolio' },
+    { id: 'ADMIN', name: 'Administrator' }
+]
+
+const categoryOptions = computed(() => [
+    { id: '', name: '-- Pilih Unit Kerja --' },
+    ...categories.value.map(c => ({ id: c.id, name: c.name }))
+])
+
+const pageSizeList = computed(() => pageSizeOptions.map(opt => ({ id: opt, name: opt.toString() })))
 
 // State Data
 const users = ref<any[]>([])
@@ -181,7 +195,7 @@ const downloadTemplate = async () => {
     </div>
 
     <!-- User Table Container -->
-    <div class="bg-white rounded-[2.5rem] border-2 border-white shadow-xl shadow-slate-200/50 overflow-hidden relative z-10">
+    <div class="bg-white rounded-[2.5rem] border-2 border-blue-50 shadow-xl shadow-slate-200/50 overflow-hidden relative z-10">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -244,10 +258,10 @@ const downloadTemplate = async () => {
       <!-- Table Footer / Pagination -->
       <div class="px-8 py-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-6">
          <div class="flex items-center gap-4">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Baris:</span>
-            <select v-model="pageSize" class="bg-white border-2 border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black outline-none shadow-sm cursor-pointer">
-               <option v-for="opt in pageSizeOptions" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Baris:</span>
+            <div class="w-24">
+              <SIGAPSelect v-model="pageSize" :options="pageSizeList" />
+            </div>
          </div>
          <div class="flex items-center gap-4">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hal {{ currentPage }} / {{ totalPages }}</span>
@@ -296,21 +310,19 @@ const downloadTemplate = async () => {
 
                 <div class="space-y-1.5">
                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Hak Akses / Role</label>
-                   <select v-model="form.role" required class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold outline-none">
-                      <option value="EMPLOYEE">Pegawai (Default)</option>
-                      <option value="ADMIN_EVENT">Admin Event / Portofolio</option>
-                   </select>
+                   <SIGAPSelect v-model="form.role" :options="roleOptions" />
                 </div>
 
                 <div class="space-y-1.5" :class="{ 'opacity-50': form.role === 'ADMIN_EVENT' }">
-                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                   <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex justify-between gap-2">
                       <span>Kategori (Unit Kerja)</span>
-                      <span v-if="form.role === 'ADMIN_EVENT'" class="text-[9px] text-blue-500 normal-case font-bold tracking-normal italic">Terkunci untuk Admin Event</span>
+                      <span v-if="form.role === 'ADMIN_EVENT'" class="text-[9px] text-blue-500 normal-case font-bold tracking-normal italic shrink-0">Terkunci untuk Admin Event</span>
                    </label>
-                   <select v-model="form.category_id" :required="form.role !== 'ADMIN_EVENT'" :disabled="form.role === 'ADMIN_EVENT'" class="w-full bg-[#f4f8ff] border-none rounded-2xl p-4 text-sm font-bold outline-none disabled:cursor-not-allowed">
-                      <option value="" disabled>-- Pilih Unit Kerja --</option>
-                      <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                   </select>
+                   <SIGAPSelect 
+                      v-model="form.category_id" 
+                      :options="categoryOptions" 
+                      :disabled="form.role === 'ADMIN_EVENT'" 
+                   />
                 </div>
 
                 <div class="flex gap-3 pt-4">

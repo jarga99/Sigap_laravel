@@ -487,9 +487,12 @@ const formatText = (text: string, transformType: string) => {
                    <div v-else class="space-y-4">
                       <div class="relative h-28 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] flex flex-col items-center justify-center overflow-hidden hover:border-blue-200 transition-all group" @click="$refs.bgInput.click()">
                          <img v-if="event.bgValue && event.bgValue.startsWith('http')" :src="event.bgValue" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform" />
-                         <div class="relative z-10 flex flex-col items-center gap-2">
+                         <div class="relative z-10 flex flex-col items-center gap-1.5">
                             <SIGAPIcons name="Image" :size="24" class="text-slate-300 group-hover:text-blue-400 transition-colors" />
-                            <span class="text-[9px] lg:text-[11px] font-black text-slate-400 uppercase tracking-widest">Pilih Gambar</span>
+                            <div class="flex flex-col items-center gap-0.5">
+                                <span class="text-[9px] lg:text-[11px] font-black text-slate-400 uppercase tracking-widest">Pilih Gambar</span>
+                                <span class="text-[8px] font-bold text-slate-400/70 uppercase">Maks 8 MB</span>
+                            </div>
                          </div>
                          <input type="file" ref="bgInput" @change="handleFileUpload($event, 'background')" hidden accept="image/*" />
                       </div>
@@ -514,17 +517,20 @@ const formatText = (text: string, transformType: string) => {
           <!-- DISPLAY PANEL -->
           <div v-if="selectedPanel === 'display'" class="space-y-6 animate-fadeup">
              <div class="bg-[#f4f8ff] p-6 rounded-[2rem] border border-blue-50/50 flex flex-col items-center gap-6">
-                 <div class="relative group cursor-pointer" @click="$refs.pInput.click()">
-                    <div :class="event.profileShape === 'circle' ? 'rounded-full' : 'rounded-[2rem]'" class="w-24 h-24 bg-white shadow-2xl overflow-hidden border-4 border-white relative">
-                       <img v-if="event.profilePhoto" :src="event.profilePhoto" class="w-full h-full object-cover" />
-                       <div v-else class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
-                          <SIGAPIcons name="User" :size="32" />
+                 <div class="relative flex flex-col items-center gap-3 w-full">
+                    <div class="relative group cursor-pointer" @click="$refs.pInput.click()">
+                       <div :class="event.profileShape === 'circle' ? 'rounded-full' : 'rounded-[2rem]'" class="w-24 h-24 bg-white shadow-2xl overflow-hidden border-4 border-white relative mx-auto">
+                          <img v-if="event.profilePhoto" :src="event.profilePhoto" class="w-full h-full object-cover" />
+                          <div v-else class="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
+                             <SIGAPIcons name="User" :size="32" />
+                          </div>
+                          <div class="absolute inset-x-0 bottom-0 bg-black/40 text-white h-7 flex items-center justify-center transition-all">
+                             <SIGAPIcons name="Upload" :size="20" />
+                          </div>
                        </div>
-                       <div class="absolute inset-x-0 bottom-0 bg-black/40 text-white h-7 flex items-center justify-center transition-all">
-                          <SIGAPIcons name="Upload" :size="20" />
-                       </div>
+                       <input type="file" ref="pInput" @change="handleFileUpload($event, 'profile')" hidden accept="image/*" />
                     </div>
-                    <input type="file" ref="pInput" @change="handleFileUpload($event, 'profile')" hidden accept="image/*" />
+                    <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-full">Maks 8 MB</span>
                  </div>
                  <div class="w-full grid grid-cols-2 gap-3">
                     <button @click="event.profileShape = 'circle'" :class="event.profileShape === 'circle' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border-slate-100'" class="py-2.5 rounded-xl text-[9px] font-black uppercase border transition-all">Bulat</button>
@@ -567,12 +573,16 @@ const formatText = (text: string, transformType: string) => {
              <div class="bg-[#f4f8ff] p-6 rounded-[2rem] border border-blue-50/50 space-y-4">
                 <div class="flex justify-between items-center">
                    <label class="text-[9px] lg:text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Gambar Sampul</label>
-                   <span class="text-[9px] font-bold text-slate-400 uppercase">{{ event.coverHeight }}px</span>
+                   <div class="flex items-center gap-2">
+                       <span class="text-[8px] font-bold text-slate-400/70 uppercase tracking-widest bg-white px-2 py-1 rounded">Maks 8 MB</span>
+                       <span class="text-[9px] font-bold text-slate-400 uppercase">{{ event.coverHeight }}px</span>
+                   </div>
                 </div>
                 <div class="relative h-28 bg-white rounded-2xl border border-slate-100 overflow-hidden group cursor-pointer" @click="$refs.coverInput.click()">
                    <img v-if="event.eventPhoto" :src="event.eventPhoto" class="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                   <div class="absolute inset-0 bg-black/20 flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100">
+                   <div class="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100 gap-1">
                       <SIGAPIcons name="Plus" :size="24" />
+                      <span class="text-[10px] font-black uppercase tracking-widest text-shadow drop-shadow-md">Ganti Sampul</span>
                    </div>
                    <input type="file" ref="coverInput" @change="handleFileUpload($event, 'cover')" hidden accept="image/*" />
                 </div>
